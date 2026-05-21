@@ -30,6 +30,7 @@ defmodule Reach.Evidence.MapContract do
   @accumulator_names [:acc, :cat, :count, :counts, :stats]
   @external_payload_names [:body, :json, :metadata, :params, :payload, :request, :response]
   @options_names [:config, :opts, :options]
+  @non_call_forms [:., :%, :{}, :__aliases__, :__block__, :=, :->, :def, :defp, :fn, :|>]
 
   def family, do: :map_contract
   def kinds, do: [:implicit_map_contract]
@@ -114,9 +115,15 @@ defmodule Reach.Evidence.MapContract do
 
   defp put_literal_map_binding({:=, meta, [{var, _, context}, rhs]}, bindings)
        when is_atom(var) and is_atom(context) do
-    case map_literal_keys(rhs) do
-      keys when length(keys) >= @min_keys -> Map.put(bindings, var, %{keys: keys, meta: meta})
-      _keys -> bindings
+    case {map_literal_keys(rhs), variable_name(rhs)} do
+      {keys, _alias} when length(keys) >= @min_keys ->
+        Map.put(bindings, var, %{keys: keys, meta: meta})
+
+      {_keys, {:ok, source_var}} when is_map_key(bindings, source_var) ->
+        Map.put(bindings, var, %{bindings[source_var] | meta: meta})
+
+      _other ->
+        bindings
     end
   end
 
@@ -131,11 +138,25 @@ defmodule Reach.Evidence.MapContract do
 
   defp put_return_value_binding({:=, meta, [{var, _, context}, rhs]}, bindings, return_shapes)
        when is_atom(var) and is_atom(context) do
-    with {:ok, producer} <- local_call(rhs),
-         %{keys: keys} <- Map.get(return_shapes, producer) do
-      Map.put(bindings, var, %{keys: keys, meta: meta, producer: producer})
-    else
-      _other -> bindings
+    cond do
+      match?({:ok, _producer}, local_call(rhs)) ->
+        with {:ok, producer} <- local_call(rhs),
+             %{keys: keys} <- Map.get(return_shapes, producer) do
+          Map.put(bindings, var, %{keys: keys, meta: meta, producer: producer})
+        else
+          _other -> bindings
+        end
+
+      match?({:ok, _source_var}, variable_name(rhs)) ->
+        with {:ok, source_var} <- variable_name(rhs),
+             true <- Map.has_key?(bindings, source_var) do
+          Map.put(bindings, var, %{bindings[source_var] | meta: meta})
+        else
+          _other -> bindings
+        end
+
+      true ->
+        bindings
     end
   end
 
@@ -145,6 +166,9 @@ defmodule Reach.Evidence.MapContract do
     do: {:ok, {name, length(args)}}
 
   defp local_call(_node), do: :error
+
+  defp variable_name({var, _meta, context}) when is_atom(var) and is_atom(context), do: {:ok, var}
+  defp variable_name(_node), do: :error
 
   defp map_literal_keys({:%{}, _meta, fields}) do
     fields
@@ -174,7 +198,17 @@ defmodule Reach.Evidence.MapContract do
   defp build_contract(variable, binding, observations, source) do
     reads = Enum.filter(observations, &(&1.kind == :read))
     updates = Enum.filter(observations, &(&1.kind == :update))
-    observed_keys = observations |> Enum.map(& &1.key) |> Enum.uniq() |> Enum.sort()
+    escapes = Enum.filter(observations, &(&1.kind == :escape))
+
+    observed_keys =
+      observations
+      |> Enum.flat_map(fn
+        %{key: nil} -> []
+        %{key: key} -> [key]
+      end)
+      |> Enum.uniq()
+      |> Enum.sort()
+
     unused_keys = binding.keys -- observed_keys
     key_coverage = length(observed_keys) / max(length(binding.keys), 1)
     role = classify_role(variable, source)
@@ -196,7 +230,7 @@ defmodule Reach.Evidence.MapContract do
           unused_keys: unused_keys,
           read_count: length(reads),
           mutation_count: length(updates),
-          escaped?: false
+          escaped?: escapes != []
         }
       ]
     else
@@ -214,16 +248,53 @@ defmodule Reach.Evidence.MapContract do
         record_known_key_observation(observations, variable, bindings[variable], key, kind, meta)
 
       _other ->
-        observations
+        record_escape_observation(node, bindings, observations)
     end
   end
 
   defp record_known_key_observation(observations, variable, binding, key, kind, meta) do
     if key in binding.keys do
-      observation = %{key: key, kind: kind, meta: meta}
-      Map.update(observations, variable, [observation], &[observation | &1])
+      record_observation_for_variable(observations, variable, %{key: key, kind: kind, meta: meta})
     else
       observations
+    end
+  end
+
+  defp record_escape_observation(node, bindings, observations) do
+    case call_args(node) do
+      {:ok, meta, args} ->
+        args
+        |> Enum.flat_map(&escaped_variables(&1, bindings))
+        |> Enum.reduce(observations, fn variable, observations ->
+          record_observation_for_variable(observations, variable, %{
+            key: nil,
+            kind: :escape,
+            meta: meta
+          })
+        end)
+
+      :error ->
+        observations
+    end
+  end
+
+  defp record_observation_for_variable(observations, variable, observation) do
+    Map.update(observations, variable, [observation], &[observation | &1])
+  end
+
+  defp call_args({name, meta, args})
+       when is_atom(name) and is_list(args) and name not in @non_call_forms,
+       do: {:ok, meta, args}
+
+  defp call_args({{:., meta, [_target, _function]}, _call_meta, args}) when is_list(args),
+    do: {:ok, meta, args}
+
+  defp call_args(_node), do: :error
+
+  defp escaped_variables(arg, bindings) do
+    case variable_name(arg) do
+      {:ok, variable} when is_map_key(bindings, variable) -> [variable]
+      _other -> []
     end
   end
 

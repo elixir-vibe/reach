@@ -302,11 +302,15 @@ defmodule Reach.Check.Candidates do
 
   defp return_contract_candidate?(contract) do
     contract.source == :return and contract.confidence == :high and length(contract.keys) >= 4 and
-      contract.role not in @non_contract_roles
+      contract.role not in @non_contract_roles and not low_signal_escape?(contract)
   end
 
   defp all_non_contract_roles?(contracts) do
-    Enum.all?(contracts, &(&1.role in @non_contract_roles))
+    Enum.all?(contracts, &(&1.role in @non_contract_roles or low_signal_escape?(&1)))
+  end
+
+  defp low_signal_escape?(contract) do
+    contract.escaped? and contract.read_count < 2 and contract.mutation_count == 0
   end
 
   defp project_source_files(project) do

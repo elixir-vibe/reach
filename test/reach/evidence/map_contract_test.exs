@@ -98,6 +98,24 @@ defmodule Reach.Evidence.MapContractTest do
     assert Enum.find(contracts, &(&1.variable == :payload)).role == :external_payload
   end
 
+  test "tracks shallow aliases and escapes" do
+    ast =
+      Code.string_to_quoted!("""
+      def render(user) do
+        profile = %{id: user.id, name: user.name, email: user.email}
+        data = profile
+        data.id
+        data.email
+        send_profile(data)
+      end
+      """)
+
+    assert [data] = MapContract.collect_ast(ast)
+    assert data.variable == :data
+    assert data.observed_keys == [:email, :id]
+    assert data.escaped?
+  end
+
   test "ignores map literals without later flow evidence" do
     ast =
       Code.string_to_quoted!("""

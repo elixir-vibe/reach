@@ -46,6 +46,33 @@ defmodule Reach.Check.CandidatesTest do
     File.rm_rf(dir)
   end
 
+  test "does not promote low-signal escaped maps as struct candidates" do
+    dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "payloads.ex")
+
+    File.write!(path, """
+    defmodule Payloads do
+      def build(user) do
+        %{id: user.id, name: user.name, email: user.email, role: user.role}
+      end
+
+      def send(user) do
+        payload = build(user)
+        payload.id
+        HTTP.post(payload)
+      end
+    end
+    """)
+
+    project = Reach.Project.from_sources([path], plugins: [])
+    result = Candidates.run(project, [], top: 10)
+
+    refute Enum.any?(result.candidates, &(&1.kind == :introduce_struct_contract))
+
+    File.rm_rf(dir)
+  end
+
   test "does not promote template assigns maps as struct candidates" do
     dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
