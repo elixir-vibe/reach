@@ -3,6 +3,11 @@ defmodule Reach.Evidence.MapContractTest do
 
   alias Reach.Evidence.MapContract
 
+  test "exposes evidence metadata" do
+    assert MapContract.family() == :map_contract
+    assert MapContract.kinds() == [:implicit_map_contract]
+  end
+
   test "collects map contracts with creation and later key flow evidence" do
     ast =
       Code.string_to_quoted!("""

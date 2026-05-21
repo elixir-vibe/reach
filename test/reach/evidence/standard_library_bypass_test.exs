@@ -3,6 +3,11 @@ defmodule Reach.Evidence.StandardLibraryBypassTest do
 
   alias Reach.Evidence.StandardLibraryBypass
 
+  test "exposes evidence metadata" do
+    assert StandardLibraryBypass.family() == :standard_library_bypass
+    assert :manual_frequencies in StandardLibraryBypass.kinds()
+  end
+
   test "collects manual path basename evidence" do
     ast = Code.string_to_quoted!("path |> String.split(\"/\") |> List.last()")
 
@@ -49,6 +54,42 @@ defmodule Reach.Evidence.StandardLibraryBypassTest do
 
     assert [%{kind: :manual_map_update, replacement: "Map.update/4"}] =
              StandardLibraryBypass.collect_ast(ast)
+  end
+
+  test "collects reduce based frequencies evidence" do
+    ast =
+      Code.string_to_quoted!("""
+      Enum.reduce(items, %{}, fn item, acc ->
+        Map.update(acc, item, 1, &(&1 + 1))
+      end)
+      """)
+
+    assert [%{kind: :manual_frequencies, replacement: "Enum.frequencies/1"}] =
+             StandardLibraryBypass.collect_ast(ast)
+  end
+
+  test "collects reduce based frequencies_by evidence" do
+    ast =
+      Code.string_to_quoted!("""
+      Enum.reduce(users, %{}, fn user, acc ->
+        count = Map.get(acc, user.role, 0)
+        Map.put(acc, user.role, count + 1)
+      end)
+      """)
+
+    assert [%{kind: :manual_frequencies_by, replacement: "Enum.frequencies_by/2"}] =
+             StandardLibraryBypass.collect_ast(ast)
+  end
+
+  test "does not flag reduce when callback has extra payload logic" do
+    ast =
+      Code.string_to_quoted!("""
+      Enum.reduce(items, %{}, fn item, acc ->
+        Map.update(acc, item, [item], &[item | &1])
+      end)
+      """)
+
+    assert [] = StandardLibraryBypass.collect_ast(ast)
   end
 
   test "does not flag unrelated Map.put branches" do

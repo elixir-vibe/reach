@@ -9,6 +9,22 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   @path_names ~w(path filepath file_path filename file dir directory source dest destination)a
   @uri_names ~w(url uri href endpoint query query_string qs)a
 
+  def family, do: :standard_library_bypass
+
+  def kinds do
+    [
+      :manual_path_basename,
+      :manual_path_extension,
+      :manual_query_parsing,
+      :manual_uri_path_split,
+      :manual_uri_scheme_split,
+      :manual_flat_map,
+      :manual_map_update,
+      :manual_frequencies,
+      :manual_frequencies_by
+    ]
+  end
+
   def collect_ast(ast) do
     {_ast, evidence} =
       Macro.prewalk(ast, [], fn node, acc ->
@@ -77,8 +93,8 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   end
 
   defp collect_direct(node, acc) do
-    case {split_call(node), map_update_shape(node)} do
-      {{:string_split, subject, "&", meta}, _map_update} ->
+    case {split_call(node), map_update_shape(node), frequencies_shape(node)} do
+      {{:string_split, subject, "&", meta}, _map_update, _frequencies} ->
         maybe_evidence(
           acc,
           uri_subject?(subject),
@@ -89,7 +105,7 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           :medium
         )
 
-      {{:string_split, subject, "://", meta}, _map_update} ->
+      {{:string_split, subject, "://", meta}, _map_update, _frequencies} ->
         maybe_evidence(
           acc,
           uri_subject?(subject),
@@ -100,13 +116,24 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           :medium
         )
 
-      {_split_call, {:ok, meta}} ->
+      {_split_call, {:ok, meta}, _frequencies} ->
         maybe_evidence(
           acc,
           true,
           :manual_map_update,
           "Map.get plus paired Map.put branches reimplements Map.update/4",
           "Map.update/4",
+          meta,
+          :high
+        )
+
+      {_split_call, _map_update, {:ok, kind, replacement, meta}} ->
+        maybe_evidence(
+          acc,
+          true,
+          kind,
+          "Enum.reduce builds a count map; use #{replacement}",
+          replacement,
           meta,
           :high
         )
@@ -224,6 +251,90 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   defp map_put_call?(_node, _expected_map, _expected_key), do: false
 
   defp same_ast?(left, right), do: Macro.to_string(left) == Macro.to_string(right)
+
+  defp frequencies_shape(node) do
+    with {:ok, meta, item, acc, body} <- reduce_empty_map_callback(node),
+         {:ok, key} <- count_map_body(body, acc) do
+      replacement =
+        if same_ast?(key, item), do: "Enum.frequencies/1", else: "Enum.frequencies_by/2"
+
+      kind =
+        if replacement == "Enum.frequencies/1",
+          do: :manual_frequencies,
+          else: :manual_frequencies_by
+
+      {:ok, kind, replacement, meta}
+    else
+      _other -> :error
+    end
+  end
+
+  defp reduce_empty_map_callback(
+         {{:., meta, [{:__aliases__, _, [:Enum]}, :reduce]}, _call_meta,
+          [_enumerable, {:%{}, _, []}, {:fn, _, [{:->, _, [[item, acc], body]}]}]}
+       ),
+       do: {:ok, meta, item, acc, body}
+
+  defp reduce_empty_map_callback(
+         {:|>, _pipe_meta,
+          [
+            _enumerable,
+            {{:., meta, [{:__aliases__, _, [:Enum]}, :reduce]}, _call_meta,
+             [{:%{}, _, []}, {:fn, _, [{:->, _, [[item, acc], body]}]}]}
+          ]}
+       ),
+       do: {:ok, meta, item, acc, body}
+
+  defp reduce_empty_map_callback(_node), do: :error
+
+  defp count_map_body(
+         {{:., _, [{:__aliases__, _, [:Map]}, :update]}, _, [acc, key, 1, increment_fun]},
+         expected_acc
+       ) do
+    if same_ast?(acc, expected_acc) and increment_by_one_fun?(increment_fun),
+      do: {:ok, key},
+      else: :error
+  end
+
+  defp count_map_body({:__block__, _, [assignment, put_call]}, expected_acc) do
+    with {:ok, count_var, key} <- count_assignment(assignment, expected_acc),
+         true <- count_put_call?(put_call, expected_acc, key, count_var) do
+      {:ok, key}
+    else
+      _other -> :error
+    end
+  end
+
+  defp count_map_body(_body, _expected_acc), do: :error
+
+  defp count_assignment(
+         {:=, _, [count_var, {{:., _, [{:__aliases__, _, [:Map]}, :get]}, _, [acc, key, 0]}]},
+         expected_acc
+       ) do
+    if same_ast?(acc, expected_acc), do: {:ok, count_var, key}, else: :error
+  end
+
+  defp count_assignment(_node, _expected_acc), do: :error
+
+  defp count_put_call?(
+         {{:., _, [{:__aliases__, _, [:Map]}, :put]}, _, [acc, key, increment]},
+         expected_acc,
+         expected_key,
+         count_var
+       ) do
+    same_ast?(acc, expected_acc) and same_ast?(key, expected_key) and
+      increment_by_one?(increment, count_var)
+  end
+
+  defp count_put_call?(_node, _expected_acc, _expected_key, _count_var), do: false
+
+  defp increment_by_one_fun?({:&, _, [{:+, _, [{:&, _, [1]}, 1]}]}), do: true
+  defp increment_by_one_fun?({:&, _, [{:+, _, [1, {:&, _, [1]}]}]}), do: true
+  defp increment_by_one_fun?(_node), do: false
+
+  defp increment_by_one?({:+, _, [var, 1]}, expected_var), do: same_ast?(var, expected_var)
+  defp increment_by_one?({:+, _, [1, var]}, expected_var), do: same_ast?(var, expected_var)
+  defp increment_by_one?(_node, _expected_var), do: false
 
   defp path_subject?(subject), do: subject_name(subject) in @path_names
   defp uri_subject?(subject), do: subject_name(subject) in @uri_names

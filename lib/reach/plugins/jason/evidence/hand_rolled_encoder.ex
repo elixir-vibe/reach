@@ -9,6 +9,16 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   @json_sanitizer_names [:json_safe, :normalize_json, :json_key, :json_safe_key]
   @json_encoder_names [:encode_json, :do_encode, :encode_scalar, :indent_json, :indent_lines]
 
+  def family, do: :jason
+
+  def kinds do
+    [
+      :hand_rolled_json_sanitizer,
+      :hand_rolled_json_encoder,
+      :manual_jason_encoder_map
+    ]
+  end
+
   def collect_ast(ast) do
     {_ast, evidence} =
       Macro.prewalk(ast, [], fn node, acc ->

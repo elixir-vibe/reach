@@ -7,17 +7,7 @@ defmodule Reach.Smell.Checks.StandardLibraryBypass do
   alias Reach.Smell.Finding
 
   @impl true
-  def kinds do
-    [
-      :manual_path_basename,
-      :manual_path_extension,
-      :manual_query_parsing,
-      :manual_uri_path_split,
-      :manual_uri_scheme_split,
-      :manual_flat_map,
-      :manual_map_update
-    ]
-  end
+  def kinds, do: StandardLibraryBypass.kinds()
 
   defp scan_ast(ast, file) do
     ast

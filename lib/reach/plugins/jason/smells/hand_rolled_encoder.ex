@@ -7,13 +7,7 @@ defmodule Reach.Plugins.Jason.Smells.HandRolledEncoder do
   alias Reach.Smell.Finding
 
   @impl true
-  def kinds do
-    [
-      :hand_rolled_json_sanitizer,
-      :hand_rolled_json_encoder,
-      :manual_jason_encoder_map
-    ]
-  end
+  def kinds, do: HandRolledEncoder.kinds()
 
   defp scan_ast(ast, file) do
     ast

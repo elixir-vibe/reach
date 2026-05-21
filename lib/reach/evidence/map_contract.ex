@@ -9,6 +9,9 @@ defmodule Reach.Evidence.MapContract do
   @min_keys 3
   @min_observations 2
 
+  def family, do: :map_contract
+  def kinds, do: [:implicit_map_contract]
+
   def collect_ast(ast) do
     definitions = function_definitions(ast)
     local_contracts = definitions |> Enum.map(& &1.body) |> Enum.flat_map(&contracts_in_scope/1)

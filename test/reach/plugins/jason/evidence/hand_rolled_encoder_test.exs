@@ -3,6 +3,11 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoderTest do
 
   alias Reach.Plugins.Jason.Evidence.HandRolledEncoder
 
+  test "exposes evidence metadata" do
+    assert HandRolledEncoder.family() == :jason
+    assert :hand_rolled_json_sanitizer in HandRolledEncoder.kinds()
+  end
+
   test "collects recursive json_safe evidence" do
     ast =
       Code.string_to_quoted!("""
