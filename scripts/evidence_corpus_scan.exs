@@ -99,6 +99,7 @@ defmodule Reach.EvidenceCorpusScan do
         read_count: contract.read_count,
         mutation_count: contract.mutation_count,
         escaped?: contract.escaped?,
+        escapes: contract.escapes,
         consumer: contract.consumer
       })
     end)

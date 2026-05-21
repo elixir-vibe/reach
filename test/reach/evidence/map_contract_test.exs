@@ -114,6 +114,23 @@ defmodule Reach.Evidence.MapContractTest do
     assert data.variable == :data
     assert data.observed_keys == [:email, :id]
     assert data.escaped?
+    assert [%{module: nil, function: :send_profile, arity: 1}] = data.escapes
+  end
+
+  test "records remote escape targets" do
+    ast =
+      Code.string_to_quoted!("""
+      def render(user) do
+        data = %{id: user.id, name: user.name, email: user.email}
+        data.id
+        data.email
+        Jason.encode!(data)
+      end
+      """)
+
+    assert [contract] = MapContract.collect_ast(ast)
+    assert contract.escaped?
+    assert [%{module: Jason, function: :encode!, arity: 1}] = contract.escapes
   end
 
   test "connects fixed-shape return map bindings to local callsite reads" do

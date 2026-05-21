@@ -44,4 +44,19 @@ defmodule Reach.Plugin.EvidenceRefinementTest do
 
     assert [%{role: :external_payload}] = MapContract.collect_ast(ast, plugins: [RolePlugin])
   end
+
+  test "Jason plugin classifies encoded maps as external payloads" do
+    ast =
+      Code.string_to_quoted!("""
+      def build(user) do
+        data = %{id: user.id, name: user.name, email: user.email}
+        data.id
+        data.email
+        Jason.encode!(data)
+      end
+      """)
+
+    assert [%{role: :external_payload}] =
+             MapContract.collect_ast(ast, plugins: [Reach.Plugins.Jason])
+  end
 end

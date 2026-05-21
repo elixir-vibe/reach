@@ -21,6 +21,7 @@ defmodule Reach.Evidence.MapContract do
       :read_count,
       :mutation_count,
       :escaped?,
+      :escapes,
       :consumer
     ]
   end
@@ -410,7 +411,8 @@ defmodule Reach.Evidence.MapContract do
           unused_keys: unused_keys,
           read_count: length(reads),
           mutation_count: length(updates),
-          escaped?: escapes != []
+          escaped?: escapes != [],
+          escapes: Enum.map(escapes, & &1.call)
         }
       ]
     else
@@ -443,13 +445,16 @@ defmodule Reach.Evidence.MapContract do
   defp record_escape_observation(node, bindings, observations) do
     case call_args(node) do
       {:ok, meta, args} ->
+        call = call_descriptor(node, meta)
+
         args
         |> Enum.flat_map(&escaped_variables(&1, bindings))
         |> Enum.reduce(observations, fn variable, observations ->
           record_observation_for_variable(observations, variable, %{
             key: nil,
             kind: :escape,
-            meta: meta
+            meta: meta,
+            call: call
           })
         end)
 
@@ -470,6 +475,22 @@ defmodule Reach.Evidence.MapContract do
     do: {:ok, meta, args}
 
   defp call_args(_node), do: :error
+
+  defp call_descriptor(node, fallback_meta) do
+    case AST.call_descriptor(node) do
+      {:ok, descriptor} ->
+        descriptor
+
+      :error ->
+        %{
+          module: nil,
+          function: nil,
+          arity: nil,
+          line: fallback_meta[:line],
+          column: fallback_meta[:column]
+        }
+    end
+  end
 
   defp escaped_variables(arg, bindings) do
     case variable_name(arg) do

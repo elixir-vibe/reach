@@ -64,6 +64,43 @@ defmodule Reach.Evidence.AST do
 
   def contains_call?(ast, target), do: contains?(ast, &call?(&1, target))
 
+  def call_descriptor({function, meta, args}) when is_atom(function) and is_list(args) do
+    {:ok,
+     %{
+       module: nil,
+       function: function,
+       arity: length(args),
+       line: meta[:line],
+       column: meta[:column]
+     }}
+  end
+
+  def call_descriptor({{:., meta, [{:__aliases__, _, module_parts}, function]}, _call_meta, args})
+      when is_list(module_parts) and is_atom(function) and is_list(args) do
+    {:ok,
+     %{
+       module: safe_module_concat(module_parts),
+       function: function,
+       arity: length(args),
+       line: meta[:line],
+       column: meta[:column]
+     }}
+  end
+
+  def call_descriptor({{:., meta, [module, function]}, _call_meta, args})
+      when is_atom(module) and is_atom(function) and is_list(args) do
+    {:ok,
+     %{
+       module: module,
+       function: function,
+       arity: length(args),
+       line: meta[:line],
+       column: meta[:column]
+     }}
+  end
+
+  def call_descriptor(_node), do: :error
+
   def count_calls(ast, targets) when is_list(targets) do
     count(ast, fn node -> Enum.any?(targets, &call?(node, &1)) end)
   end

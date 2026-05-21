@@ -91,6 +91,40 @@ defmodule Reach.Check.CandidatesTest do
     File.rm_rf(dir)
   end
 
+  test "promotes repeated maps encoded by Jason as boundary contract candidates" do
+    dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "json_payloads.ex")
+
+    File.write!(path, """
+    defmodule JsonPayloads do
+      def first(user) do
+        data = %{id: user.id, name: user.name, email: user.email}
+        data.id
+        data.email
+        Jason.encode!(data)
+      end
+
+      def second(user) do
+        data = %{id: user.id, name: user.name, email: user.email}
+        data.id
+        data.name
+        Jason.encode(data)
+      end
+    end
+    """)
+
+    project = Reach.Project.from_sources([path], plugins: [Reach.Plugins.Jason])
+    result = Candidates.run(project, [], top: 10)
+
+    candidate = Enum.find(result.candidates, &(&1.kind == :introduce_boundary_contract))
+
+    assert candidate
+    assert candidate.keys == ["email", "id", "name"]
+
+    File.rm_rf(dir)
+  end
+
   test "promotes repeated payload maps as boundary contract candidates" do
     dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
