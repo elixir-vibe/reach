@@ -1,15 +1,11 @@
 defmodule Reach.Plugins.JSON do
-  @moduledoc "Plugin for Jason encoding effect classification."
+  @moduledoc "Plugin for JSON library effect classification."
   @behaviour Reach.Plugin
 
   alias Reach.IR.Node
 
-  @json_modules [Jason, Poison]
-
   @impl true
-  def classify_effect(%Node{type: :call, meta: %{module: mod}})
-      when mod in @json_modules,
-      do: :pure
+  def classify_effect(%Node{type: :call, meta: %{module: Poison}}), do: :pure
 
   def classify_effect(_), do: nil
 

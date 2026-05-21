@@ -5,7 +5,7 @@
 ### Changed
 
 - **Evidence provider namespace** — moved clone analysis under `Reach.Evidence.CloneAnalysis` and introduced `Reach.Evidence` as the namespace for reusable facts consumed by smells, checks, and refactoring candidates.
-- **Standard library bypass smell** — added an evidence-backed smell check for high-confidence ad-hoc path and URI parsing patterns where `Path` or `URI` helpers are clearer.
+- **Jason plugin smell** — added an evidence-backed smell check for hand-rolled JSON sanitizers, encoders, and simple `Jason.Encoder` implementations that should use Jason protocol support directly.
 
 ### Fixed
 
