@@ -36,13 +36,19 @@ defmodule Reach.Evidence.MapContract do
   def family, do: :map_contract
   def kinds, do: [:implicit_map_contract]
 
-  def collect_ast(ast) do
-    definitions = collect_function_definitions(ast)
+  def collect_ast(ast, opts \\ []) do
+    plugins = Keyword.get(opts, :plugins, [])
+    context = Keyword.get(opts, :context, %{})
 
-    collect_local_contracts(definitions) ++ collect_return_contracts(definitions)
+    ast
+    |> collect_function_definitions()
+    |> collect_ast_contracts()
+    |> refine_contracts(plugins, context)
   end
 
-  def collect_project(project) do
+  def collect_project(project, opts \\ []) do
+    plugins = Keyword.get(opts, :plugins, project_plugins(project))
+
     files =
       project
       |> project_source_files()
@@ -59,14 +65,30 @@ defmodule Reach.Evidence.MapContract do
       |> collect_module_return_shapes()
 
     Enum.flat_map(files, fn {:ok, file, ast} ->
-      collect_file_project_contracts(
-        file,
-        ast,
-        Map.fetch!(definitions_by_file, file),
-        return_shapes
-      )
+      contracts =
+        collect_file_project_contracts(
+          file,
+          ast,
+          Map.fetch!(definitions_by_file, file),
+          return_shapes
+        )
+
+      refine_contracts(contracts, plugins, %{file: file, project: project})
     end)
   end
+
+  defp collect_ast_contracts(definitions) do
+    collect_local_contracts(definitions) ++ collect_return_contracts(definitions)
+  end
+
+  defp refine_contracts(contracts, [], _context), do: contracts
+
+  defp refine_contracts(contracts, plugins, context) do
+    Enum.map(contracts, &Reach.Plugin.refine_evidence(plugins, &1, context))
+  end
+
+  defp project_plugins(project) when is_map(project), do: Map.get(project, :plugins, [])
+  defp project_plugins(_project), do: []
 
   defp project_source_files(project) do
     project.nodes
@@ -94,8 +116,9 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp collect_file_project_contracts(file, ast, module_definitions, return_shapes) do
-    ast
-    |> collect_ast()
+    local_contracts = ast |> collect_function_definitions() |> collect_ast_contracts()
+
+    local_contracts
     |> Enum.map(&Map.put(&1, :file, file))
     |> Kernel.++(collect_cross_function_contracts(module_definitions, return_shapes, file))
   end

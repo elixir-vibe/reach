@@ -91,6 +91,8 @@ defmodule Reach.Plugin do
 
   @callback smell_checks() :: [module()]
   @callback evidence_providers() :: [module()]
+  @callback refine_evidence(evidence :: struct() | map(), context :: map()) ::
+              struct() | map() | :unchanged
   @callback trace_pattern(pattern :: String.t()) :: (Node.t() -> boolean()) | nil
   @callback behaviour_label(callbacks :: [atom()]) :: String.t() | nil
   @callback ignore_call_edge?(Graph.Edge.t()) :: boolean()
@@ -103,6 +105,7 @@ defmodule Reach.Plugin do
                       parse_file: 2,
                       smell_checks: 0,
                       evidence_providers: 0,
+                      refine_evidence: 2,
                       trace_pattern: 1,
                       behaviour_label: 1,
                       ignore_call_edge?: 1
@@ -223,6 +226,32 @@ defmodule Reach.Plugin do
     end)
     |> Enum.uniq()
   end
+
+  @doc "Lets plugins annotate or adjust evidence facts without owning user-facing policy."
+  def refine_evidence(plugins, evidence, context \\ %{}) do
+    Enum.reduce(plugins, evidence, fn plugin, evidence ->
+      if exports?(plugin, :refine_evidence, 2) do
+        apply_evidence_refinement(evidence, plugin.refine_evidence(evidence, context))
+      else
+        evidence
+      end
+    end)
+  end
+
+  defp apply_evidence_refinement(evidence, :unchanged), do: evidence
+
+  defp apply_evidence_refinement(evidence, updates) when is_map(updates) do
+    if same_struct?(evidence, updates) do
+      updates
+    else
+      Map.merge(evidence, updates)
+    end
+  end
+
+  defp apply_evidence_refinement(evidence, _other), do: evidence
+
+  defp same_struct?(%module{}, %module{}), do: true
+  defp same_struct?(_evidence, _updates), do: false
 
   @doc "Compiles a framework-specific trace pattern, if a plugin recognizes it."
   def trace_pattern(plugins, pattern) do
