@@ -5,7 +5,7 @@ defmodule Reach.Config do
 
   defmodule Deps do
     @moduledoc false
-    defstruct forbidden: []
+    defstruct forbidden: [], mode: :forbidlist, allowed: []
   end
 
   defmodule Calls do
@@ -15,7 +15,7 @@ defmodule Reach.Config do
 
   defmodule Effects do
     @moduledoc false
-    defstruct allowed: []
+    defstruct allowed: [], by_layer: []
   end
 
   defmodule Boundaries do
@@ -75,7 +75,14 @@ defmodule Reach.Config do
 
   defmodule Checks do
     @moduledoc false
-    defstruct baseline: nil
+    defstruct baseline: nil, layer_coverage: nil
+  end
+
+  defmodule Checks.LayerCoverage do
+    @moduledoc false
+    defstruct require_all_modules: false,
+              forbid_multiple_matches: false,
+              ignore: []
   end
 
   defmodule Smells do
@@ -209,9 +216,16 @@ defmodule Reach.Config do
   def normalize(config) when is_list(config) do
     %__MODULE__{
       layers: Keyword.get(config, :layers, []),
-      deps: %Deps{forbidden: nested(config, [:deps, :forbidden], :forbidden_deps, [])},
+      deps: %Deps{
+        forbidden: nested(config, [:deps, :forbidden], :forbidden_deps, []),
+        mode: nested(config, [:deps, :mode], nil, :forbidlist),
+        allowed: nested(config, [:deps, :allowed], nil, [])
+      },
       calls: %Calls{forbidden: nested(config, [:calls, :forbidden], :forbidden_calls, [])},
-      effects: %Effects{allowed: nested(config, [:effects, :allowed], :allowed_effects, [])},
+      effects: %Effects{
+        allowed: nested(config, [:effects, :allowed], :allowed_effects, []),
+        by_layer: nested(config, [:effects, :by_layer], nil, [])
+      },
       boundaries: %Boundaries{
         public: nested(config, [:boundaries, :public], :public_api, []),
         internal: nested(config, [:boundaries, :internal], :internal, []),
@@ -249,7 +263,11 @@ defmodule Reach.Config do
             nested(config, [:candidates, :limits, :representative_calls_per_edge], nil, 3)
         }
       },
-      checks: %Checks{baseline: nested(config, [:checks, :baseline], nil, nil)},
+      checks: %Checks{
+        baseline: nested(config, [:checks, :baseline], nil, nil),
+        layer_coverage:
+          normalize_layer_coverage(nested(config, [:checks, :layer_coverage], nil, nil))
+      },
       clone_analysis: %CloneAnalysis{
         provider: nested(config, [:clone_analysis, :provider], nil, :ex_dna),
         min_mass: nested(config, [:clone_analysis, :min_mass], nil, 30),
@@ -292,8 +310,25 @@ defmodule Reach.Config do
   defp normalize_clone_analysis(%CloneAnalysis{} = clone_analysis), do: clone_analysis
   defp normalize_clone_analysis(_clone_analysis), do: %CloneAnalysis{}
 
-  defp normalize_checks(%Checks{} = checks), do: checks
+  defp normalize_checks(%Checks{} = checks) do
+    %{checks | layer_coverage: normalize_layer_coverage(checks.layer_coverage)}
+  end
+
   defp normalize_checks(_checks), do: %Checks{}
+
+  defp normalize_layer_coverage(%Checks.LayerCoverage{} = coverage), do: coverage
+
+  defp normalize_layer_coverage(nil), do: nil
+
+  defp normalize_layer_coverage(coverage) when is_list(coverage) do
+    %Checks.LayerCoverage{
+      require_all_modules: Keyword.get(coverage, :require_all_modules, false),
+      forbid_multiple_matches: Keyword.get(coverage, :forbid_multiple_matches, false),
+      ignore: Keyword.get(coverage, :ignore, [])
+    }
+  end
+
+  defp normalize_layer_coverage(_coverage), do: nil
 
   defp normalize_smells(%Smells{} = smells) do
     %{
@@ -312,7 +347,7 @@ defmodule Reach.Config do
 
   def errors(config) when is_list(config) do
     if Keyword.keyword?(config) do
-      unknown_key_errors(config) ++ shape_errors(config)
+      unknown_key_errors(config) ++ shape_errors(config) ++ semantic_errors(config)
     else
       [%Error{path: [], message: "expected keyword list"}]
     end
@@ -337,7 +372,14 @@ defmodule Reach.Config do
       config,
       [:deps, :forbidden],
       &valid_forbidden_deps?/1,
-      "expected list of {from_layer, to_layer}"
+      "expected list of {from_layer, to_layer} or {from_layer, to_layer, opts}"
+    )
+    |> check(config, [:deps, :mode], &valid_deps_mode?/1, "expected :forbidlist or :allowlist")
+    |> check(
+      config,
+      [:deps, :allowed],
+      &valid_allowed_deps?/1,
+      "expected keyword list of from_layer: [to_layers]"
     )
     |> check(config, [:calls], &valid_group?/1, "expected keyword list")
     |> check(
@@ -352,6 +394,12 @@ defmodule Reach.Config do
       [:effects, :allowed],
       &valid_allowed_effects?/1,
       "expected list of {module_pattern, effects}"
+    )
+    |> check(
+      config,
+      [:effects, :by_layer],
+      &valid_layer_effects?/1,
+      "expected keyword list of layer: effects or layer: :any"
     )
     |> check(config, [:boundaries], &valid_group?/1, "expected keyword list")
     |> check(
@@ -434,6 +482,12 @@ defmodule Reach.Config do
     )
     |> check(config, [:checks], &valid_group?/1, "expected keyword list")
     |> check(config, [:checks, :baseline], &is_binary/1, "expected string")
+    |> check(
+      config,
+      [:checks, :layer_coverage],
+      &valid_layer_coverage?/1,
+      "expected keyword list with require_all_modules, forbid_multiple_matches, and ignore"
+    )
     |> check(config, [:smells], &valid_group?/1, "expected keyword list")
     |> check(config, [:smells, :strict], &valid_boolean?/1, "expected boolean")
     |> check(config, [:smells, :custom_checks], &valid_module_list?/1, "expected list of modules")
@@ -535,7 +589,7 @@ defmodule Reach.Config do
       config,
       [:forbidden_deps],
       &valid_forbidden_deps?/1,
-      "expected list of {from_layer, to_layer}"
+      "expected list of {from_layer, to_layer} or {from_layer, to_layer, opts}"
     )
     |> check(
       config,
@@ -585,9 +639,9 @@ defmodule Reach.Config do
       &valid_pattern_list?/1,
       "expected string or list of path globs"
     )
-    |> unknown_nested_key_errors(config, [:deps], [:forbidden])
+    |> unknown_nested_key_errors(config, [:deps], [:forbidden, :mode, :allowed])
     |> unknown_nested_key_errors(config, [:calls], [:forbidden])
-    |> unknown_nested_key_errors(config, [:effects], [:allowed])
+    |> unknown_nested_key_errors(config, [:effects], [:allowed, :by_layer])
     |> unknown_nested_key_errors(config, [:boundaries], [:public, :internal, :internal_callers])
     |> unknown_nested_key_errors(config, [:tests], [:hints])
     |> unknown_nested_key_errors(config, [:source], [:forbidden_modules, :forbidden_files])
@@ -616,7 +670,13 @@ defmodule Reach.Config do
       :representative_calls_per_edge
     ])
     |> unknown_nested_key_errors(config, [:checks], [
-      :baseline
+      :baseline,
+      :layer_coverage
+    ])
+    |> unknown_nested_key_errors(config, [:checks, :layer_coverage], [
+      :require_all_modules,
+      :forbid_multiple_matches,
+      :ignore
     ])
     |> unknown_nested_key_errors(config, [:smells], [
       :strict,
@@ -708,12 +768,69 @@ defmodule Reach.Config do
 
   defp valid_forbidden_deps?(value) when is_list(value) do
     Enum.all?(value, fn
-      {from, to} when is_atom(from) and is_atom(to) -> true
-      _ -> false
+      {from, to} when is_atom(from) and is_atom(to) ->
+        true
+
+      {from, to, opts} when is_atom(from) and is_atom(to) and is_list(opts) ->
+        valid_pattern_list?(Keyword.get(opts, :except, [])) and
+          valid_except_edges?(Keyword.get(opts, :except_edges, []))
+
+      _ ->
+        false
     end)
   end
 
   defp valid_forbidden_deps?(_value), do: false
+
+  defp valid_deps_mode?(mode), do: mode in [:forbidlist, :allowlist]
+
+  defp valid_allowed_deps?(value) when is_list(value) do
+    Keyword.keyword?(value) and
+      Enum.all?(value, fn
+        {from, tos} when is_atom(from) and is_list(tos) -> Enum.all?(tos, &is_atom/1)
+        _ -> false
+      end)
+  end
+
+  defp valid_allowed_deps?(_value), do: false
+
+  defp valid_layer_coverage?(value) when is_list(value) do
+    Keyword.keyword?(value) and
+      valid_boolean?(Keyword.get(value, :require_all_modules, false)) and
+      valid_boolean?(Keyword.get(value, :forbid_multiple_matches, false)) and
+      valid_pattern_list?(Keyword.get(value, :ignore, []))
+  end
+
+  defp valid_layer_coverage?(_value), do: false
+
+  defp valid_except_edges?(value) when is_list(value) do
+    Enum.all?(value, fn
+      {caller_pattern, callee_pattern}
+      when is_binary(caller_pattern) and is_binary(callee_pattern) ->
+        true
+
+      _ ->
+        false
+    end)
+  end
+
+  defp valid_except_edges?(_value), do: false
+
+  defp valid_layer_effects?(value) when is_list(value) do
+    Keyword.keyword?(value) and
+      Enum.all?(value, fn
+        {layer, :any} when is_atom(layer) ->
+          true
+
+        {layer, effects} when is_atom(layer) and is_list(effects) ->
+          Enum.all?(effects, &is_atom/1)
+
+        _ ->
+          false
+      end)
+  end
+
+  defp valid_layer_effects?(_value), do: false
 
   defp valid_allowed_effects?(value) when is_list(value) do
     Enum.all?(value, fn
@@ -770,4 +887,94 @@ defmodule Reach.Config do
   end
 
   defp valid_test_hints?(_value), do: false
+
+  defp semantic_errors(config) do
+    layers = declared_layers(config)
+
+    unknown_forbidden_dep_layer_errors(config, layers) ++
+      unknown_allowed_dep_layer_errors(config, layers) ++
+      unknown_effect_layer_errors(config, layers) ++
+      allowlist_conflict_errors(config)
+  end
+
+  defp declared_layers(config) do
+    case get_in_config(config, [:layers]) do
+      layers when is_list(layers) ->
+        if Keyword.keyword?(layers), do: MapSet.new(Keyword.keys(layers)), else: MapSet.new()
+
+      _ ->
+        MapSet.new()
+    end
+  end
+
+  defp unknown_forbidden_dep_layer_errors(config, layers) do
+    case nested(config, [:deps, :forbidden], :forbidden_deps, []) do
+      rules when is_list(rules) ->
+        Enum.flat_map(rules, fn
+          {from, to} -> unknown_layer_errors([from, to], layers, [:deps, :forbidden])
+          {from, to, _opts} -> unknown_layer_errors([from, to], layers, [:deps, :forbidden])
+          _ -> []
+        end)
+
+      _ ->
+        []
+    end
+  end
+
+  defp unknown_effect_layer_errors(config, layers) do
+    case nested(config, [:effects, :by_layer], nil, []) do
+      policies when is_list(policies) ->
+        policies
+        |> Keyword.keys()
+        |> unknown_layer_errors(layers, [:effects, :by_layer])
+
+      _ ->
+        []
+    end
+  end
+
+  defp unknown_allowed_dep_layer_errors(config, layers) do
+    case nested(config, [:deps, :allowed], nil, []) do
+      rules when is_list(rules) ->
+        Enum.flat_map(rules, fn
+          {from, tos} when is_list(tos) ->
+            unknown_layer_errors([from | tos], layers, [:deps, :allowed])
+
+          _ ->
+            []
+        end)
+
+      _ ->
+        []
+    end
+  end
+
+  defp unknown_layer_errors(layer_refs, layers, path) do
+    layer_refs
+    |> Enum.uniq()
+    |> Enum.reject(&MapSet.member?(layers, &1))
+    |> Enum.map(fn layer ->
+      %Error{path: path, message: unknown_layer_message(layer, layers)}
+    end)
+  end
+
+  defp unknown_layer_message(layer, layers) do
+    known = layers |> Enum.sort() |> Enum.map_join(", ", &inspect/1)
+    "unknown layer #{inspect(layer)}. Known layers: #{known}"
+  end
+
+  defp allowlist_conflict_errors(config) do
+    with :allowlist <- get_in_config(config, [:deps, :mode]),
+         forbidden when forbidden not in [nil, []] <-
+           nested(config, [:deps, :forbidden], :forbidden_deps, []) do
+      [
+        %Error{
+          path: [:deps],
+          message: "deps.mode :allowlist cannot be combined with deps.forbidden"
+        }
+      ]
+    else
+      _ -> []
+    end
+  end
 end

@@ -104,6 +104,28 @@ defmodule Reach.Frontend.ElixirTest do
     assert nested.meta.name == Vibe.UI.Block.Overlay
   end
 
+  test "expands multi-part nested defmodule names relative to the parent module" do
+    source = """
+    defmodule Vibe.UI do
+      defmodule Block.Overlay do
+        def new, do: %__MODULE__{}
+      end
+    end
+    """
+
+    assert {:ok, [parent]} = ElixirFrontend.parse(source, file: "sample.ex")
+
+    nested =
+      parent
+      |> IR.all_nodes()
+      |> Enum.find(&(&1.type == :module_def and &1.meta.name != Vibe.UI))
+
+    function = nested |> IR.all_nodes() |> Enum.find(&(&1.type == :function_def))
+
+    assert nested.meta.name == Vibe.UI.Block.Overlay
+    assert function.meta.module == Vibe.UI.Block.Overlay
+  end
+
   describe "literals" do
     test "integer" do
       [node] = IR.from_string!("42")

@@ -24,6 +24,7 @@ defmodule Reach.Check.Architecture do
     graph = layer_graph(project, config)
 
     source_policy_violations(project, config) ++
+      layer_coverage_violations(project, config) ++
       dependency_violations(project, config, graph) ++
       public_boundary_violations(project, config) ++
       forbidden_call_violations(project, config) ++
@@ -64,21 +65,14 @@ defmodule Reach.Check.Architecture do
 
   def dependency_violations(_project, config, layer_graph) do
     config = Config.normalize(config)
-    forbidden = config.deps.forbidden
 
     layer_graph.edges
-    |> Enum.filter(&({&1.from, &1.to} in forbidden))
+    |> Enum.filter(&dependency_violation_edge?(&1, config.deps))
     |> Enum.map(fn edge ->
-      Violation.new(
-        type: :forbidden_dependency,
-        caller_module: inspect(edge.caller),
-        caller_layer: edge.from,
-        callee_module: inspect(edge.callee),
-        callee_layer: edge.to,
-        file: edge.node.source_span.file,
-        line: edge.node.source_span.start_line,
-        call: "#{inspect(edge.callee)}.#{edge.node.meta[:function]}/#{edge.node.meta[:arity]}"
-      )
+      edge
+      |> edge_violation_attrs()
+      |> Map.put(:type, :forbidden_dependency)
+      |> Violation.new()
     end)
   end
 
@@ -333,10 +327,12 @@ defmodule Reach.Check.Architecture do
     |> String.replace_leading("Elixir.", "")
   end
 
-  defp layer_cycle_violations(%{adjacency: adjacency}) do
+  defp layer_cycle_violations(%{adjacency: adjacency, edges: edges}) do
     adjacency
     |> layer_cycle_components()
-    |> Enum.map(fn cycle -> Violation.new(type: :layer_cycle, layers: cycle) end)
+    |> Enum.map(fn cycle ->
+      Violation.new(type: :layer_cycle, layers: cycle, edges: cycle_edge_witnesses(cycle, edges))
+    end)
   end
 
   defp layer_cycle_components(adjacency) do
@@ -349,26 +345,22 @@ defmodule Reach.Check.Architecture do
     |> Reach.GraphAlgorithms.cycle_components(&canonical_cycle/1)
   end
 
-  defp canonical_cycle(cycle) do
-    cycle
-    |> Enum.map(&to_string/1)
-    |> Enum.sort()
-  end
+  defp canonical_cycle(cycle), do: Enum.sort(cycle)
 
   defp effect_policy_violations(project, config) do
     config = Config.normalize(config)
-    policies = config.effects.allowed
     module_by_file = module_by_file(project)
 
     for({_id, node} <- project.nodes, node.type == :function_def, do: node)
-    |> Enum.flat_map(&effect_policy_violation(&1, policies, module_by_file))
+    |> Enum.flat_map(&effect_policy_violation(&1, config, module_by_file))
   end
 
-  defp effect_policy_violation(func, policies, module_by_file) do
+  defp effect_policy_violation(func, config, module_by_file) do
     module =
       func.meta[:module] || (func.source_span && Map.get(module_by_file, func.source_span.file))
 
-    with allowed when not is_nil(allowed) <- allowed_effects_for(module, policies),
+    with allowed when not is_nil(allowed) <- allowed_effects_for(module, config),
+         false <- allowed == :any,
          effects <- function_effects(func),
          disallowed when disallowed != [] <- effects -- allowed do
       [
@@ -388,10 +380,16 @@ defmodule Reach.Check.Architecture do
     end
   end
 
-  defp allowed_effects_for(module, policies) do
-    Enum.find_value(policies, fn {pattern, effects} ->
+  defp allowed_effects_for(module, config) do
+    Enum.find_value(config.effects.allowed, fn {pattern, effects} ->
       if module_matches_any?(module, [pattern]), do: effects
-    end)
+    end) || allowed_effects_for_layer(module, config)
+  end
+
+  defp allowed_effects_for_layer(module, config) do
+    with layer when not is_nil(layer) <- module_layer(module, config.layers) do
+      Keyword.get(config.effects.by_layer, layer)
+    end
   end
 
   def remote_call?(node) do
@@ -399,9 +397,136 @@ defmodule Reach.Check.Architecture do
       node.meta[:function] not in [:__aliases__, :{}]
   end
 
-  defp module_layer(module, layers) do
-    Enum.find_value(layers, fn {layer, patterns} ->
-      if module_matches_any?(module, List.wrap(patterns)), do: layer
+  defp layer_coverage_violations(project, config) do
+    config = Config.normalize(config)
+
+    case config.checks.layer_coverage do
+      nil ->
+        []
+
+      coverage ->
+        project_modules(project)
+        |> Enum.reject(&module_matches_any?(&1, coverage.ignore))
+        |> Enum.flat_map(&layer_coverage_violations_for_module(&1, config.layers, coverage))
+    end
+  end
+
+  defp layer_coverage_violations_for_module(module, layers, coverage) do
+    matches = matching_layers(layers, module)
+
+    cond do
+      coverage.require_all_modules and matches == [] ->
+        [
+          Violation.new(
+            type: :missing_layer,
+            module: inspect(module),
+            rule: "module does not match any configured layer"
+          )
+        ]
+
+      coverage.forbid_multiple_matches and length(matches) > 1 ->
+        [
+          Violation.new(
+            type: :multiple_layers,
+            module: inspect(module),
+            matched_layers: matches,
+            rule: "module matches multiple configured layers"
+          )
+        ]
+
+      true ->
+        []
+    end
+  end
+
+  defp project_modules(project) do
+    project.nodes
+    |> Enum.flat_map(fn
+      {_id, %{type: :module_def, meta: %{name: module}}} -> [module]
+      _ -> []
     end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp dependency_violation_edge?(%{from: layer, to: layer}, _deps), do: false
+
+  defp dependency_violation_edge?(edge, %{mode: :allowlist, allowed: allowed}) do
+    not allowed_dependency?(edge, allowed)
+  end
+
+  defp dependency_violation_edge?(edge, deps) do
+    Enum.any?(deps.forbidden, &forbidden_dependency_rule_matches?(&1, edge))
+  end
+
+  defp allowed_dependency?(edge, allowed) do
+    edge.to in Keyword.get(allowed, edge.from, [])
+  end
+
+  defp forbidden_dependency_rule_matches?({from, to}, edge),
+    do: edge.from == from and edge.to == to
+
+  defp forbidden_dependency_rule_matches?({from, to, opts}, edge) do
+    edge.from == from and edge.to == to and not dependency_excepted?(edge, opts)
+  end
+
+  defp forbidden_dependency_rule_matches?(_rule, _edge), do: false
+
+  defp dependency_excepted?(edge, opts) do
+    module_matches_any?(edge.caller, Keyword.get(opts, :except, [])) or
+      Enum.any?(Keyword.get(opts, :except_edges, []), fn {caller_pattern, callee_pattern} ->
+        module_matches_any?(edge.caller, [caller_pattern]) and
+          module_matches_any?(edge.callee, [callee_pattern])
+      end)
+  end
+
+  defp cycle_edge_witnesses(cycle, edges) do
+    cycle_set = MapSet.new(cycle)
+
+    cycle
+    |> Enum.flat_map(fn from ->
+      case Enum.find(edges, &(&1.from == from and MapSet.member?(cycle_set, &1.to))) do
+        nil ->
+          []
+
+        edge ->
+          [
+            edge_violation_attrs(edge)
+            |> Map.take([
+              :caller_module,
+              :caller_layer,
+              :callee_module,
+              :callee_layer,
+              :file,
+              :line,
+              :call
+            ])
+          ]
+      end
+    end)
+  end
+
+  defp edge_violation_attrs(edge) do
+    %{
+      caller_module: inspect(edge.caller),
+      caller_layer: edge.from,
+      callee_module: inspect(edge.callee),
+      callee_layer: edge.to,
+      file: edge.node.source_span.file,
+      line: edge.node.source_span.start_line,
+      call: "#{inspect(edge.callee)}.#{edge.node.meta[:function]}/#{edge.node.meta[:arity]}"
+    }
+  end
+
+  defp module_layer(module, layers) do
+    layers
+    |> matching_layers(module)
+    |> List.first()
+  end
+
+  defp matching_layers(layers, module) when is_list(layers) do
+    layers
+    |> Enum.filter(fn {_layer, patterns} -> module_matches_any?(module, List.wrap(patterns)) end)
+    |> Enum.map(fn {layer, _patterns} -> layer end)
   end
 end

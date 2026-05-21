@@ -12,6 +12,8 @@ defmodule Reach.Check.Violation do
     :line,
     :call,
     :layers,
+    :edges,
+    :matched_layers,
     :module,
     :function,
     :allowed_effects,

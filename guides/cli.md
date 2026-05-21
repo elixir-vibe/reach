@@ -56,7 +56,7 @@ mix reach.check --arch --smells --write-baseline .reach-baseline.json
 mix reach.check --candidates
 ```
 
-`--arch` is a failing gate by default. `--smells` is advisory by default; add `--strict` or set `smells: [strict: true]` in `.reach.exs` to fail when non-baseline smell findings are present.
+`--arch` is a failing gate by default. It validates layer dependency rules, optional layer coverage, source bans, call bans, boundary policy, effect policy, and layer cycles. Layer cycle output includes concrete call edges so policy failures can be traced back to source locations. `--smells` is advisory by default; add `--strict` or set `smells: [strict: true]` in `.reach.exs` to fail when non-baseline smell findings are present.
 
 Use `--baseline PATH` to suppress known `reach.check` findings while still failing on new findings. Use `--write-baseline PATH` to write the current findings for the selected check modes. JSON output supports one check mode at a time.
 
