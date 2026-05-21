@@ -22,6 +22,15 @@ defmodule Reach.Evidence.StandardLibraryBypass.EnumTest do
     assert [%{kind: :manual_flat_map_reduce}] = collect(ast)
   end
 
+  test "does not flag reduce append of one-element literal lists as flat_map" do
+    ast =
+      Code.string_to_quoted!(
+        "Enum.reduce(items, [], fn item, acc -> acc ++ [transform(item)] end)"
+      )
+
+    assert [] = collect(ast)
+  end
+
   test "collects order-safe prepend reverse flat_map evidence" do
     ast =
       Code.string_to_quoted!("""

@@ -36,6 +36,14 @@ Implemented high-confidence families live in focused modules under `Reach.Eviden
 - `Enum.flat_map/2` for order-safe prepend/reverse reducers shaped as `Enum.reverse(chunk, acc)` followed by a final `Enum.reverse/1`.
 - `Map.update!/3` when code fetches a required existing key and immediately puts the transformed value back.
 
+Corpus review notes:
+
+- A Hex corpus pass over 6,882 packages produced 540 standard-library evidence hits after tuning, with no scanner stderr.
+- `Enum.map(...) |> Enum.concat()` samples were direct `Enum.flat_map/2` opportunities and remain high confidence.
+- `Enum.map(...) |> List.flatten()` is intentionally medium confidence: sampled uses often flatten mapper output, but recursive flattening may be semantically required.
+- Reduce-based append evidence now ignores `acc ++ [expr]` because sampled hits were `Enum.map/2` shapes, not `Enum.flat_map/2` shapes. It still flags `acc ++ expand(item)` where the appended expression is a list-producing transformation.
+- `Map.update/4`, `Map.update!/3`, `Enum.frequencies/1`, `Enum.frequencies_by/2`, Path, and URI samples matched the intended replacement families.
+
 Promising mined families that need stronger constraints before implementation:
 
 - Other `Enum.flat_map/2` prepend/reverse variants; avoid `chunk ++ acc |> Enum.reverse` because it reverses each chunk's internal order.

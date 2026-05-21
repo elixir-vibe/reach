@@ -253,10 +253,14 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   defp reduce_empty_list_callback(_node), do: :error
 
   defp append_mapped_list?({:++, _, [left, right]}, item, acc) do
-    AST.same_ast?(left, acc) and AST.references?(right, item) and not AST.references?(right, acc)
+    AST.same_ast?(left, acc) and AST.references?(right, item) and not AST.references?(right, acc) and
+      not single_element_literal_list?(right)
   end
 
   defp append_mapped_list?(_body, _item, _acc), do: false
+
+  defp single_element_literal_list?([_item]), do: true
+  defp single_element_literal_list?(_node), do: false
 
   defp reverse_chunk_into_acc?(
          {{:., _, [{:__aliases__, _, [:Enum]}, :reverse]}, _, [chunk, acc]},
