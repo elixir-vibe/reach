@@ -202,7 +202,11 @@ defmodule Reach.Plugins.LiveView do
     end
   end
 
+  # LiveView 1.1 fallback emits runtime component helper calls with generated
+  # assigns maps and slot internals. Those are too noisy for attr-flow edges.
+  # Parser-backed lowering emits direct component calls, which are safe to use.
   defp component_call?(%Node{type: :call, meta: %{module: Phoenix.LiveView.TagEngine}}), do: false
+
   defp component_call?(%Node{type: :call, meta: %{origin: %{kind: :component}}}), do: true
   defp component_call?(_), do: false
 

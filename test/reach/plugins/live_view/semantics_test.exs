@@ -37,7 +37,23 @@ defmodule Reach.Plugins.LiveView.SemanticsTest do
            )
   end
 
-  test "connects component attr values to component calls" do
+  test "does not connect generated LiveView runtime component helper attrs" do
+    nodes =
+      parse!("""
+      defmodule Demo do
+        def render(assigns) do
+          Phoenix.LiveView.TagEngine.component(&card/1, %{user: @user}, {__MODULE__, :render, __ENV__.file, 1})
+        end
+      end
+      """)
+
+    refute Enum.any?(
+             LiveView.analyze(IR.all_nodes(nodes), []),
+             &match?({_, _, {:live_component_attr, :user}}, &1)
+           )
+  end
+
+  test "connects component attr values to parser-lowered component calls" do
     nodes =
       parse!("""
       defmodule Demo do
