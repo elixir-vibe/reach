@@ -30,7 +30,7 @@ Implemented high-confidence families live in focused modules under `Reach.Eviden
 - `Path.basename/1` and `Path.extname/1` for path-like `String.split` pipelines.
 - `URI.parse/1` and `URI.decode_query/1` for URI/query-like splits.
 - `Enum.flat_map/2` for direct `Enum.map` followed by `List.flatten/1` or `Enum.concat/1`.
-- `Map.update/4` for paired `Map.get`/`Map.put` or `Map.has_key?`/`Map.put` branches that update the same map/key.
+- `Map.update/4` for paired `Map.has_key?`/`Map.put` branches that update the same map/key without relying on a `nil` sentinel.
 - `Enum.frequencies/1` and `Enum.frequencies_by/2` for reduce-based count maps with `%{}` initial accumulator, exact increment-by-one logic, and no extra payload work.
 - `Enum.flat_map/2` for reduce-based `acc ++ mapped_list` callbacks with an empty list accumulator.
 - `Enum.flat_map/2` for order-safe prepend/reverse reducers shaped as `Enum.reverse(chunk, acc)` followed by a final `Enum.reverse/1`.
