@@ -216,6 +216,7 @@ defmodule Reach.Plugins.LiveView do
             %Node{type: :map_field, children: [key_node, value_node]} ->
               case literal_key(key_node) do
                 nil -> []
+                key when key in [:inner_block, :__changed__, :__slot__] -> []
                 key -> [{key, value_node}]
               end
 
@@ -231,7 +232,17 @@ defmodule Reach.Plugins.LiveView do
 
   defp component_attrs(_), do: []
 
-  defp attr_vars({_key, value}), do: IR.all_nodes(value) |> Enum.filter(&(&1.type == :var))
+  defp attr_vars({_key, value}) do
+    value
+    |> IR.all_nodes()
+    |> Enum.filter(fn
+      %Node{type: :var, source_span: %{}, meta: %{name: name}} ->
+        name not in [:_, :__MODULE__, :__ENV__, :assigns]
+
+      _ ->
+        false
+    end)
+  end
 
   defp live_stream_edges(function_defs) do
     by_module =
