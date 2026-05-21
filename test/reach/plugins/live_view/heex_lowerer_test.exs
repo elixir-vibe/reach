@@ -60,6 +60,30 @@ defmodule Reach.Plugins.LiveView.HEExLowererTest do
     assert Enum.any?(nodes, &(&1.type == :case and &1.meta.origin.kind == :if))
   end
 
+  test "lowers phx event attributes to synthetic event calls" do
+    span = %Span{file: "demo.heex", start_line: 1, start_col: 1}
+
+    tree = %Node.Template{
+      children: [
+        %Node.Tag{
+          type: :tag,
+          name: "button",
+          open_span: span,
+          span: span,
+          attrs: [%Node.Attr{name: "phx-click", value: {:string, "save"}, span: span}],
+          special: [],
+          children: [%Node.Text{text: "Save", span: span}]
+        }
+      ],
+      span: span
+    }
+
+    ast = Lowerer.to_ast(tree)
+    nodes = ElixirFrontend.translate_ast(ast, Reach.IR.Counter.new(), "demo.heex") |> flatten()
+
+    assert Enum.any?(nodes, &(&1.type == :call and &1.meta[:function] == :__live_event__))
+  end
+
   test "lowers local components to component calls instead of LiveView runtime helpers" do
     span = %Span{file: "demo.heex", start_line: 1, start_col: 1}
 

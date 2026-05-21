@@ -124,9 +124,10 @@ defmodule Reach.Plugins.LiveView.HEEx.Lowerer do
   end
 
   defp lower_tag_body(%Node.Tag{name: name, attrs: attrs, children: children, open_span: span}) do
+    event_attrs = event_attr_asts(attrs)
     dynamic_attrs = dynamic_attr_asts(attrs)
     body = lower_children(children)
-    parts = dynamic_attrs ++ body
+    parts = event_attrs ++ dynamic_attrs ++ body
 
     case parts do
       [] -> static_ast("<#{name}>", span)
@@ -153,9 +154,34 @@ defmodule Reach.Plugins.LiveView.HEEx.Lowerer do
 
   defp attr_field(_), do: []
 
+  @event_attrs ~w(phx-click phx-submit phx-change phx-keyup phx-keydown phx-blur phx-focus phx-window-keyup phx-window-keydown)
+
+  defp event_attr_asts(attrs) do
+    attrs
+    |> Enum.flat_map(fn
+      %Node.Attr{name: name, value: {:string, event}, span: span} when name in @event_attrs ->
+        [event_call(name, event, span)]
+
+      %Node.Attr{name: name, value: {:expr, _code, ast}, span: span} when name in @event_attrs ->
+        [put_origin(ast, origin(:event, name, span))]
+
+      _ ->
+        []
+    end)
+  end
+
+  defp event_call(name, event, span) do
+    meta = meta_from_span(span, origin(:event, "#{name}=#{inspect(event)}", span))
+    {:__live_event__, meta, [event]}
+  end
+
   defp dynamic_attr_asts(attrs) do
     attrs
     |> Enum.reject(&match?(%Node.SpecialAttr{}, &1))
+    |> Enum.reject(fn
+      %Node.Attr{name: name} -> name in @event_attrs
+      _ -> false
+    end)
     |> Enum.flat_map(fn
       %Node.Attr{value: {:expr, _code, ast}, span: span, name: name} ->
         [put_origin(ast, origin(:attr, name, span))]

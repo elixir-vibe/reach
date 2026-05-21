@@ -2,6 +2,7 @@ defmodule Reach.Plugins.LiveView do
   @moduledoc "Plugin for LiveView and HEEx template semantics."
   @behaviour Reach.Plugin
 
+  alias Reach.IR
   alias Reach.IR.Node
   alias Reach.Plugins.LiveView.HEEx
 
@@ -16,14 +17,27 @@ defmodule Reach.Plugins.LiveView do
     :live_render,
     :live_component,
     :on_mount,
+    :__live_event__,
     :sigil_H,
     :sigil_p
   ]
 
   @pure_remote_modules [Phoenix.Component, Phoenix.LiveView]
 
+  @assign_modules [nil, Phoenix.Component, Phoenix.LiveView]
+  @event_attrs [:__live_event__]
+  @event_functions [:push_event]
+  @stream_functions [:stream, :stream_insert, :stream_delete]
+
   @impl true
-  def analyze(_all_nodes, _opts), do: []
+  def analyze(all_nodes, _opts) do
+    function_defs = Enum.filter(all_nodes, &(&1.type == :function_def))
+
+    live_event_edges(function_defs) ++
+      live_assign_edges(function_defs) ++
+      live_component_attr_edges(function_defs) ++
+      live_stream_edges(function_defs)
+  end
 
   @impl true
   def source_extensions, do: [".heex"]
@@ -65,4 +79,214 @@ defmodule Reach.Plugins.LiveView do
       do: true
 
   def ignore_call_edge?(_edge), do: false
+
+  defp live_event_edges(function_defs) do
+    handlers = event_handlers(function_defs)
+
+    for func <- function_defs,
+        event_node <- func |> IR.all_nodes() |> Enum.filter(&live_event_node?/1),
+        event = event_name(event_node),
+        is_binary(event),
+        handler <- Map.get(handlers, {func.meta[:module], event}, []) do
+      {event_node.id, handler.id, {:live_event, event}}
+    end
+  end
+
+  defp event_handlers(function_defs) do
+    function_defs
+    |> Enum.filter(&(&1.meta[:name] == :handle_event and &1.meta[:arity] == 3))
+    |> Enum.flat_map(fn func ->
+      func.children
+      |> Enum.filter(&(&1.type == :clause))
+      |> Enum.flat_map(fn clause ->
+        case clause.children do
+          [%Node{type: :literal, meta: %{value: event}} | _] when is_binary(event) ->
+            [{{func.meta[:module], event}, clause}]
+
+          _ ->
+            []
+        end
+      end)
+    end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+  end
+
+  defp live_event_node?(%Node{type: :call, meta: %{function: fun}}) when fun in @event_attrs,
+    do: true
+
+  defp live_event_node?(%Node{type: :call, meta: %{function: fun}}) when fun in @event_functions,
+    do: true
+
+  defp live_event_node?(%Node{
+         type: :call,
+         meta: %{module: Phoenix.LiveView.JS, function: :push}
+       }),
+       do: true
+
+  defp live_event_node?(%Node{type: :call, meta: %{module: JS, function: :push}}), do: true
+  defp live_event_node?(_), do: false
+
+  defp event_name(%Node{
+         meta: %{function: :__live_event__},
+         children: [%Node{type: :literal, meta: %{value: event}} | _]
+       }),
+       do: event
+
+  defp event_name(%Node{children: [%Node{type: :literal, meta: %{value: event}} | _]})
+       when is_binary(event),
+       do: event
+
+  defp event_name(_), do: nil
+
+  defp live_assign_edges(function_defs) do
+    by_module =
+      Enum.group_by(function_defs, & &1.meta[:module], fn func ->
+        nodes = IR.all_nodes(func)
+
+        %{
+          writes: Enum.flat_map(nodes, &assign_writes/1),
+          reads: Enum.flat_map(nodes, &assign_reads/1)
+        }
+      end)
+
+    for {_module, groups} <- by_module,
+        write <- Enum.flat_map(groups, & &1.writes),
+        read <- Enum.flat_map(groups, & &1.reads),
+        elem(write, 0) == elem(read, 0) do
+      {_key, write_node} = write
+      {_key, read_node} = read
+      {write_node.id, read_node.id, {:live_assign, elem(write, 0)}}
+    end
+  end
+
+  defp assign_writes(
+         %Node{type: :call, meta: %{function: fun, module: module}, children: children} = node
+       )
+       when fun in [:assign, :assign_new, :assign_async] and module in @assign_modules do
+    case children do
+      [_socket, %Node{type: :literal, meta: %{value: key}} | _] when is_atom(key) ->
+        [{key, node}]
+
+      [_socket, %Node{type: :map, children: fields} | _] ->
+        fields
+        |> Enum.flat_map(&map_field_key/1)
+        |> Enum.map(&{&1, node})
+
+      _ ->
+        []
+    end
+  end
+
+  defp assign_writes(_), do: []
+
+  defp assign_reads(
+         %Node{
+           type: :call,
+           meta: %{function: :@},
+           children: [%Node{type: :var, meta: %{name: key}}]
+         } = node
+       )
+       when is_atom(key) and key not in [:streams, :uploads, :flash],
+       do: [{key, node}]
+
+  defp assign_reads(_), do: []
+
+  defp live_component_attr_edges(function_defs) do
+    for func <- function_defs,
+        call <- IR.all_nodes(func),
+        component_call?(call),
+        attr <- component_attrs(call),
+        var <- attr_vars(attr) do
+      {var.id, call.id, {:live_component_attr, elem(attr, 0)}}
+    end
+  end
+
+  defp component_call?(%Node{type: :call, meta: %{origin: %{kind: :component}}}), do: true
+  defp component_call?(_), do: false
+
+  defp component_attrs(%Node{children: [%Node{type: :map, children: fields} | _]}) do
+    Enum.flat_map(fields, fn field ->
+      case field do
+        %Node{type: :map_field, children: [key_node, value_node]} ->
+          case literal_key(key_node) do
+            nil -> []
+            key -> [{key, value_node}]
+          end
+
+        _ ->
+          []
+      end
+    end)
+  end
+
+  defp component_attrs(_), do: []
+
+  defp attr_vars({_key, value}), do: IR.all_nodes(value) |> Enum.filter(&(&1.type == :var))
+
+  defp live_stream_edges(function_defs) do
+    by_module =
+      Enum.group_by(function_defs, & &1.meta[:module], fn func ->
+        nodes = IR.all_nodes(func)
+
+        %{
+          writes: Enum.flat_map(nodes, &stream_writes/1),
+          reads: Enum.flat_map(nodes, &stream_reads/1)
+        }
+      end)
+
+    for {_module, groups} <- by_module,
+        write <- Enum.flat_map(groups, & &1.writes),
+        read <- Enum.flat_map(groups, & &1.reads),
+        elem(write, 0) == elem(read, 0) do
+      {_key, write_node} = write
+      {_key, read_node} = read
+      {write_node.id, read_node.id, {:live_stream, elem(write, 0)}}
+    end
+  end
+
+  defp stream_writes(
+         %Node{
+           type: :call,
+           meta: %{function: fun},
+           children: [_socket, %Node{type: :literal, meta: %{value: key}} | _]
+         } = node
+       )
+       when fun in @stream_functions and is_atom(key),
+       do: [{key, node}]
+
+  defp stream_writes(_), do: []
+
+  defp stream_reads(
+         %Node{type: :call, meta: %{kind: :field_access, function: key}, children: children} =
+           node
+       )
+       when is_atom(key) do
+    if Enum.any?(children, &streams_assign?/1), do: [{key, node}], else: []
+  end
+
+  defp stream_reads(_), do: []
+
+  defp streams_assign?(%Node{
+         type: :call,
+         meta: %{function: :@},
+         children: [%Node{type: :var, meta: %{name: :streams}}]
+       }),
+       do: true
+
+  defp streams_assign?(_), do: false
+
+  defp map_field_key(%Node{type: :map_field, children: [key_node | _]}) do
+    case literal_key(key_node) do
+      nil -> []
+      key -> [key]
+    end
+  end
+
+  defp map_field_key(_), do: []
+
+  defp literal_key(%Node{type: :literal, meta: %{value: key}})
+       when is_atom(key) or is_binary(key),
+       do: key
+
+  defp literal_key(_), do: nil
 end
