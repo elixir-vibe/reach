@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New
+
+- **LiveView/HEEx lowering** — added an optional LiveView plugin that recognizes `~H` and `.heex` templates, lowers HEEx control flow (`if`/`case`, `:if`, `:for`) into Reach's Elixir IR with template source labels/spans, and hides LiveView rendering helper edges from graph presentation. The plugin uses LiveView's parser when available and falls back to the stable `TagEngine` path for current 1.1.x projects.
+
 ### Fixed
 
 - **Protocol and macro-heavy visualizations** — Elixir frontend now attaches `defimpl`/`defprotocol` functions and nested modules to their real module names, and treats quoted macro-generated definitions as data while preserving `unquote` references. This removes bogus `(top-level)` graph buckets and repeated garbage nodes in reports for macro-heavy projects.
