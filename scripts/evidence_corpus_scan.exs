@@ -91,7 +91,14 @@ defmodule Reach.EvidenceCorpusScan do
         variable: contract.variable,
         keys: contract.keys,
         source: contract.source,
-        producer: contract.producer
+        producer: contract.producer,
+        role: contract.role,
+        key_coverage: contract.key_coverage,
+        observed_keys: contract.observed_keys,
+        unused_keys: contract.unused_keys,
+        read_count: contract.read_count,
+        mutation_count: contract.mutation_count,
+        escaped?: contract.escaped?
       })
     end)
   end

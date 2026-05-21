@@ -5,11 +5,31 @@ defmodule Reach.Evidence.MapContract do
 
   defmodule Contract do
     @moduledoc false
-    defstruct [:variable, :keys, :location, :reads, :updates, :confidence, :source, :producer]
+    defstruct [
+      :variable,
+      :keys,
+      :location,
+      :reads,
+      :updates,
+      :confidence,
+      :source,
+      :producer,
+      :role,
+      :key_coverage,
+      :observed_keys,
+      :unused_keys,
+      :read_count,
+      :mutation_count,
+      :escaped?
+    ]
   end
 
   @min_keys 3
   @min_observations 2
+  @assigns_names [:assigns]
+  @accumulator_names [:acc, :cat, :count, :counts, :stats]
+  @external_payload_names [:body, :json, :metadata, :params, :payload, :request, :response]
+  @options_names [:config, :opts, :options]
 
   def family, do: :map_contract
   def kinds, do: [:implicit_map_contract]
@@ -154,7 +174,10 @@ defmodule Reach.Evidence.MapContract do
   defp build_contract(variable, binding, observations, source) do
     reads = Enum.filter(observations, &(&1.kind == :read))
     updates = Enum.filter(observations, &(&1.kind == :update))
-    observed_keys = observations |> Enum.map(& &1.key) |> Enum.uniq()
+    observed_keys = observations |> Enum.map(& &1.key) |> Enum.uniq() |> Enum.sort()
+    unused_keys = binding.keys -- observed_keys
+    key_coverage = length(observed_keys) / max(length(binding.keys), 1)
+    role = classify_role(variable, source)
 
     if length(observed_keys) >= @min_observations do
       [
@@ -164,9 +187,16 @@ defmodule Reach.Evidence.MapContract do
           location: location(binding.meta),
           reads: Enum.map(reads, &observation_location/1),
           updates: Enum.map(updates, &observation_location/1),
-          confidence: confidence(binding.keys, observed_keys, updates),
+          confidence: confidence(key_coverage, updates),
           source: source,
-          producer: Map.get(binding, :producer)
+          producer: Map.get(binding, :producer),
+          role: role,
+          key_coverage: key_coverage,
+          observed_keys: observed_keys,
+          unused_keys: unused_keys,
+          read_count: length(reads),
+          mutation_count: length(updates),
+          escaped?: false
         }
       ]
     else
@@ -229,9 +259,17 @@ defmodule Reach.Evidence.MapContract do
 
   defp map_observation(_node), do: :error
 
-  defp confidence(keys, observed_keys, updates) do
-    coverage = length(observed_keys) / max(length(keys), 1)
+  defp classify_role(variable, _source) when variable in @assigns_names, do: :assigns
+  defp classify_role(variable, _source) when variable in @accumulator_names, do: :accumulator
 
+  defp classify_role(variable, _source) when variable in @external_payload_names,
+    do: :external_payload
+
+  defp classify_role(variable, _source) when variable in @options_names, do: :options
+  defp classify_role(_variable, :return), do: :domain
+  defp classify_role(_variable, _source), do: :unknown
+
+  defp confidence(coverage, updates) do
     cond do
       updates != [] and coverage >= 0.75 -> :high
       coverage >= 0.5 -> :medium

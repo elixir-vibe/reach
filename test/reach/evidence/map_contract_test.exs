@@ -23,6 +23,13 @@ defmodule Reach.Evidence.MapContractTest do
     assert contract.keys == [:email, :id, :name]
     assert Enum.map(contract.reads, & &1.key) |> Enum.sort() == [:id, :name]
     assert contract.confidence == :medium
+    assert contract.role == :unknown
+    assert contract.key_coverage == 2 / 3
+    assert contract.observed_keys == [:id, :name]
+    assert contract.unused_keys == [:email]
+    assert contract.read_count == 2
+    assert contract.mutation_count == 0
+    refute contract.escaped?
   end
 
   test "accounts for updates as stronger contract evidence" do
@@ -59,6 +66,36 @@ defmodule Reach.Evidence.MapContractTest do
     assert contract.producer == {:profile, 1}
     assert contract.variable == :data
     assert Enum.map(contract.reads, & &1.key) |> Enum.sort() == [:email, :id]
+    assert contract.role == :domain
+  end
+
+  test "classifies common non-domain map roles" do
+    ast =
+      Code.string_to_quoted!("""
+      def render(input) do
+        assigns = %{title: input.title, body: input.body, user: input.user}
+        assigns.title
+        assigns.body
+      end
+
+      def reduce(items) do
+        acc = %{seen: [], count: 0, errors: []}
+        acc.seen
+        acc.count
+      end
+
+      def send_payload(input) do
+        payload = %{id: input.id, name: input.name, email: input.email}
+        payload.id
+        payload.email
+      end
+      """)
+
+    contracts = MapContract.collect_ast(ast)
+
+    assert Enum.find(contracts, &(&1.variable == :assigns)).role == :assigns
+    assert Enum.find(contracts, &(&1.variable == :acc)).role == :accumulator
+    assert Enum.find(contracts, &(&1.variable == :payload)).role == :external_payload
   end
 
   test "ignores map literals without later flow evidence" do

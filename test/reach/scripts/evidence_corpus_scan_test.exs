@@ -70,6 +70,13 @@ defmodule Reach.Scripts.EvidenceCorpusScanTest do
     assert result["family"] == "map_contract"
     assert result["keys"] == ["email", "id", "name"]
     assert result["variable"] == "data"
+    assert result["role"] == "unknown"
+    assert result["observed_keys"] == ["email", "id"]
+    assert result["unused_keys"] == ["name"]
+    assert result["read_count"] == 2
+    assert result["mutation_count"] == 0
+    assert result["escaped?"] == false
+    assert_in_delta result["key_coverage"], 2 / 3, 0.001
 
     File.rm_rf(dir)
   end
