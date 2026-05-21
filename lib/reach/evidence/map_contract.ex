@@ -15,14 +15,12 @@ defmodule Reach.Evidence.MapContract do
   def kinds, do: [:implicit_map_contract]
 
   def collect_ast(ast) do
-    definitions = function_definitions(ast)
-    local_contracts = Enum.flat_map(definitions, &contracts_in_scope(&1.body))
-    return_contracts = return_flow_contracts(definitions)
+    definitions = collect_function_definitions(ast)
 
-    local_contracts ++ return_contracts
+    collect_local_contracts(definitions) ++ collect_return_contracts(definitions)
   end
 
-  defp function_definitions(ast) do
+  defp collect_function_definitions(ast) do
     AST.collect(ast, fn
       {def_kind, _meta, [head, block]}, definitions when def_kind in [:def, :defp] ->
         add_function_definition(head, block, definitions)
@@ -49,25 +47,27 @@ defmodule Reach.Evidence.MapContract do
   defp function_body([{{:__block__, _meta, [:do]}, body}]), do: body
   defp function_body(_block), do: nil
 
-  defp contracts_in_scope(ast) do
-    ast
-    |> top_level_map_bindings()
-    |> contracts_from_bindings(ast, :local)
-  end
-
-  defp return_flow_contracts(definitions) do
-    return_shapes = return_shapes(definitions)
-
-    definitions
-    |> Enum.flat_map(fn definition ->
+  defp collect_local_contracts(definitions) do
+    Enum.flat_map(definitions, fn definition ->
       definition.body
-      |> top_level_return_bindings(return_shapes)
-      |> contracts_from_bindings(definition.body, :return)
+      |> collect_literal_map_bindings()
+      |> build_contracts(definition.body, :local)
     end)
   end
 
-  defp return_shapes(definitions) do
-    Map.new(definitions, fn definition ->
+  defp collect_return_contracts(definitions) do
+    return_shapes = collect_return_shapes(definitions)
+
+    Enum.flat_map(definitions, fn definition ->
+      definition.body
+      |> collect_return_value_bindings(return_shapes)
+      |> build_contracts(definition.body, :return)
+    end)
+  end
+
+  defp collect_return_shapes(definitions) do
+    definitions
+    |> Map.new(fn definition ->
       {{definition.name, definition.arity}, returned_shape(definition)}
     end)
     |> Enum.reject(fn {_mfa, shape} -> is_nil(shape) end)
@@ -75,7 +75,7 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp returned_shape(%{body: body, meta: meta}) do
-    case last_expression(body) |> map_literal_keys() do
+    case body |> last_expression() |> map_literal_keys() do
       keys when length(keys) >= @min_keys -> %{keys: keys, meta: meta}
       _keys -> nil
     end
@@ -86,45 +86,13 @@ defmodule Reach.Evidence.MapContract do
 
   defp last_expression(body), do: body
 
-  defp contracts_from_bindings(bindings, ast, source) do
-    if bindings == %{} do
-      []
-    else
-      observations = map_observations(ast, bindings)
-
-      bindings
-      |> Enum.flat_map(fn {variable, binding} ->
-        reads = observations |> Map.get(variable, []) |> Enum.filter(&(&1.kind == :read))
-        updates = observations |> Map.get(variable, []) |> Enum.filter(&(&1.kind == :update))
-        observed_keys = observations |> Map.get(variable, []) |> Enum.map(& &1.key) |> Enum.uniq()
-
-        if length(observed_keys) >= @min_observations do
-          [
-            %Contract{
-              variable: variable,
-              keys: binding.keys,
-              location: location(binding.meta),
-              reads: Enum.map(reads, &observation_location/1),
-              updates: Enum.map(updates, &observation_location/1),
-              confidence: confidence(binding.keys, observed_keys, updates),
-              source: source,
-              producer: Map.get(binding, :producer)
-            }
-          ]
-        else
-          []
-        end
-      end)
-    end
+  defp collect_literal_map_bindings({:__block__, _meta, statements}) do
+    Enum.reduce(statements, %{}, &put_literal_map_binding/2)
   end
 
-  defp top_level_map_bindings({:__block__, _meta, statements}) do
-    Enum.reduce(statements, %{}, &put_map_binding/2)
-  end
+  defp collect_literal_map_bindings(statement), do: put_literal_map_binding(statement, %{})
 
-  defp top_level_map_bindings(statement), do: put_map_binding(statement, %{})
-
-  defp put_map_binding({:=, meta, [{var, _, context}, rhs]}, bindings)
+  defp put_literal_map_binding({:=, meta, [{var, _, context}, rhs]}, bindings)
        when is_atom(var) and is_atom(context) do
     case map_literal_keys(rhs) do
       keys when length(keys) >= @min_keys -> Map.put(bindings, var, %{keys: keys, meta: meta})
@@ -132,16 +100,16 @@ defmodule Reach.Evidence.MapContract do
     end
   end
 
-  defp put_map_binding(_statement, bindings), do: bindings
+  defp put_literal_map_binding(_statement, bindings), do: bindings
 
-  defp top_level_return_bindings({:__block__, _meta, statements}, return_shapes) do
-    Enum.reduce(statements, %{}, &put_return_binding(&1, &2, return_shapes))
+  defp collect_return_value_bindings({:__block__, _meta, statements}, return_shapes) do
+    Enum.reduce(statements, %{}, &put_return_value_binding(&1, &2, return_shapes))
   end
 
-  defp top_level_return_bindings(statement, return_shapes),
-    do: put_return_binding(statement, %{}, return_shapes)
+  defp collect_return_value_bindings(statement, return_shapes),
+    do: put_return_value_binding(statement, %{}, return_shapes)
 
-  defp put_return_binding({:=, meta, [{var, _, context}, rhs]}, bindings, return_shapes)
+  defp put_return_value_binding({:=, meta, [{var, _, context}, rhs]}, bindings, return_shapes)
        when is_atom(var) and is_atom(context) do
     with {:ok, producer} <- local_call(rhs),
          %{keys: keys} <- Map.get(return_shapes, producer) do
@@ -151,7 +119,7 @@ defmodule Reach.Evidence.MapContract do
     end
   end
 
-  defp put_return_binding(_statement, bindings, _return_shapes), do: bindings
+  defp put_return_value_binding(_statement, bindings, _return_shapes), do: bindings
 
   defp local_call({name, _meta, args}) when is_atom(name) and is_list(args),
     do: {:ok, {name, length(args)}}
@@ -170,22 +138,62 @@ defmodule Reach.Evidence.MapContract do
 
   defp map_literal_keys(_node), do: []
 
-  defp map_observations(ast, bindings) do
+  defp build_contracts(bindings, ast, source) do
+    if bindings == %{} do
+      []
+    else
+      observations = collect_map_observations(ast, bindings)
+
+      bindings
+      |> Enum.flat_map(fn {variable, binding} ->
+        build_contract(variable, binding, Map.get(observations, variable, []), source)
+      end)
+    end
+  end
+
+  defp build_contract(variable, binding, observations, source) do
+    reads = Enum.filter(observations, &(&1.kind == :read))
+    updates = Enum.filter(observations, &(&1.kind == :update))
+    observed_keys = observations |> Enum.map(& &1.key) |> Enum.uniq()
+
+    if length(observed_keys) >= @min_observations do
+      [
+        %Contract{
+          variable: variable,
+          keys: binding.keys,
+          location: location(binding.meta),
+          reads: Enum.map(reads, &observation_location/1),
+          updates: Enum.map(updates, &observation_location/1),
+          confidence: confidence(binding.keys, observed_keys, updates),
+          source: source,
+          producer: Map.get(binding, :producer)
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp collect_map_observations(ast, bindings) do
     AST.reduce(ast, %{}, &record_observation(&1, bindings, &2))
   end
 
   defp record_observation(node, bindings, observations) do
     case map_observation(node) do
       {:ok, variable, key, kind, meta} when is_map_key(bindings, variable) ->
-        if key in bindings[variable].keys do
-          observation = %{key: key, kind: kind, meta: meta}
-          Map.update(observations, variable, [observation], &[observation | &1])
-        else
-          observations
-        end
+        record_known_key_observation(observations, variable, bindings[variable], key, kind, meta)
 
       _other ->
         observations
+    end
+  end
+
+  defp record_known_key_observation(observations, variable, binding, key, kind, meta) do
+    if key in binding.keys do
+      observation = %{key: key, kind: kind, meta: meta}
+      Map.update(observations, variable, [observation], &[observation | &1])
+    else
+      observations
     end
   end
 
