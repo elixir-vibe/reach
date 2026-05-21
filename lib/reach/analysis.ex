@@ -32,7 +32,11 @@ defmodule Reach.Analysis do
 
   defp mix_task_module?(module) when is_atom(module) do
     match?(["Mix", "Tasks" | _], Module.split(module))
+  rescue
+    ArgumentError -> false
   end
+
+  defp mix_task_module?(_module), do: false
 
   defp mix_task_file?(nil), do: false
   defp mix_task_file?(%{file: file}), do: String.starts_with?(file || "", "lib/mix/tasks/")

@@ -1085,13 +1085,21 @@ defmodule Reach.Frontend.Elixir do
   defp module_name(atom) when is_atom(atom), do: atom
   defp module_name(other), do: other
 
+  defp protocol_impl_module(protocol, _target) when not is_atom(protocol), do: protocol
   defp protocol_impl_module(protocol, nil), do: protocol
 
-  defp protocol_impl_module(protocol, {:__aliases__, _, _} = target),
-    do: Module.concat(protocol, module_name(target))
+  defp protocol_impl_module(protocol, {:__aliases__, _, _} = target) do
+    case module_name(target) do
+      module when is_atom(module) -> Module.concat(protocol, module)
+      _dynamic -> protocol
+    end
+  end
 
-  defp protocol_impl_module(protocol, target) when is_atom(target),
-    do: Module.concat(protocol, target)
+  defp protocol_impl_module(protocol, target) when is_atom(target) do
+    Module.concat(protocol, target)
+  rescue
+    ArgumentError -> protocol
+  end
 
   defp protocol_impl_module(protocol, _target), do: protocol
 

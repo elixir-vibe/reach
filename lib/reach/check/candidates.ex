@@ -31,9 +31,9 @@ defmodule Reach.Check.Candidates do
     kind_rank = %{
       introduce_boundary: 0,
       isolate_effects: 1,
-      extract_pure_region: 2,
-      break_cycle: 3,
-      introduce_struct_contract: 4
+      introduce_struct_contract: 2,
+      extract_pure_region: 3,
+      break_cycle: 4
     }
 
     risk_rank = %{high: 0, medium: 1, low: 2}
@@ -253,13 +253,7 @@ defmodule Reach.Check.Candidates do
     |> project_source_files()
     |> Enum.flat_map(&map_contracts_in_file/1)
     |> Enum.group_by(& &1.keys)
-    |> Enum.flat_map(fn {keys, contracts} ->
-      if length(contracts) >= 2 do
-        [{keys, contracts}]
-      else
-        []
-      end
-    end)
+    |> Enum.flat_map(&map_contract_candidate_group/1)
     |> Enum.sort_by(fn {keys, contracts} -> {-length(contracts), length(keys), inspect(keys)} end)
     |> Enum.take(candidate_config.limits.per_kind)
     |> Enum.with_index(1)
@@ -289,6 +283,24 @@ defmodule Reach.Check.Candidates do
     end)
   end
 
+  defp map_contract_candidate_group({keys, contracts}) do
+    cond do
+      length(contracts) >= 2 ->
+        [{keys, contracts}]
+
+      Enum.any?(contracts, &return_contract_candidate?/1) ->
+        [{keys, contracts}]
+
+      true ->
+        []
+    end
+  end
+
+  defp return_contract_candidate?(contract) do
+    contract.source == :return and length(contract.keys) >= 4 and
+      contract.variable not in [:acc, :stats, :counts, :count, :cat]
+  end
+
   defp project_source_files(project) do
     project.nodes
     |> Map.values()
@@ -299,7 +311,12 @@ defmodule Reach.Check.Candidates do
       end
     end)
     |> Enum.uniq()
+    |> Enum.reject(&dependency_source_file?/1)
     |> Enum.sort()
+  end
+
+  defp dependency_source_file?(file) do
+    String.contains?(file, "/deps/") or String.contains?(file, "/_build/")
   end
 
   defp map_contracts_in_file(file) do
