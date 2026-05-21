@@ -22,6 +22,7 @@ defmodule Reach.SmellTest do
       assert Reach.Smell.Checks.ConfigPhase in checks
       assert Reach.Smell.Checks.PipelineWaste in checks
       assert Reach.Smell.Checks.TrivialDelegate in checks
+      assert Reach.Smell.Checks.StandardLibraryBypass in checks
     end
   end
 

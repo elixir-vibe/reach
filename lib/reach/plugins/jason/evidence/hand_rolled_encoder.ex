@@ -59,10 +59,10 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   end
 
   defp collect_node(
-         {:defimpl, meta, [{:__aliases__, _, [:Jason, :Encoder]}, _opts, _block]} = node,
+         {:defimpl, meta, [{:__aliases__, _, [:Jason, :Encoder]}, opts, _block]} = node,
          acc
        ) do
-    if delegates_to_to_map?(node) do
+    if single_encoder_target?(opts) and delegates_directly_to_to_map?(node) do
       [
         evidence(
           :manual_jason_encoder_map,
@@ -98,8 +98,21 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
       contains_call?(node, {String, :replace})
   end
 
-  defp delegates_to_to_map?(node) do
-    contains_call?(node, {Jason.Encode, :map}) and contains_to_map_call?(node)
+  defp single_encoder_target?(for: {:__aliases__, _, _module_parts}), do: true
+  defp single_encoder_target?(_opts), do: false
+
+  defp delegates_directly_to_to_map?(node) do
+    {_node, found?} =
+      Macro.prewalk(node, false, fn
+        {{:., _, [{:__aliases__, _, [:Jason, :Encode]}, :map]}, _, [to_map_call, _opts]} = child,
+        _found? ->
+          {child, to_map_call?(to_map_call)}
+
+        child, found? ->
+          {child, found?}
+      end)
+
+    found?
   end
 
   defp count_calls(node, targets) do
@@ -120,21 +133,9 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
     found?
   end
 
-  defp contains_to_map_call?(node) do
-    {_node, found?} =
-      Macro.prewalk(node, false, fn
-        {:to_map, _meta, args} = child, _found? when is_list(args) ->
-          {child, true}
-
-        {{:., _, [_module, :to_map]}, _, args} = child, _found? when is_list(args) ->
-          {child, true}
-
-        child, found? ->
-          {child, found?}
-      end)
-
-    found?
-  end
+  defp to_map_call?({:to_map, _meta, args}) when is_list(args), do: true
+  defp to_map_call?({{:., _, [_module, :to_map]}, _, args}) when is_list(args), do: true
+  defp to_map_call?(_node), do: false
 
   defp call?({name, _meta, args}, {:__local__, name}) when is_list(args), do: true
 
