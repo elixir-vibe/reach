@@ -67,26 +67,25 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   defp collect_node(_node, acc), do: acc
 
   defp manual_jason_encoder_evidence(ast) do
-    if direct_to_map_projection?(ast) do
-      AST.collect(ast, fn
-        node, acc ->
-          if direct_jason_encoder_map?(node) do
-            [
-              evidence(
-                :manual_jason_encoder_map,
-                "Jason encoder delegates through a direct to_map/1 projection; use @derive Jason.Encoder",
-                "@derive Jason.Encoder",
-                jason_encoder_meta(node),
-                :high
-              )
-              | acc
-            ]
-          else
-            acc
-          end
-      end)
+    if direct_to_map_projection?(ast),
+      do: AST.collect(ast, &collect_manual_jason_encoder_node/2),
+      else: []
+  end
+
+  defp collect_manual_jason_encoder_node(node, acc) do
+    if direct_jason_encoder_map?(node) do
+      [
+        evidence(
+          :manual_jason_encoder_map,
+          "Jason encoder delegates through a direct to_map/1 projection; use @derive Jason.Encoder",
+          "@derive Jason.Encoder",
+          jason_encoder_meta(node),
+          :high
+        )
+        | acc
+      ]
     else
-      []
+      acc
     end
   end
 
@@ -121,8 +120,8 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
 
   defp direct_to_map_projection?(ast) do
     AST.contains?(ast, fn
-      {def_kind, _meta, [{:to_map, _to_map_meta, args}, [do: body]]}
-      when def_kind in [:def, :defp] and length(args) == 1 ->
+      {def_kind, _meta, [{:to_map, _to_map_meta, [_arg]}, [do: body]]}
+      when def_kind in [:def, :defp] ->
         direct_map_from_struct?(body)
 
       _node ->

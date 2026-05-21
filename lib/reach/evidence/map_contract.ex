@@ -225,11 +225,23 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp returned_expression_shape(expression, bindings, fallback_meta) do
-    case {map_literal_keys(expression), variable_name(expression)} do
-      {keys, _variable} when length(keys) >= @min_keys -> %{keys: keys, meta: fallback_meta}
-      {_keys, {:ok, variable}} -> Map.get(bindings, variable)
-      _other -> nil
+    keys = map_literal_keys(expression)
+
+    cond do
+      length(keys) >= @min_keys ->
+        %{keys: keys, meta: fallback_meta}
+
+      match?({:ok, _variable}, variable_name(expression)) ->
+        returned_variable_shape(expression, bindings)
+
+      true ->
+        nil
     end
+  end
+
+  defp returned_variable_shape(expression, bindings) do
+    {:ok, variable} = variable_name(expression)
+    Map.get(bindings, variable)
   end
 
   defp collect_literal_map_bindings({:__block__, _meta, statements}) do
@@ -238,16 +250,26 @@ defmodule Reach.Evidence.MapContract do
 
   defp collect_literal_map_bindings(statement), do: put_literal_map_binding(statement, %{})
 
+  defp put_alias_binding(bindings, var, rhs, meta) do
+    {:ok, source_var} = variable_name(rhs)
+
+    if Map.has_key?(bindings, source_var),
+      do: Map.put(bindings, var, %{bindings[source_var] | meta: meta}),
+      else: bindings
+  end
+
   defp put_literal_map_binding({:=, meta, [{var, _, context}, rhs]}, bindings)
        when is_atom(var) and is_atom(context) do
-    case {map_literal_keys(rhs), variable_name(rhs)} do
-      {keys, _alias} when length(keys) >= @min_keys ->
+    keys = map_literal_keys(rhs)
+
+    cond do
+      length(keys) >= @min_keys ->
         Map.put(bindings, var, %{keys: keys, meta: meta})
 
-      {_keys, {:ok, source_var}} when is_map_key(bindings, source_var) ->
-        Map.put(bindings, var, %{bindings[source_var] | meta: meta})
+      match?({:ok, _source_var}, variable_name(rhs)) ->
+        put_alias_binding(bindings, var, rhs, meta)
 
-      _other ->
+      true ->
         bindings
     end
   end

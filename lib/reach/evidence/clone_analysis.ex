@@ -1,8 +1,8 @@
 defmodule Reach.Evidence.CloneAnalysis do
   @moduledoc "Process-dictionary-cached clone detection dispatcher."
 
-  alias Reach.Evidence.CloneAnalysis.ExDNA
   alias Reach.Config
+  alias Reach.Evidence.CloneAnalysis.ExDNA
 
   @cache_key {__MODULE__, :clones}
 

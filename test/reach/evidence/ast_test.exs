@@ -33,7 +33,7 @@ defmodule Reach.Evidence.ASTTest do
   end
 
   test "contains and count use predicates" do
-    ast = Code.string_to_quoted!("String.replace(name, \"-\", \"_\")")
+    ast = Code.string_to_quoted!(~S[String.replace(name, "-", "_")])
 
     assert AST.contains?(ast, &AST.remote_call?(&1, String, :replace))
     assert AST.count(ast, &AST.remote_call?(&1, String, :replace)) == 1
