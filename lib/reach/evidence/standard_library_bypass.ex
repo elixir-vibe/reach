@@ -9,7 +9,7 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   @path_names ~w(path filepath file_path filename file dir directory source dest destination)a
   @uri_names ~w(url uri href endpoint query query_string qs)a
 
-  def family, do: :standard_library_bypass
+  def family, do: :stdlib
 
   def kinds do
     [
@@ -21,7 +21,9 @@ defmodule Reach.Evidence.StandardLibraryBypass do
       :manual_flat_map,
       :manual_map_update,
       :manual_frequencies,
-      :manual_frequencies_by
+      :manual_frequencies_by,
+      :manual_flat_map_reduce,
+      :manual_map_update_bang
     ]
   end
 
@@ -93,8 +95,10 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   end
 
   defp collect_direct(node, acc) do
-    case {split_call(node), map_update_shape(node), frequencies_shape(node)} do
-      {{:string_split, subject, "&", meta}, _map_update, _frequencies} ->
+    case {split_call(node), map_update_shape(node), frequencies_shape(node),
+          flat_map_reduce_shape(node), map_update_bang_shape(node)} do
+      {{:string_split, subject, "&", meta}, _map_update, _frequencies, _flat_map_reduce,
+       _map_update_bang} ->
         maybe_evidence(
           acc,
           uri_subject?(subject),
@@ -105,7 +109,8 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           :medium
         )
 
-      {{:string_split, subject, "://", meta}, _map_update, _frequencies} ->
+      {{:string_split, subject, "://", meta}, _map_update, _frequencies, _flat_map_reduce,
+       _map_update_bang} ->
         maybe_evidence(
           acc,
           uri_subject?(subject),
@@ -116,7 +121,7 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           :medium
         )
 
-      {_split_call, {:ok, meta}, _frequencies} ->
+      {_split_call, {:ok, meta}, _frequencies, _flat_map_reduce, _map_update_bang} ->
         maybe_evidence(
           acc,
           true,
@@ -127,13 +132,36 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           :high
         )
 
-      {_split_call, _map_update, {:ok, kind, replacement, meta}} ->
+      {_split_call, _map_update, {:ok, kind, replacement, meta}, _flat_map_reduce,
+       _map_update_bang} ->
         maybe_evidence(
           acc,
           true,
           kind,
           "Enum.reduce builds a count map; use #{replacement}",
           replacement,
+          meta,
+          :high
+        )
+
+      {_split_call, _map_update, _frequencies, {:ok, meta}, _map_update_bang} ->
+        maybe_evidence(
+          acc,
+          true,
+          :manual_flat_map_reduce,
+          "Enum.reduce appends mapped lists into an accumulator; use Enum.flat_map/2",
+          "Enum.flat_map/2",
+          meta,
+          :high
+        )
+
+      {_split_call, _map_update, _frequencies, _flat_map_reduce, {:ok, meta}} ->
+        maybe_evidence(
+          acc,
+          true,
+          :manual_map_update_bang,
+          "Map.fetch! followed by Map.put on the same key reimplements Map.update!/3",
+          "Map.update!/3",
           meta,
           :high
         )
@@ -335,6 +363,103 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   defp increment_by_one?({:+, _, [var, 1]}, expected_var), do: same_ast?(var, expected_var)
   defp increment_by_one?({:+, _, [1, var]}, expected_var), do: same_ast?(var, expected_var)
   defp increment_by_one?(_node, _expected_var), do: false
+
+  defp flat_map_reduce_shape(node) do
+    with {:ok, meta, item, acc, body} <- reduce_empty_list_callback(node),
+         true <- append_mapped_list?(body, item, acc) do
+      {:ok, meta}
+    else
+      _other -> :error
+    end
+  end
+
+  defp reduce_empty_list_callback(
+         {{:., meta, [{:__aliases__, _, [:Enum]}, :reduce]}, _call_meta,
+          [_enumerable, [], {:fn, _, [{:->, _, [[item, acc], body]}]}]}
+       ),
+       do: {:ok, meta, item, acc, body}
+
+  defp reduce_empty_list_callback(
+         {:|>, _pipe_meta,
+          [
+            _enumerable,
+            {{:., meta, [{:__aliases__, _, [:Enum]}, :reduce]}, _call_meta,
+             [[], {:fn, _, [{:->, _, [[item, acc], body]}]}]}
+          ]}
+       ),
+       do: {:ok, meta, item, acc, body}
+
+  defp reduce_empty_list_callback(_node), do: :error
+
+  defp append_mapped_list?({:++, _, [left, right]}, item, acc) do
+    same_ast?(left, acc) and references_ast?(right, item) and not references_ast?(right, acc)
+  end
+
+  defp append_mapped_list?(_body, _item, _acc), do: false
+
+  defp references_ast?(node, expected) do
+    {_node, found?} =
+      Macro.prewalk(node, false, fn child, found? ->
+        {child, found? or same_ast?(child, expected)}
+      end)
+
+    found?
+  end
+
+  defp map_update_bang_shape({:__block__, meta, [assignment, put_call]}) do
+    with {:ok, value_var, map, key, assignment_meta} <- fetch_bang_assignment(assignment),
+         true <- update_bang_put_call?(put_call, map, key, value_var) do
+      {:ok, line_meta(assignment_meta, meta)}
+    else
+      _other -> :error
+    end
+  end
+
+  defp map_update_bang_shape(put_call) do
+    case put_call do
+      {{:., meta, [{:__aliases__, _, [:Map]}, :put]}, _, [map, key, value]} ->
+        if fetch_bang_value_for?(value, map, key), do: {:ok, meta}, else: :error
+
+      _node ->
+        :error
+    end
+  end
+
+  defp fetch_bang_assignment(
+         {:=, meta, [value_var, {{:., _, [{:__aliases__, _, [:Map]}, :fetch!]}, _, [map, key]}]}
+       ),
+       do: {:ok, value_var, map, key, meta}
+
+  defp fetch_bang_assignment(_node), do: :error
+
+  defp update_bang_put_call?(
+         {{:., _, [{:__aliases__, _, [:Map]}, :put]}, _, [map, key, value]},
+         expected_map,
+         expected_key,
+         value_var
+       ) do
+    same_ast?(map, expected_map) and same_ast?(key, expected_key) and
+      references_ast?(value, value_var)
+  end
+
+  defp update_bang_put_call?(_node, _expected_map, _expected_key, _value_var), do: false
+
+  defp fetch_bang_value_for?(node, expected_map, expected_key) do
+    {_node, found?} =
+      Macro.prewalk(node, false, fn
+        {{:., _, [{:__aliases__, _, [:Map]}, :fetch!]}, _, [map, key]} = child, _found? ->
+          {child, same_ast?(map, expected_map) and same_ast?(key, expected_key)}
+
+        child, found? ->
+          {child, found?}
+      end)
+
+    found?
+  end
+
+  defp line_meta(preferred, fallback) do
+    if Keyword.get(preferred, :line), do: preferred, else: fallback
+  end
 
   defp path_subject?(subject), do: subject_name(subject) in @path_names
   defp uri_subject?(subject), do: subject_name(subject) in @uri_names

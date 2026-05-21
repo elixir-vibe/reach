@@ -10,6 +10,11 @@ defmodule Reach.Plugins.Jason do
   end
 
   @impl true
+  def evidence_providers do
+    [Reach.Plugins.Jason.Evidence.HandRolledEncoder]
+  end
+
+  @impl true
   def classify_effect(%Node{type: :call, meta: %{module: Jason}}), do: :pure
   def classify_effect(_), do: nil
 

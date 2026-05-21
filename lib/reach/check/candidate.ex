@@ -20,7 +20,10 @@ defmodule Reach.Check.Candidate do
     :representative_calls,
     :call,
     :branches,
-    :direct_caller_count
+    :direct_caller_count,
+    :keys,
+    :occurrences,
+    :sources
   ]
 
   def new(attrs) when is_list(attrs) or is_map(attrs), do: struct!(__MODULE__, attrs)

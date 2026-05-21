@@ -272,6 +272,9 @@ defmodule Reach.Check.Candidates do
         confidence: map_contract_confidence(contracts),
         actionability: :review_domain_contract,
         evidence: map_contract_evidence(contracts, sources, candidate_config),
+        keys: Enum.map(keys, &to_string/1),
+        occurrences: length(contracts),
+        sources: Enum.map(sources, &to_string/1),
         proof: [
           "Confirm this repeated map shape represents domain data, not an external JSON/API boundary.",
           "Prefer a struct when the shape is internal and stable across functions.",

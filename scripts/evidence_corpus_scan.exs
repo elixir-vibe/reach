@@ -28,48 +28,35 @@ defmodule Reach.EvidenceCorpusScan do
   end
 
   defp scan(paths, kind, limit, format) do
+    providers = Reach.Evidence.ast_providers_for(kind_family(kind), Reach.Plugin.detect())
+
     paths
     |> Enum.flat_map(&Path.wildcard(Path.join(&1, "{lib,test}/**/*.{ex,exs}")))
     |> Enum.uniq()
     |> Enum.sort()
-    |> Enum.flat_map(&scan_file(&1, kind))
+    |> Enum.flat_map(&scan_file(&1, providers))
     |> print_results(limit, format)
   end
 
-  defp scan_file(path, kind) do
+  defp scan_file(path, providers) do
     with {:ok, source} <- File.read(path),
          {:ok, ast} <- Code.string_to_quoted(source) do
-      evidence_for(ast, kind)
+      providers
+      |> Enum.flat_map(&provider_evidence(&1, ast))
       |> Enum.map(&Map.put(&1, :file, path))
     else
       _error -> []
     end
   end
 
-  defp evidence_for(ast, "all") do
-    evidence_for(ast, "jason") ++ evidence_for(ast, "stdlib") ++ evidence_for(ast, "map-contract")
-  end
-
-  defp evidence_for(ast, "jason") do
-    ast
-    |> Reach.Plugins.Jason.Evidence.HandRolledEncoder.collect_ast()
-    |> Enum.map(&evidence(:jason, &1.kind, &1.message, &1.meta, &1.confidence))
-  end
-
-  defp evidence_for(ast, "stdlib") do
-    ast
-    |> Reach.Evidence.StandardLibraryBypass.collect_ast()
-    |> Enum.map(&evidence(:stdlib, &1.kind, &1.message, &1.meta, &1.confidence))
-  end
-
-  defp evidence_for(ast, "map-contract") do
+  defp provider_evidence(Reach.Evidence.MapContract, ast) do
     ast
     |> Reach.Evidence.MapContract.collect_ast()
     |> Enum.map(fn contract ->
       message =
         "map #{inspect(contract.variable)} uses keys #{inspect(contract.keys)} as an implicit contract"
 
-      :map_contract
+      Reach.Evidence.MapContract.family()
       |> evidence(:implicit_map_contract, message, contract.location, contract.confidence)
       |> Map.merge(%{
         variable: contract.variable,
@@ -79,6 +66,16 @@ defmodule Reach.EvidenceCorpusScan do
       })
     end)
   end
+
+  defp provider_evidence(provider, ast) do
+    ast
+    |> provider.collect_ast()
+    |> Enum.map(&evidence(provider.family(), &1.kind, &1.message, &1.meta, &1.confidence))
+  end
+
+  defp kind_family("all"), do: :all
+  defp kind_family("map-contract"), do: :map_contract
+  defp kind_family(kind), do: String.to_existing_atom(kind)
 
   defp print_results(results, _limit, "json") do
     results

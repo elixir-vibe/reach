@@ -11,11 +11,12 @@ Implemented high-confidence families:
 - `Enum.flat_map/2` for direct `Enum.map` followed by `List.flatten/1` or `Enum.concat/1`.
 - `Map.update/4` for paired `Map.get`/`Map.put` or `Map.has_key?`/`Map.put` branches that update the same map/key.
 - `Enum.frequencies/1` and `Enum.frequencies_by/2` for reduce-based count maps with `%{}` initial accumulator, exact increment-by-one logic, and no extra payload work.
+- `Enum.flat_map/2` for reduce-based `acc ++ mapped_list` callbacks with an empty list accumulator.
+- `Map.update!/3` when code fetches a required existing key and immediately puts the transformed value back.
 
 Promising mined families that need stronger constraints before implementation:
 
-- `Map.update!/3` when code fetches a required existing key and immediately puts the transformed value back.
-- `Enum.flat_map/2` variants where a reduce accumulates `acc ++ list` or reverses concatenated chunks.
+- `Enum.flat_map/2` variants where a reduce prepends mapped lists and reverses afterward.
 - `URI.parse/1` for authority parsing such as `String.split(str, ":", parts: 2)`, but only for URI/host/endpoint variable names or surrounding URI semantics.
 - `Path.basename/1` / `Path.extname/1` for filename construction, but avoid generic labels/slugs.
 
@@ -33,6 +34,13 @@ Promising upgrades:
 - confidence boosts when the same shape crosses module boundaries;
 - lower confidence for accumulator/report names unless shape is returned or reused;
 - explicit exclusions for external payload boundaries such as `params`, `payload`, `body`, `json`, and `metadata` unless internal reads dominate.
+
+## Mined examples
+
+- Hologram has direct `Enum.map(... ) |> Enum.concat/List.flatten` examples in recursive file and template expansion helpers; these validate the direct `Enum.flat_map/2` heuristic.
+- Xamal replaced `String.split(str, ":", parts: 2)` authority parsing with `URI.parse("//#{str}")`; this remains a backlog URI heuristic until variable/context constraints are strong enough.
+- Jido history contains `Enum.frequencies/1` and `Map.update` replacements in dependency and telemetry code; these validate count-map and paired-update families but also show why payload aggregation must be excluded.
+- Reach's own history has append-in-reduce cleanups; reduce-based `Enum.flat_map/2` should stay limited to obvious `acc ++ mapped_list` shapes unless order proof is explicit.
 
 ## JSON/Jason
 

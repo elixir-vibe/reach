@@ -4,7 +4,7 @@ defmodule Reach.Evidence.StandardLibraryBypassTest do
   alias Reach.Evidence.StandardLibraryBypass
 
   test "exposes evidence metadata" do
-    assert StandardLibraryBypass.family() == :standard_library_bypass
+    assert StandardLibraryBypass.family() == :stdlib
     assert :manual_frequencies in StandardLibraryBypass.kinds()
   end
 
@@ -78,6 +78,36 @@ defmodule Reach.Evidence.StandardLibraryBypassTest do
       """)
 
     assert [%{kind: :manual_frequencies_by, replacement: "Enum.frequencies_by/2"}] =
+             StandardLibraryBypass.collect_ast(ast)
+  end
+
+  test "collects reduce based flat_map evidence" do
+    ast =
+      Code.string_to_quoted!("""
+      Enum.reduce(items, [], fn item, acc ->
+        acc ++ expand(item)
+      end)
+      """)
+
+    assert [%{kind: :manual_flat_map_reduce, replacement: "Enum.flat_map/2"}] =
+             StandardLibraryBypass.collect_ast(ast)
+  end
+
+  test "collects fetch bang followed by put evidence" do
+    ast =
+      Code.string_to_quoted!("""
+      current = Map.fetch!(state, :count)
+      Map.put(state, :count, current + 1)
+      """)
+
+    assert [%{kind: :manual_map_update_bang, replacement: "Map.update!/3"}] =
+             StandardLibraryBypass.collect_ast(ast)
+  end
+
+  test "collects inline fetch bang followed by put evidence" do
+    ast = Code.string_to_quoted!("Map.put(state, :count, Map.fetch!(state, :count) + 1)")
+
+    assert [%{kind: :manual_map_update_bang, replacement: "Map.update!/3"}] =
              StandardLibraryBypass.collect_ast(ast)
   end
 

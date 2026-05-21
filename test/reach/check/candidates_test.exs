@@ -31,10 +31,17 @@ defmodule Reach.Check.CandidatesTest do
     project = Reach.Project.from_sources([path], plugins: [])
     result = Candidates.run(project, [], top: 10)
 
-    assert Enum.any?(result.candidates, fn candidate ->
-             candidate.kind == :introduce_struct_contract and
-               candidate.target == "map shape [:email, :id, :name]"
-           end)
+    candidate =
+      Enum.find(result.candidates, fn candidate ->
+        candidate.kind == :introduce_struct_contract and
+          candidate.target == "map shape [:email, :id, :name]"
+      end)
+
+    assert candidate
+    assert candidate.keys == ["email", "id", "name"]
+    assert candidate.occurrences == 2
+    assert "local" in candidate.sources
+    assert "return" in candidate.sources
 
     File.rm_rf(dir)
   end

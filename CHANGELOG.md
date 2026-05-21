@@ -6,11 +6,11 @@
 
 - **Evidence provider namespace** — moved clone analysis under `Reach.Evidence.CloneAnalysis` and introduced `Reach.Evidence` as the namespace for reusable facts consumed by smells, checks, and refactoring candidates.
 - **Jason plugin smell** — added an evidence-backed smell check for hand-rolled JSON sanitizers, encoders, and simple `Jason.Encoder` implementations that should use Jason protocol support directly.
-- **Standard library bypass smell** — added conservative Path/URI checks for hand-written basename, extension, URL, and query-string splitting, plus higher-context `Enum.map`→flatten, paired `Map.get`/`Map.put` update, and reduce-based `Enum.frequencies` heuristics.
+- **Standard library bypass smell** — added conservative Path/URI checks for hand-written basename, extension, URL, and query-string splitting, plus higher-context `Enum.map`→flatten, reduce-based `Enum.flat_map`, paired `Map.get`/`Map.put` update, `Map.update!`, and reduce-based `Enum.frequencies` heuristics.
 - **Map contract evidence** — added `Reach.Evidence.MapContract` as a reusable evidence provider for maps that are created with a fixed shape, returned from local functions, and then read/updated as implicit contracts.
 - **Map contract candidates** — `mix reach.check --candidates` now reports advisory struct/contract candidates when repeated implicit map contracts appear in project source.
 - **Poison plugin rename** — split the Poison effect classifier into `Reach.Plugins.Poison` now that Jason has its own plugin.
-- **Evidence corpus scanner** — added `scripts/evidence_corpus_scan.exs` for focused Jason, standard-library bypass, and map-contract evidence scans across repositories.
+- **Evidence corpus scanner** — added `scripts/evidence_corpus_scan.exs` for focused Jason, standard-library bypass, and map-contract evidence scans across repositories, backed by lightweight `family/0` and `kinds/0` evidence provider metadata.
 
 ### Fixed
 

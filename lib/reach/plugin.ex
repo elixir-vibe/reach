@@ -90,6 +90,7 @@ defmodule Reach.Plugin do
               {:ok, [Node.t()]} | {:error, term()}
 
   @callback smell_checks() :: [module()]
+  @callback evidence_providers() :: [module()]
   @callback trace_pattern(pattern :: String.t()) :: (Node.t() -> boolean()) | nil
   @callback behaviour_label(callbacks :: [atom()]) :: String.t() | nil
   @callback ignore_call_edge?(Graph.Edge.t()) :: boolean()
@@ -101,6 +102,7 @@ defmodule Reach.Plugin do
                       source_language: 1,
                       parse_file: 2,
                       smell_checks: 0,
+                      evidence_providers: 0,
                       trace_pattern: 1,
                       behaviour_label: 1,
                       ignore_call_edge?: 1
@@ -209,6 +211,15 @@ defmodule Reach.Plugin do
     plugins
     |> Enum.flat_map(fn plugin ->
       if exports?(plugin, :smell_checks, 0), do: plugin.smell_checks(), else: []
+    end)
+    |> Enum.uniq()
+  end
+
+  @doc "Returns evidence providers contributed by plugins."
+  def evidence_providers(plugins) do
+    plugins
+    |> Enum.flat_map(fn plugin ->
+      if exports?(plugin, :evidence_providers, 0), do: plugin.evidence_providers(), else: []
     end)
     |> Enum.uniq()
   end
