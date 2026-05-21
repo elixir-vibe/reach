@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+### New
+
+- **Architecture layer ergonomics** — `.reach.exs` now validates unknown layer references, supports allowlist-style dependency policy, dependency exceptions, optional layer coverage checks, and layer-cycle violations with concrete call-edge witnesses.
+
 ### Fixed
 
-- **Protocol and macro-heavy visualizations** — Elixir frontend now attaches `defimpl`/`defprotocol` functions and nested modules to their real module names, and treats quoted macro-generated definitions as data while preserving `unquote` references. This removes bogus `(top-level)` graph buckets and repeated garbage nodes in reports for macro-heavy projects.
+- **Protocol and macro-heavy visualizations** — Elixir frontend now attaches `defimpl`/`defprotocol` functions and nested modules to their real module names, including multi-part nested `defmodule` names, and treats quoted macro-generated definitions as data while preserving `unquote` references. This removes bogus `(top-level)` graph buckets and repeated garbage nodes in reports for macro-heavy projects.
 - **Redundant computation false positives** — stateful IR counter calls are no longer reported as duplicate pure computations during Reach's own strict smell checks.
 
 ## 2.5.0

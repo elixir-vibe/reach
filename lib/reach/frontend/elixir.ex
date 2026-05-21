@@ -1064,14 +1064,26 @@ defmodule Reach.Frontend.Elixir do
     {[], module_name(module)}
   end
 
-  defp module_name_for_def({:__aliases__, _, [part]} = alias_ast) when is_atom(part) do
-    case Process.get(:reach_current_module) do
-      nil -> module_name(alias_ast)
-      parent -> Module.concat(parent, part)
+  defp module_name_for_def({:__aliases__, _, parts} = alias_ast) when is_list(parts) do
+    cond do
+      not Enum.all?(parts, &is_atom/1) ->
+        module_name(alias_ast)
+
+      absolute_module_alias?(parts) ->
+        module_name(alias_ast)
+
+      parent = Process.get(:reach_current_module) ->
+        Module.concat(parent, Module.concat(parts))
+
+      true ->
+        module_name(alias_ast)
     end
   end
 
   defp module_name_for_def(alias_ast), do: module_name(alias_ast)
+
+  defp absolute_module_alias?([Elixir | _]), do: true
+  defp absolute_module_alias?(_parts), do: false
 
   defp module_name({:__aliases__, _, parts}) do
     if Enum.all?(parts, &is_atom/1) do

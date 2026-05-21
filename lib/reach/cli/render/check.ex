@@ -71,6 +71,16 @@ defmodule Reach.CLI.Render.Check do
       %{type: type} = violation when type in [:forbidden_file, "forbidden_file"] ->
         IO.puts("  #{Format.path(violation.file)} (#{violation.rule})")
 
+      %{type: type} = violation when type in [:missing_layer, "missing_layer"] ->
+        IO.puts("  missing layer: #{violation.module} (#{violation.rule})")
+
+      %{type: type} = violation when type in [:multiple_layers, "multiple_layers"] ->
+        IO.puts("  matched multiple layers: #{violation.module}")
+
+        violation.matched_layers
+        |> List.wrap()
+        |> Enum.each(&IO.puts("    - #{&1}"))
+
       %{type: type} = violation when type in [:forbidden_dependency, "forbidden_dependency"] ->
         IO.puts(
           "  #{Format.loc(violation.file, violation.line)} #{violation.caller_layer} -> #{violation.callee_layer} " <>
@@ -78,7 +88,8 @@ defmodule Reach.CLI.Render.Check do
         )
 
       %{type: type} = violation when type in [:layer_cycle, "layer_cycle"] ->
-        IO.puts("  layer cycle: #{Enum.join(violation.layers, " -> ")}")
+        IO.puts("  layer cycle: #{Enum.join(closed_cycle(violation.layers), " -> ")}")
+        render_layer_cycle_edges(Map.get(violation, :edges, []))
 
       %{type: type} = violation when type in [:forbidden_call, "forbidden_call"] ->
         IO.puts(
@@ -138,6 +149,23 @@ defmodule Reach.CLI.Render.Check do
       )
     )
     |> render_omitted_summary()
+  end
+
+  defp closed_cycle([]), do: []
+  defp closed_cycle(nil), do: []
+  defp closed_cycle([first | _] = layers), do: layers ++ [first]
+
+  defp render_layer_cycle_edges([]), do: :ok
+  defp render_layer_cycle_edges(nil), do: :ok
+
+  defp render_layer_cycle_edges(edges) do
+    IO.puts("")
+
+    Enum.each(edges, fn edge ->
+      IO.puts("    #{edge.caller_layer} -> #{edge.callee_layer}")
+      IO.puts("      #{Format.loc(edge.file, edge.line)}")
+      IO.puts("      #{edge.caller_module} -> #{edge.call}")
+    end)
   end
 
   defp render_clone_siblings([]), do: :ok

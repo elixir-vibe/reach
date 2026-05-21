@@ -3,6 +3,7 @@ defmodule Reach.Check.ArchitecturePolicyTest do
 
   import ExUnit.CaptureIO
 
+  alias Reach.Check.Architecture
   alias Reach.CLI.Commands.Check
 
   test "reach.check validates an empty architecture policy" do
@@ -147,6 +148,109 @@ defmodule Reach.Check.ArchitecturePolicyTest do
     assert {:ok, data} = Jason.decode(output)
     assert data["status"] == "ok"
     assert data["violations"] == []
+  end
+
+  test "reach.check reports layer coverage violations" do
+    project = architecture_project()
+
+    with_reach_config(~S([
+      layers: [cli: "Fixture.CLI.*", duplicate: "Fixture.CLI.Command"],
+      checks: [
+        layer_coverage: [
+          require_all_modules: true,
+          forbid_multiple_matches: true,
+          ignore: ["Fixture.Internal.*"]
+        ]
+      ]
+    ]))
+
+    assert_raise Mix.Error, ~r/Architecture policy failed/, fn ->
+      output = capture_io(fn -> Check.run(arch: true, format: "json", project: project) end)
+      assert {:ok, data} = Jason.decode(output)
+      assert Enum.any?(data["violations"], &(&1["type"] == "missing_layer"))
+      assert Enum.any?(data["violations"], &(&1["type"] == "multiple_layers"))
+    end
+  end
+
+  test "reach.check reports allowlist dependency violations" do
+    project = architecture_project()
+
+    with_reach_config(~S([
+      layers: [cli: "Fixture.CLI.*", core: "Fixture.Core.*", config: "Fixture.Config"],
+      deps: [mode: :allowlist, allowed: [cli: [:core], core: [], config: []]]
+    ]))
+
+    assert_raise Mix.Error, ~r/Architecture policy failed/, fn ->
+      capture_io(fn -> Check.run(arch: true, format: "json", project: project) end)
+    end
+  end
+
+  test "reach.check reports layer effect policy violations" do
+    dir = Path.join(System.tmp_dir!(), "reach-effect-layer-fixture-#{System.unique_integer()}")
+    File.mkdir_p!(dir)
+
+    write_fixture(dir, "domain.ex", ~S'''
+    defmodule EffectLayer.Domain do
+      def run, do: IO.puts("side effect")
+    end
+    ''')
+
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    project = Reach.Project.from_sources(Path.wildcard(Path.join(dir, "*.ex")))
+
+    with_reach_config(~S([
+      layers: [domain: "EffectLayer.Domain"],
+      effects: [by_layer: [domain: [:pure]]]
+    ]))
+
+    assert_raise Mix.Error, ~r/Architecture policy failed/, fn ->
+      capture_io(fn -> Check.run(arch: true, format: "json", project: project) end)
+    end
+  end
+
+  test "reach.check allows forbidden dependency exceptions" do
+    project = architecture_project()
+
+    with_reach_config(~S([
+      layers: [cli: "Fixture.CLI.*", config: "Fixture.Config"],
+      deps: [forbidden: [{:cli, :config, except: ["Fixture.CLI.Command"]}]]
+    ]))
+
+    output = capture_io(fn -> Check.run(arch: true, format: "json", project: project) end)
+
+    assert {:ok, data} = Jason.decode(output)
+    assert data["status"] == "ok"
+    assert data["violations"] == []
+  end
+
+  test "architecture layer cycle violations include concrete edge witnesses" do
+    dir = Path.join(System.tmp_dir!(), "reach-cycle-fixture-#{System.unique_integer()}")
+    File.mkdir_p!(dir)
+
+    a_path =
+      write_fixture(dir, "a.ex", ~S'''
+      defmodule Cycle.A do
+        def run, do: Cycle.B.run()
+      end
+      ''')
+
+    write_fixture(dir, "b.ex", ~S'''
+    defmodule Cycle.B do
+      def run, do: Cycle.A.run()
+    end
+    ''')
+
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    project = Reach.Project.from_sources(Path.wildcard(Path.join(dir, "*.ex")))
+    config = [layers: [a: "Cycle.A", b: "Cycle.B"]]
+
+    violations = Architecture.violations(project, config)
+    cycle = Enum.find(violations, &(&1.type == :layer_cycle))
+
+    assert cycle.edges != []
+    assert Enum.any?(cycle.edges, &(&1.file == a_path))
   end
 
   test "reach.check reports public and internal boundary violations" do
