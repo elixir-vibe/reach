@@ -30,7 +30,7 @@ defmodule Reach.Evidence.MapContract do
   @min_observations 2
   @assigns_names [:assigns]
   @accumulator_names [:acc, :cat, :count, :counts, :stats]
-  @external_payload_names [:body, :json, :metadata, :params, :payload, :request, :response]
+  @external_payload_names [:body, :json, :metadata, :payload, :request, :response]
   @options_names [:config, :opts, :options]
   @non_call_forms [:., :%, :{}, :__aliases__, :__block__, :=, :->, :def, :defp, :fn, :|>]
 

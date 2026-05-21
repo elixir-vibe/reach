@@ -49,6 +49,12 @@ defmodule Reach.Evidence.ASTTest do
     assert AST.call?(erlang, {:erlang, :json, :encode})
   end
 
+  test "call descriptor tolerates dynamic aliases" do
+    ast = Code.string_to_quoted!("__MODULE__.Engine.render(value)")
+
+    assert {:ok, %{module: nil, function: :render, arity: 1}} = AST.call_descriptor(ast)
+  end
+
   test "compares and finds AST references" do
     ast = Code.string_to_quoted!("value + 1")
     expected = Code.string_to_quoted!("value")

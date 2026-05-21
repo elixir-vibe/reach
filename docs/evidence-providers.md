@@ -117,4 +117,4 @@ Run corpus scans before promoting noisy facts:
 MIX_ENV=test mix run scripts/evidence_corpus_scan.exs -- --kind all /path/to/project
 ```
 
-The scanner should use provider discovery and produce facts even when they are not yet exposed as smells. This keeps promising heuristics available for tuning without turning early signals into noisy user-facing warnings.
+The scanner should use provider discovery and plugin refinement, producing facts even when they are not yet exposed as smells. This keeps promising heuristics available for tuning without turning early signals into noisy user-facing warnings.

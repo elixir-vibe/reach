@@ -46,16 +46,35 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoderTest do
     assert [] = HandRolledEncoder.collect_ast(ast)
   end
 
-  test "collects Jason encoders that delegate to hand-written to_map" do
+  test "collects Jason encoders that delegate to direct to_map projections" do
     ast =
       Code.string_to_quoted!("""
-      defimpl Jason.Encoder, for: Example do
-        def encode(value, opts), do: Jason.Encode.map(Example.to_map(value), opts)
+      defmodule Example do
+        defimpl Jason.Encoder, for: Example do
+          def encode(value, opts), do: Jason.Encode.map(Example.to_map(value), opts)
+        end
+
+        def to_map(value), do: Map.from_struct(value)
       end
       """)
 
     assert [%{kind: :manual_jason_encoder_map, replacement: "@derive Jason.Encoder"}] =
              HandRolledEncoder.collect_ast(ast)
+  end
+
+  test "ignores Jason encoders backed by non-trivial to_map helpers" do
+    ast =
+      Code.string_to_quoted!("""
+      defmodule Example do
+        defimpl Jason.Encoder, for: Example do
+          def encode(value, opts), do: Jason.Encode.map(Example.to_map(value), opts)
+        end
+
+        def to_map(value), do: %{name: value.name}
+      end
+      """)
+
+    assert [] = HandRolledEncoder.collect_ast(ast)
   end
 
   test "ignores unrelated to_map helpers" do

@@ -29,21 +29,22 @@ defmodule Reach.EvidenceCorpusScan do
 
   defp scan(paths, kind, limit, format) do
     {:ok, _apps} = Application.ensure_all_started(:ex_unit)
-    providers = Reach.Evidence.ast_providers_for(kind_family(kind), Reach.Plugin.detect())
+    plugins = Reach.Plugin.detect()
+    providers = Reach.Evidence.ast_providers_for(kind_family(kind), plugins)
 
     paths
     |> Enum.flat_map(&Path.wildcard(Path.join(&1, "{lib,test}/**/*.{ex,exs}")))
     |> Enum.uniq()
     |> Enum.sort()
-    |> Enum.flat_map(&scan_file(&1, providers))
+    |> Enum.flat_map(&scan_file(&1, providers, plugins))
     |> print_results(limit, format)
   end
 
-  defp scan_file(path, providers) do
+  defp scan_file(path, providers, plugins) do
     with {:ok, source} <- File.read(path),
          {:ok, ast} <- parse_source(source) do
       providers
-      |> Enum.flat_map(&provider_evidence_silently(&1, ast))
+      |> Enum.flat_map(&provider_evidence_silently(&1, ast, plugins))
       |> Enum.map(&Map.put(&1, :file, path))
     else
       _error -> []
@@ -73,14 +74,16 @@ defmodule Reach.EvidenceCorpusScan do
     end
   end
 
-  defp provider_evidence_silently(provider, ast) do
-    {result, _diagnostics} = Code.with_diagnostics(fn -> provider_evidence(provider, ast) end)
+  defp provider_evidence_silently(provider, ast, plugins) do
+    {result, _diagnostics} =
+      Code.with_diagnostics(fn -> provider_evidence(provider, ast, plugins) end)
+
     result
   end
 
-  defp provider_evidence(Reach.Evidence.MapContract, ast) do
+  defp provider_evidence(Reach.Evidence.MapContract, ast, plugins) do
     ast
-    |> Reach.Evidence.MapContract.collect_ast()
+    |> Reach.Evidence.MapContract.collect_ast(plugins: plugins)
     |> Enum.map(fn contract ->
       message =
         "map #{inspect(contract.variable)} uses keys #{inspect(contract.keys)} as an implicit contract"
@@ -105,7 +108,7 @@ defmodule Reach.EvidenceCorpusScan do
     end)
   end
 
-  defp provider_evidence(provider, ast) do
+  defp provider_evidence(provider, ast, _plugins) do
     ast
     |> provider.collect_ast()
     |> Enum.map(&evidence(provider.family(), &1.kind, &1.message, &1.meta, &1.confidence))

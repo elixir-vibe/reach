@@ -1,11 +1,8 @@
 defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   @moduledoc "Collects evidence of manual JSON encoding that Jason can own."
 
-  import ExAST.Sigil
-
   alias Reach.Evidence.AST
   alias Reach.Evidence.Fact
-  alias Reach.Evidence.PatternRunner
 
   @json_sanitizer_names [:json_safe, :normalize_json, :json_key, :json_safe_key]
   @json_encoder_names [:encode_json, :do_encode, :encode_scalar, :indent_json, :indent_lines]
@@ -22,21 +19,11 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
 
   def collect_ast(ast) do
     ast
-    |> pattern_evidence()
-    |> Kernel.++(callback_evidence(ast))
+    |> callback_evidence()
+    |> Kernel.++(manual_jason_encoder_evidence(ast))
     |> Enum.uniq_by(fn evidence ->
       {evidence.kind, canonical_line(evidence.meta[:line]), evidence.meta[:column]}
     end)
-  end
-
-  defp pattern_evidence(ast) do
-    PatternRunner.run(ast, pattern_specs(), family: :jason)
-  end
-
-  defp pattern_specs do
-    [
-      jason_encoder_to_map: {~p[Jason.Encode.map(_, _)], &manual_jason_encoder_evidence/1}
-    ]
   end
 
   defp callback_evidence(ast), do: AST.collect(ast, &collect_node/2)
@@ -79,16 +66,27 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
 
   defp collect_node(_node, acc), do: acc
 
-  defp manual_jason_encoder_evidence(match) do
-    if direct_jason_encoder_map?(match.node) do
-      %{
-        kind: :manual_jason_encoder_map,
-        message:
-          "Jason encoder delegates through a hand-written to_map/1; use @derive Jason.Encoder when the struct projection is direct",
-        replacement: "@derive Jason.Encoder",
-        meta: [line: :jason_encoder_map],
-        confidence: :medium
-      }
+  defp manual_jason_encoder_evidence(ast) do
+    if direct_to_map_projection?(ast) do
+      AST.collect(ast, fn
+        node, acc ->
+          if direct_jason_encoder_map?(node) do
+            [
+              evidence(
+                :manual_jason_encoder_map,
+                "Jason encoder delegates through a direct to_map/1 projection; use @derive Jason.Encoder",
+                "@derive Jason.Encoder",
+                jason_encoder_meta(node),
+                :high
+              )
+              | acc
+            ]
+          else
+            acc
+          end
+      end)
+    else
+      []
     end
   end
 
@@ -120,6 +118,32 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   defp to_map_call?({:to_map, _meta, args}) when is_list(args), do: true
   defp to_map_call?({{:., _, [_module, :to_map]}, _, args}) when is_list(args), do: true
   defp to_map_call?(_node), do: false
+
+  defp direct_to_map_projection?(ast) do
+    AST.contains?(ast, fn
+      {def_kind, _meta, [{:to_map, _to_map_meta, args}, [do: body]]}
+      when def_kind in [:def, :defp] and length(args) == 1 ->
+        direct_map_from_struct?(body)
+
+      _node ->
+        false
+    end)
+  end
+
+  defp direct_map_from_struct?({{:., _, [{:__aliases__, _, [:Map]}, :from_struct]}, _, [_value]}),
+    do: true
+
+  defp direct_map_from_struct?(
+         {:|>, _, [_value, {{:., _, [{:__aliases__, _, [:Map]}, :from_struct]}, _, []}]}
+       ),
+       do: true
+
+  defp direct_map_from_struct?(_body), do: false
+
+  defp jason_encoder_meta({{:., meta, [{:__aliases__, _, [:Jason, :Encode]}, :map]}, _, _args}),
+    do: meta
+
+  defp jason_encoder_meta(_node), do: [line: :jason_encoder_map]
 
   defp canonical_line(line) when is_atom(line), do: line
   defp canonical_line(_line), do: :json_writer

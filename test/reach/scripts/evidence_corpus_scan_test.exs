@@ -81,6 +81,34 @@ defmodule Reach.Scripts.EvidenceCorpusScanTest do
     File.rm_rf(dir)
   end
 
+  test "evidence corpus scanner applies plugin refinements" do
+    dir =
+      Path.join(System.tmp_dir!(), "reach-map-refine-scan-#{System.unique_integer([:positive])}")
+
+    lib = Path.join(dir, "lib")
+    File.mkdir_p!(lib)
+
+    File.write!(Path.join(lib, "sample.ex"), """
+    defmodule Sample do
+      def build(user) do
+        data = %{id: user.id, name: user.name, email: user.email}
+        data.id
+        data.email
+        Jason.encode!(data)
+      end
+    end
+    """)
+
+    assert {json, 0} = scan(["--kind", "map-contract", "--format", "json", dir])
+    assert [result] = Jason.decode!(json)
+    assert result["role"] == "external_payload"
+
+    assert [%{"module" => "Elixir.Jason", "function" => "encode!", "arity" => 1}] =
+             result["escapes"]
+
+    File.rm_rf(dir)
+  end
+
   defp scan(args) do
     System.cmd("mix", ["run", "scripts/evidence_corpus_scan.exs", "--" | args],
       stderr_to_stdout: true

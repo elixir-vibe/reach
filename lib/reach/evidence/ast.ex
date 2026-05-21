@@ -106,7 +106,9 @@ defmodule Reach.Evidence.AST do
   end
 
   defp safe_module_concat(module_parts) do
-    Module.concat(module_parts)
+    if Enum.all?(module_parts, &is_atom/1) do
+      Module.concat(module_parts)
+    end
   rescue
     ArgumentError -> nil
   end
