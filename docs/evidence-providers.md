@@ -37,6 +37,39 @@ Evidence providers must not emit `Reach.Smell.Finding` and must not depend on CL
 
 Plugin-gated evidence belongs under `Reach.Plugins.*.Evidence`, not in generic evidence modules. Generic providers must not hardcode framework policy such as Phoenix, Ecto, Oban, Ash, Jido, or JSON-library-specific semantics.
 
+## Plugin refinement
+
+Plugins may refine evidence facts after generic providers collect them. Use this when the generic evidence is framework-neutral but a dependency can add semantic context:
+
+```elixir
+def refine_evidence(%Reach.Evidence.MapContract.Contract{escapes: escapes}, _context) do
+  if Enum.any?(escapes, &jason_encode?/1) do
+    %{role: :external_payload}
+  else
+    :unchanged
+  end
+end
+
+
+def refine_evidence(_evidence, _context), do: :unchanged
+```
+
+Reach applies refinements through:
+
+```elixir
+Reach.Plugin.refine_evidence(plugins, evidence, context)
+```
+
+A refinement may return:
+
+- `:unchanged` — keep the evidence as-is;
+- a map of updates — merge annotations such as `role: :external_payload` or `confidence: :medium`;
+- a replacement evidence struct of the same type.
+
+Refinement must stay evidence-level. Plugins should annotate facts, confidence, roles, or metadata; they must not emit `Reach.Smell.Finding` or decide candidate policy directly. Smells/checks/candidates consume the refined evidence later.
+
+Current example: `Reach.Evidence.MapContract` records generic escape targets such as `Jason.encode!(data)`. `Reach.Plugins.Jason` refines those contracts to `role: :external_payload`, which lets candidate generation suggest a boundary contract instead of a domain struct.
+
 ## Pattern matching
 
 Prefer `Reach.Evidence.PatternRunner` for simple syntactic shapes:

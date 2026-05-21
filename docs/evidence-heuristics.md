@@ -48,14 +48,19 @@ Implemented evidence:
 
 - local fixed-shape map creation followed by key reads/updates;
 - local function return shape followed by callsite reads;
-- advisory struct, boundary, or typed-map contract candidates when evidence is repeated or return-shape based.
+- project-level remote return-shape contracts for maps returned by one module and read in another;
+- shallow alias tracking for map bindings and returned map variables;
+- escape target metadata for maps passed wholesale into calls;
+- role metadata such as `:domain`, `:assigns`, `:accumulator`, `:external_payload`, `:options`, and `:unknown`;
+- plugin evidence refinement, e.g. Jason marks maps passed to `Jason.encode/1,2` or `Jason.encode!/1,2` as external payloads;
+- advisory struct, boundary, or typed-map contract candidates when evidence is repeated, return-shape based, or grouped into a similar-shape family.
 
 Promising upgrades:
 
-- cross-file return-shape evidence through `Reach.Project.Query` instead of source-only local calls;
+- richer project-level return-shape evidence through `Reach.Project.Query`/IR instead of source-only AST matching;
 - confidence boosts when the same shape crosses module boundaries;
-- lower confidence for accumulator/report names unless shape is returned or reused;
-- explicit exclusions for external payload boundaries such as `params`, `payload`, `body`, `json`, and `metadata` unless internal reads dominate.
+- plugin refinements for Phoenix/LiveView assigns, request params, component attrs, and other framework-owned map roles;
+- key-source and drift evidence that explains where each observed key came from and how similar shapes diverge across files.
 
 ## Mined examples
 

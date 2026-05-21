@@ -11,6 +11,7 @@
 - **Map contract candidates** — `mix reach.check --candidates` now reports advisory struct, boundary, or typed-map contract candidates when repeated implicit map contracts appear in project source.
 - **Poison plugin rename** — split the Poison effect classifier into `Reach.Plugins.Poison` now that Jason has its own plugin.
 - **Evidence corpus scanner** — added `scripts/evidence_corpus_scan.exs` for focused Jason, standard-library bypass, and map-contract evidence scans across repositories, backed by lightweight `family/0` and `kinds/0` evidence provider metadata.
+- **Plugin evidence refinement** — added a generic `refine_evidence/2` plugin hook so dependency plugins can annotate reusable evidence without owning smell or candidate policy; Jason now classifies maps passed to `Jason.encode/1,2` or `Jason.encode!/1,2` as external payload contracts.
 
 ### Fixed
 
