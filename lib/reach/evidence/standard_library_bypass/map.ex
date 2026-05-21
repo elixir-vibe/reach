@@ -10,7 +10,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
 
   def kinds, do: [:manual_map_update, :manual_map_update_bang]
 
-  def collect_node(node, acc) do
+  defp collect_node(node, acc) do
     case {map_update_shape(node), map_update_bang_shape(node)} do
       {{:ok, meta}, _update_bang} ->
         evidence(

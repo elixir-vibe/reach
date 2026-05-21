@@ -49,8 +49,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
     Enum.reverse(evidence)
   end
 
-  def collect_node(node, acc), do: collect_callback_node(node, acc)
-
   defp collect_callback_node({:|>, meta, [left, right]} = node, acc) do
     acc = collect_pipe_node(left, right, meta, acc)
     collect_direct(node, acc)

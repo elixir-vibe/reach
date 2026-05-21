@@ -3,12 +3,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.MapTest do
 
   alias Reach.Evidence.StandardLibraryBypass.Map, as: MapEvidence
 
-  defp collect(ast) do
-    {_ast, evidence} =
-      Macro.prewalk(ast, [], fn node, acc -> {node, MapEvidence.collect_node(node, acc)} end)
-
-    Enum.reverse(evidence)
-  end
+  defp collect(ast), do: MapEvidence.collect_ast(ast)
 
   test "collects paired Map.get and Map.put update evidence" do
     ast =

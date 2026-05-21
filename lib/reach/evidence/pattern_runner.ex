@@ -12,7 +12,12 @@ defmodule Reach.Evidence.PatternRunner do
     |> Patcher.find_many(patterns)
     |> Enum.flat_map(fn match ->
       {_pattern, builder} = Map.fetch!(metadata, match.pattern)
-      match |> builder.() |> List.wrap() |> Enum.map(&struct_evidence(evidence_module, &1, match))
+
+      match
+      |> builder.()
+      |> List.wrap()
+      |> Enum.map(&struct_evidence(evidence_module, &1, match))
+      |> Enum.reject(&is_nil/1)
     end)
   end
 

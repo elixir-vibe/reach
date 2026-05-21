@@ -39,6 +39,13 @@ defmodule Reach.Evidence.PatternRunnerTest do
                [flat_map: {~p[Enum.map(_, _) |> List.flatten()], fn _match -> nil end}],
                evidence_module: Evidence
              )
+
+    assert [] =
+             PatternRunner.run(
+               ast,
+               [flat_map: {~p[Enum.map(_, _) |> List.flatten()], fn _match -> false end}],
+               evidence_module: Evidence
+             )
   end
 
   test "builder-provided metadata overrides match metadata" do

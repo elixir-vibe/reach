@@ -1,6 +1,6 @@
 # Evidence Heuristics Backlog
 
-Reach keeps promising maintainability ideas as evidence providers first. Do not discard a good idea just because a naive smell would be noisy; add stronger context, mine real history, and only promote it to a smell or candidate when the evidence is useful.
+Reach keeps promising maintainability ideas as evidence providers first. Do not discard a good idea just because a naive smell would be noisy; add stronger context, mine real history, and only promote it to a smell or candidate when the evidence is useful. Provider API and boundary conventions are documented in `docs/evidence-providers.md`.
 
 ## Evidence vs smells
 

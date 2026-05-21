@@ -39,8 +39,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.PathURI do
     ]
   end
 
-  def collect_node(_node, acc), do: acc
-
   defp pattern_specs do
     Enum.map(@pattern_evidence, fn {name, {pattern, mode, kind, message, replacement}} ->
       {name, {pattern, &build_evidence(&1, mode, kind, message, replacement)}}

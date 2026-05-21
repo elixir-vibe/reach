@@ -1,0 +1,84 @@
+# Evidence providers
+
+Reach keeps reusable analysis facts in evidence providers. Smells, checks, and refactoring candidates decide which facts become user-facing policy.
+
+## Provider shape
+
+An AST evidence provider exposes lightweight metadata:
+
+```elixir
+def family, do: :stdlib
+
+def kinds, do: [:manual_flat_map]
+
+def collect_ast(ast), do: [%Evidence{}]
+```
+
+Providers are discovered through `Reach.Evidence.ast_providers/1` and dependency-specific plugin callbacks. Keep the API small until several providers need a stronger behaviour.
+
+Evidence structs should carry at least:
+
+- `:kind` — stable atom for the observed fact;
+- `:message` — short maintainer-facing explanation;
+- `:replacement` — suggested abstraction or API when one is known;
+- `:meta` — source metadata, usually including `:line` and optionally `:column`;
+- `:confidence` — coarse confidence such as `:high` or `:medium`.
+
+## Boundaries
+
+Evidence providers must not emit `Reach.Smell.Finding` and must not depend on CLI rendering or command modules. User-facing policy belongs in:
+
+- `Reach.Smell.*` for local code-shape findings shown by `mix reach.check --smells`;
+- `Reach.Check.*` for CI/release policy and advisory candidates;
+- plugin smell/check modules for dependency-specific user-facing output.
+
+Plugin-gated evidence belongs under `Reach.Plugins.*.Evidence`, not in generic evidence modules. Generic providers must not hardcode framework policy such as Phoenix, Ecto, Oban, Ash, Jido, or JSON-library-specific semantics.
+
+## Pattern matching
+
+Prefer `Reach.Evidence.PatternRunner` for simple syntactic shapes:
+
+```elixir
+import ExAST.Sigil
+
+PatternRunner.run(
+  ast,
+  [
+    manual_flat_map:
+      {~p[Enum.map(_, _) |> List.flatten()],
+       fn _match ->
+         %{
+           kind: :manual_flat_map,
+           message: "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
+           replacement: "Enum.flat_map/2",
+           confidence: :high
+         }
+       end}
+  ],
+  evidence_module: Evidence
+)
+```
+
+Use the pattern as the seed and keep context checks in the builder callback. For example, `StandardLibraryBypass.PathURI` uses ExAST to find `String.split` shapes, then verifies that the subject variable looks path- or URI-like.
+
+Use custom AST traversal, project queries, or data-flow logic when evidence requires proof beyond a single syntactic shape, such as:
+
+- reduce-based `Enum.frequencies/1` or `Enum.flat_map/2` reimplementations;
+- multi-statement `Map.fetch!/2` then `Map.put/3` updates;
+- implicit map contracts that depend on construction, reads, updates, and callsite return usage.
+
+## Promotion workflow
+
+Use this path for new maintainability ideas:
+
+```text
+idea → evidence provider → corpus scan → stronger heuristic → smell/check/candidate
+```
+
+Run corpus scans before promoting noisy facts:
+
+```bash
+MIX_ENV=test mix run scripts/evidence_corpus_scan.exs -- --kind all /path/to/project
+```
+
+The scanner should use provider discovery and produce facts even when they are not yet exposed as smells. This keeps promising heuristics available for tuning without turning early signals into noisy user-facing warnings.

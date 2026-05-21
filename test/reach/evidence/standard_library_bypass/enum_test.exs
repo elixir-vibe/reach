@@ -3,12 +3,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.EnumTest do
 
   alias Reach.Evidence.StandardLibraryBypass.Enum, as: EnumEvidence
 
-  defp collect(ast) do
-    {_ast, evidence} =
-      Macro.prewalk(ast, [], fn node, acc -> {node, EnumEvidence.collect_node(node, acc)} end)
-
-    Enum.reverse(evidence)
-  end
+  defp collect(ast), do: EnumEvidence.collect_ast(ast)
 
   test "collects direct and reduce-based flat_map evidence" do
     ast = Code.string_to_quoted!("items |> Enum.map(&expand/1) |> List.flatten()")
