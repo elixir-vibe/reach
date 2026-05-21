@@ -3,8 +3,8 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
 
   import ExAST.Sigil
 
+  alias Reach.Evidence.Fact
   alias Reach.Evidence.PatternRunner
-  alias Reach.Evidence.StandardLibraryBypass.Evidence
 
   @manual_flat_map_message "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2"
 
@@ -23,7 +23,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   end
 
   defp pattern_evidence(ast) do
-    PatternRunner.run(ast, pattern_specs(), evidence_module: Evidence)
+    PatternRunner.run(ast, pattern_specs(), family: :stdlib)
   end
 
   defp pattern_specs do
@@ -274,7 +274,8 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
 
   defp evidence(acc, kind, message, replacement, meta) do
     [
-      %Evidence{
+      %Fact{
+        family: :stdlib,
         kind: kind,
         message: message,
         replacement: replacement,

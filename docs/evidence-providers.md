@@ -11,13 +11,16 @@ def family, do: :stdlib
 
 def kinds, do: [:manual_flat_map]
 
-def collect_ast(ast), do: [%Evidence{}]
+def collect_ast(ast), do: [%Reach.Evidence.Fact{}]
 ```
 
 Providers are discovered through `Reach.Evidence.ast_providers/1` and dependency-specific plugin callbacks. Keep the API small until several providers need a stronger behaviour.
 
-Evidence structs should carry at least:
+Most providers should emit `Reach.Evidence.Fact` values. Domain-specific providers may use richer structs temporarily when downstream checks need specialized fields, but scanner-facing facts should converge on this common shape.
 
+Evidence facts should carry at least:
+
+- `:family` — provider family such as `:stdlib`, `:jason`, or `:map_contract`;
 - `:kind` — stable atom for the observed fact;
 - `:message` — short maintainer-facing explanation;
 - `:replacement` — suggested abstraction or API when one is known;
@@ -55,7 +58,7 @@ PatternRunner.run(
          }
        end}
   ],
-  evidence_module: Evidence
+  family: :stdlib
 )
 ```
 

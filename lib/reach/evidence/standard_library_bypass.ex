@@ -1,11 +1,6 @@
 defmodule Reach.Evidence.StandardLibraryBypass do
   @moduledoc "Collects evidence of ad-hoc code that bypasses standard library helpers."
 
-  defmodule Evidence do
-    @moduledoc false
-    defstruct [:kind, :message, :replacement, :meta, :confidence]
-  end
-
   @families [
     Reach.Evidence.StandardLibraryBypass.PathURI,
     Reach.Evidence.StandardLibraryBypass.Enum,

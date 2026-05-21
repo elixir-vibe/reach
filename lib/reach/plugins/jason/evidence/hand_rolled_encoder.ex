@@ -3,12 +3,8 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
 
   import ExAST.Sigil
 
+  alias Reach.Evidence.Fact
   alias Reach.Evidence.PatternRunner
-
-  defmodule Evidence do
-    @moduledoc false
-    defstruct [:kind, :message, :replacement, :meta, :confidence]
-  end
 
   @json_sanitizer_names [:json_safe, :normalize_json, :json_key, :json_safe_key]
   @json_encoder_names [:encode_json, :do_encode, :encode_scalar, :indent_json, :indent_lines]
@@ -33,7 +29,7 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   end
 
   defp pattern_evidence(ast) do
-    PatternRunner.run(ast, pattern_specs(), evidence_module: Evidence)
+    PatternRunner.run(ast, pattern_specs(), family: :jason)
   end
 
   defp pattern_specs do
@@ -190,7 +186,8 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   defp canonical_line(_line), do: :json_writer
 
   defp evidence(kind, message, replacement, meta, confidence) do
-    %Evidence{
+    %Fact{
+      family: :jason,
       kind: kind,
       message: message,
       replacement: replacement,

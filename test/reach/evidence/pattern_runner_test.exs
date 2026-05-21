@@ -3,13 +3,18 @@ defmodule Reach.Evidence.PatternRunnerTest do
 
   import ExAST.Sigil
 
+  alias Reach.Evidence.Fact
   alias Reach.Evidence.PatternRunner
-  alias Reach.Evidence.StandardLibraryBypass.Evidence
+
+  defmodule CustomEvidence do
+    @moduledoc false
+    defstruct [:kind, :message, :replacement, :meta, :confidence]
+  end
 
   test "turns pattern matches into evidence structs" do
     ast = Code.string_to_quoted!("Enum.map(items, &expand/1) |> List.flatten()")
 
-    assert [%Evidence{kind: :manual_flat_map, meta: meta}] =
+    assert [%Fact{family: :stdlib, kind: :manual_flat_map, meta: meta}] =
              PatternRunner.run(
                ast,
                [
@@ -24,7 +29,7 @@ defmodule Reach.Evidence.PatternRunnerTest do
                       }
                     end}
                ],
-               evidence_module: Evidence
+               family: :stdlib
              )
 
     assert meta[:line] == 1
@@ -37,21 +42,21 @@ defmodule Reach.Evidence.PatternRunnerTest do
              PatternRunner.run(
                ast,
                [flat_map: {~p[Enum.map(_, _) |> List.flatten()], fn _match -> nil end}],
-               evidence_module: Evidence
+               family: :stdlib
              )
 
     assert [] =
              PatternRunner.run(
                ast,
                [flat_map: {~p[Enum.map(_, _) |> List.flatten()], fn _match -> false end}],
-               evidence_module: Evidence
+               family: :stdlib
              )
   end
 
   test "builder-provided metadata overrides match metadata" do
     ast = Code.string_to_quoted!("Enum.map(items, &expand/1) |> List.flatten()")
 
-    assert [%Evidence{meta: [line: 42]}] =
+    assert [%Fact{meta: [line: 42]}] =
              PatternRunner.run(
                ast,
                [
@@ -67,7 +72,30 @@ defmodule Reach.Evidence.PatternRunnerTest do
                       }
                     end}
                ],
-               evidence_module: Evidence
+               family: :stdlib
+             )
+  end
+
+  test "supports custom evidence structs without family fields" do
+    ast = Code.string_to_quoted!("Enum.map(items, &expand/1) |> List.flatten()")
+
+    assert [%CustomEvidence{kind: :manual_flat_map}] =
+             PatternRunner.run(
+               ast,
+               [
+                 flat_map:
+                   {~p[Enum.map(_, _) |> List.flatten()],
+                    fn _match ->
+                      %{
+                        kind: :manual_flat_map,
+                        message: "use flat_map",
+                        replacement: "Enum.flat_map/2",
+                        confidence: :high
+                      }
+                    end}
+               ],
+               evidence_module: CustomEvidence,
+               family: :stdlib
              )
   end
 
@@ -102,6 +130,6 @@ defmodule Reach.Evidence.PatternRunnerTest do
     ]
 
     assert [%{kind: :manual_flat_map}, %{kind: :manual_query_parsing}] =
-             PatternRunner.run(ast, specs, evidence_module: Evidence)
+             PatternRunner.run(ast, specs, family: :stdlib)
   end
 end

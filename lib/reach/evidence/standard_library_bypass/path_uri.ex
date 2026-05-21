@@ -4,7 +4,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.PathURI do
   import ExAST.Sigil
 
   alias Reach.Evidence.PatternRunner
-  alias Reach.Evidence.StandardLibraryBypass.Evidence
 
   @path_names ~w(path filepath file_path filename file dir directory source dest destination)a
   @uri_names ~w(url uri href endpoint query query_string qs)a
@@ -27,7 +26,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.PathURI do
        "manual URL scheme splitting; use URI.parse/1", "URI.parse/1"}
   ]
 
-  def collect_ast(ast), do: PatternRunner.run(ast, pattern_specs(), evidence_module: Evidence)
+  def collect_ast(ast), do: PatternRunner.run(ast, pattern_specs(), family: :stdlib)
 
   def kinds do
     [

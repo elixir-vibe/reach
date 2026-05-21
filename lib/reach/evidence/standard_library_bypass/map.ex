@@ -1,7 +1,7 @@
 defmodule Reach.Evidence.StandardLibraryBypass.Map do
   @moduledoc "Collects Map standard-library bypass evidence."
 
-  alias Reach.Evidence.StandardLibraryBypass.Evidence
+  alias Reach.Evidence.Fact
 
   def collect_ast(ast) do
     {_ast, evidence} = Macro.prewalk(ast, [], fn node, acc -> {node, collect_node(node, acc)} end)
@@ -150,7 +150,8 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
 
   defp evidence(acc, kind, message, replacement, meta) do
     [
-      %Evidence{
+      %Fact{
+        family: :stdlib,
         kind: kind,
         message: message,
         replacement: replacement,
