@@ -95,7 +95,7 @@ Framework-specific semantics must stay in plugins. Generic modules such as `Reac
 - `Reach.Check.*` is for release/CI safety: architecture policy, changed-code risk, refactoring candidates, and adapters that run checks.
 - `Reach.Smell.*` is the local code-shape finding engine: loose map contracts, repeated fixed-shape maps, pipeline waste, reverse append, eager patterns, string building, redundant computation, and clone-backed structural consistency.
 - `mix reach.check --smells` may call the smell engine, but smell rules themselves must live under `Reach.Smell.*`, not `Reach.CLI.*`.
-- `Reach.Evidence.*` contains reusable evidence providers consumed by smells, checks, and refactoring candidates. Evidence modules must not emit user-facing findings directly. ExDNA integration must emit Reach-owned clone evidence consumed by semantic checks; ExDNA must not appear as a user-facing smell kind.
+- `Reach.Evidence.*` contains reusable evidence providers consumed by smells, checks, and refactoring candidates. Evidence is an observed fact; smells/checks/candidates are user-facing policy decisions. Evidence modules must not emit user-facing findings directly. ExDNA integration must emit Reach-owned clone evidence consumed by semantic checks; ExDNA must not appear as a user-facing smell kind. See `docs/evidence-heuristics.md` for the evidence-first promotion path.
 
 ## Release and Docs
 

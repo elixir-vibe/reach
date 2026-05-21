@@ -2,6 +2,27 @@
 
 Reach keeps promising maintainability ideas as evidence providers first. Do not discard a good idea just because a naive smell would be noisy; add stronger context, mine real history, and only promote it to a smell or candidate when the evidence is useful.
 
+## Evidence vs smells
+
+Evidence is an observed fact; a smell is a user-facing judgment.
+
+Evidence providers answer: "what facts did we observe in source, IR, or a project graph?" They return reusable facts with kind, location, confidence, and domain-specific fields. Evidence modules must not decide whether something should fail CI or be shown as a warning.
+
+Policy consumers answer: "what should Reach do with those facts?"
+
+- `Reach.Smell.*` turns evidence into code-quality findings shown by `mix reach.check --smells`.
+- `Reach.Check.*` turns evidence into CI/release policy output or advisory refactoring candidates.
+- Plugins expose dependency-specific evidence and smells only when the dependency is present.
+- Corpus scripts can scan evidence directly before a heuristic is promoted to a smell or candidate.
+
+This separation lets Reach keep promising patterns without shipping noisy warnings. The promotion path is:
+
+```text
+idea → evidence provider → corpus scan → stronger heuristic → smell/check/candidate
+```
+
+Use evidence when a signal may be useful in multiple contexts or still needs corpus tuning. Use a smell only when the message is ready to be user-facing and appropriate for strict smell gates.
+
 ## Standard library bypass
 
 Implemented high-confidence families:
