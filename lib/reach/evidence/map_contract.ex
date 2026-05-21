@@ -1,6 +1,8 @@
 defmodule Reach.Evidence.MapContract do
   @moduledoc "Collects evidence for maps that behave like implicit contracts."
 
+  alias Reach.Evidence.AST
+
   defmodule Contract do
     @moduledoc false
     defstruct [:variable, :keys, :location, :reads, :updates, :confidence, :source, :producer]
@@ -21,16 +23,13 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp function_definitions(ast) do
-    {_ast, definitions} =
-      Macro.prewalk(ast, [], fn
-        {def_kind, _meta, [head, block]} = node, definitions when def_kind in [:def, :defp] ->
-          {node, add_function_definition(head, block, definitions)}
+    AST.collect(ast, fn
+      {def_kind, _meta, [head, block]}, definitions when def_kind in [:def, :defp] ->
+        add_function_definition(head, block, definitions)
 
-        node, definitions ->
-          {node, definitions}
-      end)
-
-    Enum.reverse(definitions)
+      _node, definitions ->
+        definitions
+    end)
   end
 
   defp add_function_definition({:when, _meta, [head | _guards]}, block, definitions),
@@ -172,12 +171,7 @@ defmodule Reach.Evidence.MapContract do
   defp map_literal_keys(_node), do: []
 
   defp map_observations(ast, bindings) do
-    {_ast, observations} =
-      Macro.prewalk(ast, %{}, fn node, observations ->
-        {node, record_observation(node, bindings, observations)}
-      end)
-
-    observations
+    AST.reduce(ast, %{}, &record_observation(&1, bindings, &2))
   end
 
   defp record_observation(node, bindings, observations) do

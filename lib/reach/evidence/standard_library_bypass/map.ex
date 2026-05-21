@@ -1,11 +1,11 @@
 defmodule Reach.Evidence.StandardLibraryBypass.Map do
   @moduledoc "Collects Map standard-library bypass evidence."
 
+  alias Reach.Evidence.AST
   alias Reach.Evidence.Fact
 
   def collect_ast(ast) do
-    {_ast, evidence} = Macro.prewalk(ast, [], fn node, acc -> {node, collect_node(node, acc)} end)
-    Enum.reverse(evidence)
+    AST.collect(ast, &collect_node/2)
   end
 
   def kinds, do: [:manual_map_update, :manual_map_update_bang]
@@ -80,7 +80,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
          expected_map,
          expected_key
        ),
-       do: same_ast?(map, expected_map) and same_ast?(key, expected_key)
+       do: AST.same_ast?(map, expected_map) and AST.same_ast?(key, expected_key)
 
   defp map_put_call?(_node, _expected_map, _expected_key), do: false
 
@@ -114,35 +114,21 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
          expected_key,
          value_var
        ) do
-    same_ast?(map, expected_map) and same_ast?(key, expected_key) and
-      references_ast?(value, value_var)
+    AST.same_ast?(map, expected_map) and AST.same_ast?(key, expected_key) and
+      AST.references?(value, value_var)
   end
 
   defp update_bang_put_call?(_node, _expected_map, _expected_key, _value_var), do: false
 
   defp fetch_bang_value_for?(node, expected_map, expected_key) do
-    {_node, found?} =
-      Macro.prewalk(node, false, fn
-        {{:., _, [{:__aliases__, _, [:Map]}, :fetch!]}, _, [map, key]} = child, _found? ->
-          {child, same_ast?(map, expected_map) and same_ast?(key, expected_key)}
+    AST.contains?(node, fn
+      {{:., _, [{:__aliases__, _, [:Map]}, :fetch!]}, _, [map, key]} ->
+        AST.same_ast?(map, expected_map) and AST.same_ast?(key, expected_key)
 
-        child, found? ->
-          {child, found?}
-      end)
-
-    found?
+      _child ->
+        false
+    end)
   end
-
-  defp references_ast?(node, expected) do
-    {_node, found?} =
-      Macro.prewalk(node, false, fn child, found? ->
-        {child, found? or same_ast?(child, expected)}
-      end)
-
-    found?
-  end
-
-  defp same_ast?(left, right), do: Macro.to_string(left) == Macro.to_string(right)
 
   defp line_meta(preferred, fallback) do
     if Keyword.get(preferred, :line), do: preferred, else: fallback

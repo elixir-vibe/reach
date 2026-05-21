@@ -3,6 +3,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
 
   import ExAST.Sigil
 
+  alias Reach.Evidence.AST
   alias Reach.Evidence.Fact
   alias Reach.Evidence.PatternRunner
 
@@ -43,10 +44,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   end
 
   defp callback_evidence(ast) do
-    {_ast, evidence} =
-      Macro.prewalk(ast, [], fn node, acc -> {node, collect_callback_node(node, acc)} end)
-
-    Enum.reverse(evidence)
+    AST.collect(ast, &collect_callback_node/2)
   end
 
   defp collect_callback_node({:|>, meta, [left, right]} = node, acc) do
@@ -128,7 +126,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
     with {:ok, meta, item, acc, body} <- reduce_empty_map_callback(node),
          {:ok, key} <- count_map_body(body, acc) do
       replacement =
-        if same_ast?(key, item), do: "Enum.frequencies/1", else: "Enum.frequencies_by/2"
+        if AST.same_ast?(key, item), do: "Enum.frequencies/1", else: "Enum.frequencies_by/2"
 
       kind =
         if replacement == "Enum.frequencies/1",
@@ -163,7 +161,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
          {{:., _, [{:__aliases__, _, [:Map]}, :update]}, _, [acc, key, 1, increment_fun]},
          expected_acc
        ) do
-    if same_ast?(acc, expected_acc) and increment_by_one_fun?(increment_fun),
+    if AST.same_ast?(acc, expected_acc) and increment_by_one_fun?(increment_fun),
       do: {:ok, key},
       else: :error
   end
@@ -183,7 +181,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
          {:=, _, [count_var, {{:., _, [{:__aliases__, _, [:Map]}, :get]}, _, [acc, key, 0]}]},
          expected_acc
        ) do
-    if same_ast?(acc, expected_acc), do: {:ok, count_var, key}, else: :error
+    if AST.same_ast?(acc, expected_acc), do: {:ok, count_var, key}, else: :error
   end
 
   defp count_assignment(_node, _expected_acc), do: :error
@@ -194,7 +192,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
          expected_key,
          count_var
        ) do
-    same_ast?(acc, expected_acc) and same_ast?(key, expected_key) and
+    AST.same_ast?(acc, expected_acc) and AST.same_ast?(key, expected_key) and
       increment_by_one?(increment, count_var)
   end
 
@@ -204,8 +202,8 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   defp increment_by_one_fun?({:&, _, [{:+, _, [1, {:&, _, [1]}]}]}), do: true
   defp increment_by_one_fun?(_node), do: false
 
-  defp increment_by_one?({:+, _, [var, 1]}, expected_var), do: same_ast?(var, expected_var)
-  defp increment_by_one?({:+, _, [1, var]}, expected_var), do: same_ast?(var, expected_var)
+  defp increment_by_one?({:+, _, [var, 1]}, expected_var), do: AST.same_ast?(var, expected_var)
+  defp increment_by_one?({:+, _, [1, var]}, expected_var), do: AST.same_ast?(var, expected_var)
   defp increment_by_one?(_node, _expected_var), do: false
 
   defp flat_map_reduce_shape(node) do
@@ -245,7 +243,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   defp reduce_empty_list_callback(_node), do: :error
 
   defp append_mapped_list?({:++, _, [left, right]}, item, acc) do
-    same_ast?(left, acc) and references_ast?(right, item) and not references_ast?(right, acc)
+    AST.same_ast?(left, acc) and AST.references?(right, item) and not AST.references?(right, acc)
   end
 
   defp append_mapped_list?(_body, _item, _acc), do: false
@@ -255,22 +253,11 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
          item,
          expected_acc
        ) do
-    same_ast?(acc, expected_acc) and references_ast?(chunk, item) and
-      not references_ast?(chunk, acc)
+    AST.same_ast?(acc, expected_acc) and AST.references?(chunk, item) and
+      not AST.references?(chunk, acc)
   end
 
   defp reverse_chunk_into_acc?(_body, _item, _acc), do: false
-
-  defp references_ast?(node, expected) do
-    {_node, found?} =
-      Macro.prewalk(node, false, fn child, found? ->
-        {child, found? or same_ast?(child, expected)}
-      end)
-
-    found?
-  end
-
-  defp same_ast?(left, right), do: Macro.to_string(left) == Macro.to_string(right)
 
   defp evidence(acc, kind, message, replacement, meta) do
     [
