@@ -10,6 +10,8 @@ defmodule Reach.Check.Candidates do
 
   @note "Candidates are advisory. Reach reports graph/effect/architecture evidence; prove behavior preservation before editing."
   @non_contract_roles [:accumulator, :assigns, :external_payload, :options]
+  @shape_family_similarity 0.75
+  @shape_family_min_shared_keys 3
 
   def run(project, config, opts \\ []) do
     config = Config.normalize(config)
@@ -252,26 +254,30 @@ defmodule Reach.Check.Candidates do
   defp map_contract_candidates(project, candidate_config) do
     project
     |> MapContract.collect_project()
-    |> Enum.group_by(& &1.keys)
+    |> group_map_contract_shapes()
     |> Enum.flat_map(&map_contract_candidate_group/1)
-    |> Enum.sort_by(fn {keys, contracts} -> {-length(contracts), length(keys), inspect(keys)} end)
+    |> Enum.sort_by(fn group ->
+      {-length(group.contracts), length(group.keys), inspect(group.keys)}
+    end)
     |> Enum.take(candidate_config.limits.per_kind)
     |> Enum.with_index(1)
-    |> Enum.map(fn {{keys, contracts}, index} ->
+    |> Enum.map(fn {group, index} ->
+      keys = group.keys
+      contracts = group.contracts
       first = List.first(contracts)
       sources = contracts |> Enum.map(& &1.source) |> Enum.uniq()
 
       Candidate.new(
         id: candidate_id("R6", index),
         kind: :introduce_struct_contract,
-        target: "map shape #{inspect(keys)}",
+        target: map_contract_target(group),
         file: first.file,
         line: first.location.line,
         benefit: :medium,
         risk: :low,
         confidence: map_contract_confidence(contracts),
         actionability: :review_domain_contract,
-        evidence: map_contract_evidence(contracts, sources, candidate_config),
+        evidence: map_contract_evidence(group, sources, candidate_config),
         keys: Enum.map(keys, &to_string/1),
         occurrences: length(contracts),
         sources: Enum.map(sources, &to_string/1),
@@ -286,13 +292,53 @@ defmodule Reach.Check.Candidates do
     end)
   end
 
-  defp map_contract_candidate_group({keys, contracts}) do
+  defp group_map_contract_shapes(contracts) do
+    contracts
+    |> Enum.sort_by(&{-length(&1.keys), inspect(&1.keys)})
+    |> Enum.reduce([], &put_shape_group/2)
+    |> Enum.map(&finalize_shape_group/1)
+  end
+
+  defp put_shape_group(contract, groups) do
+    case Enum.split_while(groups, &(not similar_shape?(&1.representative_keys, contract.keys))) do
+      {before, [group | after_groups]} ->
+        before ++ [%{group | contracts: [contract | group.contracts]} | after_groups]
+
+      {_before, []} ->
+        groups ++ [%{representative_keys: contract.keys, contracts: [contract]}]
+    end
+  end
+
+  defp similar_shape?(left_keys, right_keys) do
+    intersection = MapSet.intersection(MapSet.new(left_keys), MapSet.new(right_keys))
+    union = MapSet.union(MapSet.new(left_keys), MapSet.new(right_keys))
+
+    MapSet.size(intersection) >= @shape_family_min_shared_keys and
+      MapSet.size(intersection) / max(MapSet.size(union), 1) >= @shape_family_similarity
+  end
+
+  defp finalize_shape_group(group) do
+    key_sets = Enum.map(group.contracts, &MapSet.new(&1.keys))
+    core = key_sets |> Enum.reduce(&MapSet.intersection/2) |> MapSet.to_list() |> Enum.sort()
+    union = key_sets |> Enum.reduce(&MapSet.union/2) |> MapSet.to_list() |> Enum.sort()
+
+    %{
+      keys: core,
+      contracts: Enum.reverse(group.contracts),
+      representative_keys: group.representative_keys,
+      variant_keys: union -- core
+    }
+  end
+
+  defp map_contract_candidate_group(group) do
+    contracts = group.contracts
+
     cond do
       length(contracts) >= 2 and not all_non_contract_roles?(contracts) ->
-        [{keys, contracts}]
+        [group]
 
       Enum.any?(contracts, &return_contract_candidate?/1) ->
-        [{keys, contracts}]
+        [group]
 
       true ->
         []
@@ -312,6 +358,12 @@ defmodule Reach.Check.Candidates do
     contract.escaped? and contract.read_count < 2 and contract.mutation_count == 0
   end
 
+  defp map_contract_target(%{variant_keys: []} = group), do: "map shape #{inspect(group.keys)}"
+
+  defp map_contract_target(group) do
+    "map shape family #{inspect(group.keys)} (+#{length(group.variant_keys)} variant keys)"
+  end
+
   defp map_contract_confidence(contracts) do
     cond do
       Enum.any?(contracts, &(&1.confidence == :high)) -> :high
@@ -320,18 +372,23 @@ defmodule Reach.Check.Candidates do
     end
   end
 
-  defp map_contract_evidence(contracts, sources, candidate_config) do
+  defp map_contract_evidence(group, sources, candidate_config) do
     source_labels = Enum.map(sources, &"#{&1}_evidence")
 
+    variant_labels =
+      if group.variant_keys == [],
+        do: [],
+        else: ["shape_family_variants #{inspect(group.variant_keys)}"]
+
     examples =
-      contracts
+      group.contracts
       |> Enum.take(candidate_config.limits.representative_calls)
       |> Enum.map(fn contract ->
         producer = if contract.producer, do: " from #{inspect(contract.producer)}", else: ""
         "#{contract.file}:#{contract.location.line} #{contract.variable}#{producer}"
       end)
 
-    source_labels ++ examples
+    source_labels ++ variant_labels ++ examples
   end
 
   defp boundary_candidates(_project, %{layers: []}), do: []

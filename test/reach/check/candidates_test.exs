@@ -46,6 +46,51 @@ defmodule Reach.Check.CandidatesTest do
     File.rm_rf(dir)
   end
 
+  test "groups similar map shapes as one contract family candidate" do
+    dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "profiles.ex")
+
+    File.write!(path, """
+    defmodule Profiles do
+      def card(user) do
+        %{id: user.id, name: user.name, email: user.email}
+      end
+
+      def export(user) do
+        %{id: user.id, name: user.name, email: user.email, inserted_at: user.inserted_at}
+      end
+
+      def render(user) do
+        card = card(user)
+        card.id
+        card.email
+
+        export = export(user)
+        export.id
+        export.email
+        export.inserted_at
+      end
+    end
+    """)
+
+    project = Reach.Project.from_sources([path], plugins: [])
+    result = Candidates.run(project, [], top: 10)
+
+    candidate =
+      Enum.find(result.candidates, fn candidate ->
+        candidate.kind == :introduce_struct_contract and
+          String.starts_with?(candidate.target, "map shape family")
+      end)
+
+    assert candidate
+    assert candidate.keys == ["email", "id", "name"]
+    assert candidate.occurrences == 2
+    assert Enum.any?(candidate.evidence, &String.contains?(&1, "inserted_at"))
+
+    File.rm_rf(dir)
+  end
+
   test "does not promote low-signal escaped maps as struct candidates" do
     dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
