@@ -114,7 +114,7 @@ defmodule Reach.Plugin do
     {Jido.Action, Reach.Plugins.Jido},
     {OpenTelemetry.Tracer, Reach.Plugins.OpenTelemetry},
     {Jason, Reach.Plugins.Jason},
-    {Poison, Reach.Plugins.JSON},
+    {Poison, Reach.Plugins.Poison},
     {QuickBEAM, Reach.Plugins.QuickBEAM}
   ]
 

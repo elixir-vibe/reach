@@ -1,44 +1,90 @@
 defmodule Reach.Evidence.MapContract do
-  @moduledoc "Collects intra-procedural evidence for maps that behave like implicit contracts."
+  @moduledoc "Collects evidence for maps that behave like implicit contracts."
 
   defmodule Contract do
     @moduledoc false
-    defstruct [:variable, :keys, :location, :reads, :updates, :confidence]
+    defstruct [:variable, :keys, :location, :reads, :updates, :confidence, :source, :producer]
   end
 
   @min_keys 3
   @min_observations 2
 
   def collect_ast(ast) do
-    ast
-    |> function_bodies()
-    |> Enum.flat_map(&contracts_in_scope/1)
+    definitions = function_definitions(ast)
+    local_contracts = definitions |> Enum.map(& &1.body) |> Enum.flat_map(&contracts_in_scope/1)
+    return_contracts = return_flow_contracts(definitions)
+
+    local_contracts ++ return_contracts
   end
 
-  defp function_bodies(ast) do
-    {_ast, bodies} =
+  defp function_definitions(ast) do
+    {_ast, definitions} =
       Macro.prewalk(ast, [], fn
-        {def_kind, _meta, [_head, block]} = node, bodies when def_kind in [:def, :defp] ->
-          {node, add_function_body(block, bodies)}
+        {def_kind, _meta, [head, block]} = node, definitions when def_kind in [:def, :defp] ->
+          {node, add_function_definition(head, block, definitions)}
 
-        {def_kind, _meta, [{:when, _, [_head | _guards]}, block]} = node, bodies
-        when def_kind in [:def, :defp] ->
-          {node, add_function_body(block, bodies)}
-
-        node, bodies ->
-          {node, bodies}
+        node, definitions ->
+          {node, definitions}
       end)
 
-    bodies
+    Enum.reverse(definitions)
   end
 
-  defp add_function_body([do: body], bodies), do: [body | bodies]
-  defp add_function_body([{{:__block__, _meta, [:do]}, body}], bodies), do: [body | bodies]
-  defp add_function_body(_block, bodies), do: bodies
+  defp add_function_definition({:when, _meta, [head | _guards]}, block, definitions),
+    do: add_function_definition(head, block, definitions)
+
+  defp add_function_definition({name, meta, args}, block, definitions)
+       when is_atom(name) and is_list(args) do
+    case function_body(block) do
+      nil -> definitions
+      body -> [%{name: name, arity: length(args), meta: meta, body: body} | definitions]
+    end
+  end
+
+  defp add_function_definition(_head, _block, definitions), do: definitions
+
+  defp function_body(do: body), do: body
+  defp function_body([{{:__block__, _meta, [:do]}, body}]), do: body
+  defp function_body(_block), do: nil
 
   defp contracts_in_scope(ast) do
-    bindings = top_level_map_bindings(ast)
+    ast
+    |> top_level_map_bindings()
+    |> contracts_from_bindings(ast, :local)
+  end
 
+  defp return_flow_contracts(definitions) do
+    return_shapes = return_shapes(definitions)
+
+    definitions
+    |> Enum.flat_map(fn definition ->
+      definition.body
+      |> top_level_return_bindings(return_shapes)
+      |> contracts_from_bindings(definition.body, :return)
+    end)
+  end
+
+  defp return_shapes(definitions) do
+    Map.new(definitions, fn definition ->
+      {{definition.name, definition.arity}, returned_shape(definition)}
+    end)
+    |> Enum.reject(fn {_mfa, shape} -> is_nil(shape) end)
+    |> Map.new()
+  end
+
+  defp returned_shape(%{body: body, meta: meta}) do
+    case last_expression(body) |> map_literal_keys() do
+      keys when length(keys) >= @min_keys -> %{keys: keys, meta: meta}
+      _keys -> nil
+    end
+  end
+
+  defp last_expression({:__block__, _meta, statements}) when is_list(statements),
+    do: List.last(statements)
+
+  defp last_expression(body), do: body
+
+  defp contracts_from_bindings(bindings, ast, source) do
     if bindings == %{} do
       []
     else
@@ -58,7 +104,9 @@ defmodule Reach.Evidence.MapContract do
               location: location(binding.meta),
               reads: Enum.map(reads, &observation_location/1),
               updates: Enum.map(updates, &observation_location/1),
-              confidence: confidence(binding.keys, observed_keys, updates)
+              confidence: confidence(binding.keys, observed_keys, updates),
+              source: source,
+              producer: Map.get(binding, :producer)
             }
           ]
         else
@@ -83,6 +131,30 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp put_map_binding(_statement, bindings), do: bindings
+
+  defp top_level_return_bindings({:__block__, _meta, statements}, return_shapes) do
+    Enum.reduce(statements, %{}, &put_return_binding(&1, &2, return_shapes))
+  end
+
+  defp top_level_return_bindings(statement, return_shapes),
+    do: put_return_binding(statement, %{}, return_shapes)
+
+  defp put_return_binding({:=, meta, [{var, _, context}, rhs]}, bindings, return_shapes)
+       when is_atom(var) and is_atom(context) do
+    with {:ok, producer} <- local_call(rhs),
+         %{keys: keys} <- Map.get(return_shapes, producer) do
+      Map.put(bindings, var, %{keys: keys, meta: meta, producer: producer})
+    else
+      _other -> bindings
+    end
+  end
+
+  defp put_return_binding(_statement, bindings, _return_shapes), do: bindings
+
+  defp local_call({name, _meta, args}) when is_atom(name) and is_list(args),
+    do: {:ok, {name, length(args)}}
+
+  defp local_call(_node), do: :error
 
   defp map_literal_keys({:%{}, _meta, fields}) do
     fields

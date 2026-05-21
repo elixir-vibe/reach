@@ -35,6 +35,27 @@ defmodule Reach.Evidence.MapContractTest do
     assert contract.confidence == :medium
   end
 
+  test "connects fixed-shape return maps to local callsite reads" do
+    ast =
+      Code.string_to_quoted!("""
+      def profile(user) do
+        %{id: user.id, name: user.name, email: user.email}
+      end
+
+      def render(user) do
+        data = profile(user)
+        data.id
+        Map.get(data, :email)
+      end
+      """)
+
+    assert [contract] = MapContract.collect_ast(ast)
+    assert contract.source == :return
+    assert contract.producer == {:profile, 1}
+    assert contract.variable == :data
+    assert Enum.map(contract.reads, & &1.key) |> Enum.sort() == [:email, :id]
+  end
+
   test "ignores map literals without later flow evidence" do
     ast =
       Code.string_to_quoted!("""

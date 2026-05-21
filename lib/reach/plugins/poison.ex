@@ -1,5 +1,5 @@
-defmodule Reach.Plugins.JSON do
-  @moduledoc "Plugin for JSON library effect classification."
+defmodule Reach.Plugins.Poison do
+  @moduledoc "Plugin for Poison effect classification."
   @behaviour Reach.Plugin
 
   alias Reach.IR.Node

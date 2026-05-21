@@ -163,6 +163,31 @@ defmodule Reach.Check.ArchitecturePolicyTest do
     end
   end
 
+  test "evidence providers stay reusable and do not emit smell findings" do
+    evidence_sources = Path.wildcard("lib/reach/evidence/**/*.ex")
+
+    refute evidence_sources == []
+
+    for source <- evidence_sources do
+      content = File.read!(source)
+      refute content =~ "Reach.Smell.Finding"
+      refute content =~ "Finding.new"
+      refute content =~ "Reach.CLI."
+    end
+  end
+
+  test "legacy clone analysis namespace is not reintroduced" do
+    modules = :reach |> Application.spec(:modules) |> List.wrap()
+
+    refute Enum.any?(modules, &(Module.split(&1) |> Enum.take(2) == ["Reach", "CloneAnalysis"]))
+  end
+
+  test "Poison has its own plugin instead of using generic JSON plugin" do
+    assert Code.ensure_loaded?(Reach.Plugins.Poison)
+    refute Code.ensure_loaded?(Reach.Plugins.JSON)
+    assert Reach.Plugin.classify_effect([Reach.Plugins.Poison], poison_call_node()) == :pure
+  end
+
   defp architecture_project do
     dir = Path.join(System.tmp_dir!(), "reach-arch-fixture-#{System.unique_integer()}")
     File.mkdir_p!(dir)
@@ -239,6 +264,15 @@ defmodule Reach.Check.ArchitecturePolicyTest do
     File.write!(path, "defmodule ReachSmellFixture do\n  #{body}\nend\n")
     on_exit(fn -> File.rm_rf(dir) end)
     path
+  end
+
+  defp poison_call_node do
+    %Reach.IR.Node{
+      id: "poison",
+      type: :call,
+      meta: %{module: Poison, function: :encode!, arity: 1},
+      children: []
+    }
   end
 
   defp with_reach_config(contents) do

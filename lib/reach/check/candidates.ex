@@ -4,6 +4,7 @@ defmodule Reach.Check.Candidates do
   alias Reach.Analysis
   alias Reach.Check.{Architecture, Candidate, Changed}
   alias Reach.Config
+  alias Reach.Evidence.MapContract
   alias Reach.IR.Helpers, as: IRHelpers
   alias Reach.Project.Query
 
@@ -17,7 +18,8 @@ defmodule Reach.Check.Candidates do
       (mixed_effect_candidates(project, config.candidates) ++
          extract_region_candidates(project, config.candidates) ++
          boundary_candidates(project, config) ++
-         cycle_candidates(project, config.candidates))
+         cycle_candidates(project, config.candidates) ++
+         map_contract_candidates(project, config.candidates))
       |> Enum.uniq_by(& &1.id)
       |> Enum.sort_by(&candidate_rank/1)
       |> Enum.take(top)
@@ -30,7 +32,8 @@ defmodule Reach.Check.Candidates do
       introduce_boundary: 0,
       isolate_effects: 1,
       extract_pure_region: 2,
-      break_cycle: 3
+      break_cycle: 3,
+      introduce_struct_contract: 4
     }
 
     risk_rank = %{high: 0, medium: 1, low: 2}
@@ -244,6 +247,93 @@ defmodule Reach.Check.Candidates do
   end
 
   defp function_id(func), do: {func.meta[:module], func.meta[:name], func.meta[:arity]}
+
+  defp map_contract_candidates(project, candidate_config) do
+    project
+    |> project_source_files()
+    |> Enum.flat_map(&map_contracts_in_file/1)
+    |> Enum.group_by(& &1.keys)
+    |> Enum.flat_map(fn {keys, contracts} ->
+      if length(contracts) >= 2 do
+        [{keys, contracts}]
+      else
+        []
+      end
+    end)
+    |> Enum.sort_by(fn {keys, contracts} -> {-length(contracts), length(keys), inspect(keys)} end)
+    |> Enum.take(candidate_config.limits.per_kind)
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{keys, contracts}, index} ->
+      first = List.first(contracts)
+      sources = contracts |> Enum.map(& &1.source) |> Enum.uniq()
+
+      Candidate.new(
+        id: candidate_id("R6", index),
+        kind: :introduce_struct_contract,
+        target: "map shape #{inspect(keys)}",
+        file: first.file,
+        line: first.location.line,
+        benefit: :medium,
+        risk: :low,
+        confidence: map_contract_confidence(contracts),
+        actionability: :review_domain_contract,
+        evidence: map_contract_evidence(contracts, sources, candidate_config),
+        proof: [
+          "Confirm this repeated map shape represents domain data, not an external JSON/API boundary.",
+          "Prefer a struct when the shape is internal and stable across functions.",
+          "Keep plain maps for dynamic, user-provided, or third-party payloads."
+        ],
+        suggestion:
+          "Consider replacing this repeated implicit map contract with a struct or explicit boundary type."
+      )
+    end)
+  end
+
+  defp project_source_files(project) do
+    project.nodes
+    |> Map.values()
+    |> Enum.flat_map(fn node ->
+      case node.source_span do
+        %{file: file} when is_binary(file) -> [file]
+        _span -> []
+      end
+    end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp map_contracts_in_file(file) do
+    with {:ok, source} <- File.read(file),
+         {:ok, ast} <- Code.string_to_quoted(source) do
+      ast
+      |> MapContract.collect_ast()
+      |> Enum.map(&Map.put(&1, :file, file))
+    else
+      _error -> []
+    end
+  end
+
+  defp map_contract_confidence(contracts) do
+    cond do
+      Enum.any?(contracts, &(&1.confidence == :high)) -> :high
+      Enum.any?(contracts, &(&1.source == :return)) -> :medium
+      true -> :low
+    end
+  end
+
+  defp map_contract_evidence(contracts, sources, candidate_config) do
+    source_labels = Enum.map(sources, &"#{&1}_evidence")
+
+    examples =
+      contracts
+      |> Enum.take(candidate_config.limits.representative_calls)
+      |> Enum.map(fn contract ->
+        producer = if contract.producer, do: " from #{inspect(contract.producer)}", else: ""
+        "#{contract.file}:#{contract.location.line} #{contract.variable}#{producer}"
+      end)
+
+    source_labels ++ examples
+  end
 
   defp boundary_candidates(_project, %{layers: []}), do: []
 
