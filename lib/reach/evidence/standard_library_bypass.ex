@@ -250,8 +250,8 @@ defmodule Reach.Evidence.StandardLibraryBypass do
 
   defp map_update_shape(_node), do: :error
 
-  defp paired_map_put_branches?(clauses, map, key) when length(clauses) == 2 do
-    Enum.all?(clauses, fn
+  defp paired_map_put_branches?([left, right], map, key) do
+    Enum.all?([left, right], fn
       {:->, _meta, [_patterns, body]} -> map_put_call?(body, map, key)
       _clause -> false
     end)

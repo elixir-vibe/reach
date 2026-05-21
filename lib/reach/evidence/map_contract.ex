@@ -14,7 +14,7 @@ defmodule Reach.Evidence.MapContract do
 
   def collect_ast(ast) do
     definitions = function_definitions(ast)
-    local_contracts = definitions |> Enum.map(& &1.body) |> Enum.flat_map(&contracts_in_scope/1)
+    local_contracts = Enum.flat_map(definitions, &contracts_in_scope(&1.body))
     return_contracts = return_flow_contracts(definitions)
 
     local_contracts ++ return_contracts
