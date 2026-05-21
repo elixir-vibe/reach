@@ -7,6 +7,7 @@ defmodule Reach.Frontend.Elixir do
   """
 
   alias Reach.IR.{Counter, Node}
+  alias Reach.{Plugin, Source}
   import Reach.IR.Helpers, only: [mark_as_definitions: 1]
 
   @doc """
@@ -24,8 +25,16 @@ defmodule Reach.Frontend.Elixir do
          ) do
       {:ok, ast} ->
         counter = Keyword.get(opts, :counter, Counter.new())
-        nodes = translate(ast, counter, file)
-        {:ok, List.wrap(nodes)}
+        plugins = Plugin.resolve(opts)
+        previous_plugins = Process.get(:reach_plugins)
+        Process.put(:reach_plugins, plugins)
+
+        try do
+          nodes = translate(ast, counter, file)
+          {:ok, List.wrap(nodes)}
+        after
+          restore_process_value(:reach_plugins, previous_plugins)
+        end
 
       {:error, _} = err ->
         err
@@ -111,6 +120,7 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :block,
+      meta: origin_meta(meta),
       children: children,
       source_span: span_from_meta(meta, file)
     }
@@ -215,7 +225,7 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :case,
-      meta: %{desugared_from: kind},
+      meta: Map.merge(%{desugared_from: kind}, origin_meta(meta)),
       children: [condition_node, true_clause, false_clause],
       source_span: span_from_meta(meta, file)
     }
@@ -241,7 +251,7 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :case,
-      meta: %{desugared_from: :cond},
+      meta: Map.merge(%{desugared_from: :cond}, origin_meta(meta)),
       children: children,
       source_span: span_from_meta(meta, file)
     }
@@ -269,6 +279,7 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :case,
+      meta: origin_meta(meta),
       children: [expr_node | clause_nodes],
       source_span: span_from_meta(meta, file)
     }
@@ -337,7 +348,7 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :case,
-      meta: %{desugared_from: :with},
+      meta: Map.merge(%{desugared_from: :with}, origin_meta(meta)),
       children: clause_nodes ++ [body_node | else_nodes],
       source_span: span_from_meta(meta, file)
     }
@@ -458,6 +469,7 @@ defmodule Reach.Frontend.Elixir do
           %Node{
             id: Counter.next(counter),
             type: :generator,
+            meta: origin_meta(clause_meta),
             children: [pat_node, enum_node],
             source_span: span_from_meta(clause_meta, file)
           }
@@ -469,7 +481,7 @@ defmodule Reach.Frontend.Elixir do
           %Node{
             id: Counter.next(counter),
             type: :generator,
-            meta: %{kind: :binary},
+            meta: Map.merge(%{kind: :binary}, origin_meta(clause_meta)),
             children: [pat_node, enum_node],
             source_span: span_from_meta(clause_meta, file)
           }
@@ -483,13 +495,14 @@ defmodule Reach.Frontend.Elixir do
       end)
 
     body_node = translate(Keyword.get(opts, :do), counter, file)
+    children = clause_nodes ++ [body_node]
 
     %Node{
       id: Counter.next(counter),
       type: :comprehension,
-      meta: Map.new(Keyword.drop(opts, [:do])),
-      children: clause_nodes ++ [body_node],
-      source_span: span_from_meta(meta, file)
+      meta: Map.merge(Map.new(Keyword.drop(opts, [:do])), origin_meta(meta)),
+      children: children,
+      source_span: span_from_meta(meta, file) || Enum.find_value(children, &first_child_span/1)
     }
   end
 
@@ -708,7 +721,9 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :call,
-      meta: %{module: resolved_module, function: fun_name, kind: :remote},
+      meta:
+        %{module: resolved_module, function: fun_name, kind: :remote}
+        |> Map.merge(origin_meta(meta)),
       children: receiver_children,
       source_span: span_from_meta(meta, file)
     }
@@ -723,7 +738,7 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :call,
-      meta: %{arity: length(args), kind: :dynamic},
+      meta: %{arity: length(args), kind: :dynamic} |> Map.merge(origin_meta(call_meta || meta)),
       children: [callee_node | arg_nodes],
       source_span: span_from_meta(call_meta || meta, file)
     }
@@ -753,7 +768,9 @@ defmodule Reach.Frontend.Elixir do
       %Node{
         id: Counter.next(counter),
         type: :call,
-        meta: %{module: resolved_module, function: field, arity: 0, kind: :remote},
+        meta:
+          %{module: resolved_module, function: field, arity: 0, kind: :remote}
+          |> Map.merge(origin_meta(call_meta || meta)),
         children: receiver_children,
         source_span: span_from_meta(call_meta || meta, file)
       }
@@ -786,32 +803,42 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :call,
-      meta: %{
-        module: resolved_module,
-        function: fun_name,
-        arity: length(args),
-        kind: :remote
-      },
+      meta:
+        %{
+          module: resolved_module,
+          function: fun_name,
+          arity: length(args),
+          kind: :remote
+        }
+        |> Map.merge(origin_meta(call_meta || meta)),
       children: receiver_children ++ arg_nodes,
       source_span: span_from_meta(call_meta || meta, file)
     }
   end
 
   # Local call: function(args) — check if imported
-  defp translate({fun_name, meta, args}, counter, file)
+  defp translate({fun_name, meta, args} = ast, counter, file)
        when is_atom(fun_name) and is_list(args) do
-    arg_nodes = Enum.map(args, &translate(&1, counter, file))
-    arity = length(args)
+    case lower_elixir_ast(ast, file) do
+      {:ok, lowered_ast} ->
+        translate(lowered_ast, counter, file)
 
-    {module, kind} = resolve_import(fun_name, arity)
+      _ ->
+        arg_nodes = Enum.map(args, &translate(&1, counter, file))
+        arity = length(args)
 
-    %Node{
-      id: Counter.next(counter),
-      type: :call,
-      meta: %{function: fun_name, arity: arity, module: module, kind: kind},
-      children: arg_nodes,
-      source_span: span_from_meta(meta, file)
-    }
+        {module, kind} = resolve_import(fun_name, arity)
+
+        %Node{
+          id: Counter.next(counter),
+          type: :call,
+          meta:
+            %{function: fun_name, arity: arity, module: module, kind: kind}
+            |> Map.merge(origin_meta(meta)),
+          children: arg_nodes,
+          source_span: span_from_meta(meta, file)
+        }
+    end
   end
 
   # Catch-all for unhandled AST forms
@@ -1067,7 +1094,8 @@ defmodule Reach.Frontend.Elixir do
   defp module_name_for_def({:__aliases__, _, [part]} = alias_ast) when is_atom(part) do
     case Process.get(:reach_current_module) do
       nil -> module_name(alias_ast)
-      parent -> Module.concat(parent, part)
+      parent when is_atom(parent) -> Module.concat(parent, part)
+      parent -> {:dynamic, [parent, part]}
     end
   end
 
@@ -1261,20 +1289,39 @@ defmodule Reach.Frontend.Elixir do
   end
 
   defp span_from_meta(meta, file) when is_list(meta) do
-    case meta[:line] do
-      nil ->
-        nil
+    Source.span_from_origin(Source.origin(meta)) ||
+      case meta[:line] do
+        nil ->
+          nil
 
-      line ->
-        %{
-          file: file,
-          start_line: line,
-          start_col: meta[:column] || 1,
-          end_line: nil,
-          end_col: nil
-        }
-    end
+        line ->
+          %{
+            file: file,
+            start_line: line,
+            start_col: meta[:column] || 1,
+            end_line: nil,
+            end_col: nil
+          }
+      end
   end
 
   defp span_from_meta(_, _), do: nil
+
+  defp origin_meta(meta) when is_list(meta) do
+    case Source.origin(meta) do
+      nil -> %{}
+      origin -> %{origin: origin}
+    end
+  end
+
+  defp origin_meta(_), do: %{}
+
+  defp lower_elixir_ast(ast, file) do
+    plugins = Process.get(:reach_plugins, [])
+    opts = [file: file, module: Process.get(:reach_current_module)]
+    Plugin.lower_elixir_ast(plugins, ast, opts)
+  end
+
+  defp restore_process_value(key, nil), do: Process.delete(key)
+  defp restore_process_value(key, value), do: Process.put(key, value)
 end

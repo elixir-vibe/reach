@@ -97,7 +97,7 @@ defmodule Reach do
   """
   @spec file_to_graph(Path.t(), keyword()) :: {:ok, graph()} | {:error, term()}
   def file_to_graph(path, opts \\ []) do
-    language = Keyword.get(opts, :language) || language_from_extension(path)
+    language = Keyword.get(opts, :language) || language_from_extension(path, opts)
     opts = Keyword.put_new(opts, :file, path) |> Keyword.put(:language, language)
 
     case language do
@@ -1151,11 +1151,11 @@ defmodule Reach do
     end
   end
 
-  defp language_from_extension(path) do
+  defp language_from_extension(path, opts) do
     case Path.extname(path) do
       ext when ext in [".erl", ".hrl"] -> :erlang
       ".gleam" -> :gleam
-      ext -> Plugin.source_language(Plugin.detect(), ext) || :elixir
+      ext -> Plugin.source_language(Plugin.resolve(opts), ext) || :elixir
     end
   end
 end

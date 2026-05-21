@@ -16,6 +16,7 @@ defmodule Reach.Visualize.Helpers do
     end
   end
 
+  def ir_label(%{meta: %{origin: %{label: label}}}) when is_binary(label), do: label
   def ir_label(%{type: :literal, meta: %{value: val}}), do: inspect(val)
   def ir_label(%{type: :var, meta: %{name: name}}), do: to_string(name)
   def ir_label(%{type: :tuple}), do: "{...}"

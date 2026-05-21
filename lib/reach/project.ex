@@ -69,8 +69,10 @@ defmodule Reach.Project do
   """
   @spec from_mix_project(keyword()) :: t()
   def from_mix_project(opts \\ []) do
+    plugins = Reach.Plugin.resolve(opts)
+
     source_roots()
-    |> Enum.flat_map(&source_files/1)
+    |> Enum.flat_map(&source_files(&1, plugins))
     |> Enum.uniq()
     |> Enum.sort()
     |> from_sources(opts)
@@ -136,8 +138,9 @@ defmodule Reach.Project do
     _ -> []
   end
 
-  defp source_files({elixirc_paths, erlc_paths}) do
-    elixir_files = glob_extensions(elixirc_paths, [".ex"])
+  defp source_files({elixirc_paths, erlc_paths}, plugins) do
+    plugin_extensions = Reach.Plugin.source_extensions(plugins)
+    elixir_files = glob_extensions(elixirc_paths, [".ex"] ++ plugin_extensions)
     erlang_files = glob_extensions(erlc_paths, [".erl"])
     elixir_files ++ erlang_files
   end
@@ -241,7 +244,7 @@ defmodule Reach.Project do
     counter = Keyword.get_lazy(opts, :counter, &Counter.new/0)
 
     paths
-    |> Task.async_stream(&parse_path(&1, counter),
+    |> Task.async_stream(&parse_path(&1, counter, opts),
       max_concurrency: System.schedulers_online(),
       ordered: false
     )
@@ -251,15 +254,27 @@ defmodule Reach.Project do
     end)
   end
 
-  defp parse_path(path, counter) do
+  defp parse_path(path, counter, opts) do
     module_name = module_from_path(path)
+    parse_opts = Keyword.merge(opts, file: path, counter: counter)
 
-    case Frontend.parse_file(path, file: path, counter: counter) do
+    case parse_source_file(path, parse_opts) do
       {:ok, ir_nodes} ->
         {module_name || extract_module_name(ir_nodes), path, ir_nodes}
 
       {:error, _} ->
         nil
+    end
+  end
+
+  defp parse_source_file(path, opts) do
+    plugins = Reach.Plugin.resolve(opts)
+    ext = Path.extname(path)
+
+    if ext in Reach.Plugin.source_extensions(plugins) do
+      Reach.Plugin.parse_file(plugins, path, opts)
+    else
+      Frontend.parse_file(path, opts)
     end
   end
 

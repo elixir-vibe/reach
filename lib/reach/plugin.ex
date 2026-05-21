@@ -14,11 +14,14 @@ defmodule Reach.Plugin do
   3. **Source frontends** — optional `source_extensions/0` and `parse_file/2`
      callbacks let plugins own language frontends for optional ecosystems.
 
-  4. **Embedded IR** — `analyze_embedded/2` extracts code from string
+  4. **Elixir AST lowering** — `lower_elixir_ast/2` translates framework
+     DSL forms, sigils, or template syntax into analysis-friendly Elixir AST.
+
+  5. **Embedded IR** — `analyze_embedded/2` extracts code from string
      literals (e.g. JS inside QuickBEAM.eval) and returns additional IR
      nodes plus cross-language edges.
 
-  5. **Framework presentation/patterns** — optional callbacks provide
+  6. **Framework presentation/patterns** — optional callbacks provide
      framework-specific trace presets, behaviour labels, and visualization
      edge filtering.
 
@@ -84,6 +87,16 @@ defmodule Reach.Plugin do
   connecting them to the host graph.
   """
   @callback analyze_embedded(all_nodes :: [Node.t()], opts :: keyword()) :: embedded_result()
+
+  @doc """
+  Lowers framework-specific Elixir AST into ordinary Elixir AST before Reach IR translation.
+
+  Return `:ignore` when the plugin does not own the AST node. Returned AST may
+  carry `%Reach.Source.Origin{}` metadata under the `:reach` metadata key.
+  """
+  @callback lower_elixir_ast(ast :: Macro.t(), opts :: keyword()) ::
+              {:ok, Macro.t()} | :ignore | {:error, term()}
+
   @callback source_extensions() :: [String.t()]
   @callback source_language(extension :: String.t()) :: atom() | nil
   @callback parse_file(path :: Path.t(), opts :: keyword()) ::
@@ -97,6 +110,7 @@ defmodule Reach.Plugin do
   @optional_callbacks analyze_project: 3,
                       classify_effect: 1,
                       analyze_embedded: 2,
+                      lower_elixir_ast: 2,
                       source_extensions: 0,
                       source_language: 1,
                       parse_file: 2,
@@ -107,6 +121,7 @@ defmodule Reach.Plugin do
 
   @known_plugins [
     {Phoenix.Router, Reach.Plugins.Phoenix},
+    {Phoenix.LiveView, Reach.Plugins.LiveView},
     {Ecto, Reach.Plugins.Ecto},
     {Ash, Reach.Plugins.Ash},
     {Oban, Reach.Plugins.Oban},
@@ -154,6 +169,18 @@ defmodule Reach.Plugin do
   def run_analyze(plugins, all_nodes, opts) do
     Enum.flat_map(plugins, fn plugin ->
       plugin.analyze(all_nodes, opts)
+    end)
+  end
+
+  @doc "Asks plugins to lower a framework-specific Elixir AST node."
+  def lower_elixir_ast(plugins, ast, opts) do
+    Enum.find_value(plugins, :ignore, fn plugin ->
+      if exports?(plugin, :lower_elixir_ast, 2) do
+        case plugin.lower_elixir_ast(ast, opts) do
+          :ignore -> nil
+          result -> result
+        end
+      end
     end)
   end
 

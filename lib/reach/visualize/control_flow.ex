@@ -561,6 +561,7 @@ defmodule Reach.Visualize.ControlFlow do
     |> Enum.map(& &1.v1)
   end
 
+  defp branch_label(%{meta: %{origin: %{label: label}}}) when is_binary(label), do: label
   defp branch_label(%{type: :case, meta: %{desugared_from: :if}}), do: "if"
   defp branch_label(%{type: :case, meta: %{desugared_from: :unless}}), do: "unless"
   defp branch_label(%{type: :case}), do: "case"
