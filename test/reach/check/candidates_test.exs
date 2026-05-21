@@ -91,6 +91,74 @@ defmodule Reach.Check.CandidatesTest do
     File.rm_rf(dir)
   end
 
+  test "promotes repeated payload maps as boundary contract candidates" do
+    dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "payloads.ex")
+
+    File.write!(path, """
+    defmodule Payloads do
+      def first(user) do
+        payload = %{id: user.id, name: user.name, email: user.email}
+        payload.id
+        payload.email
+      end
+
+      def second(user) do
+        payload = %{id: user.id, name: user.name, email: user.email}
+        payload.id
+        payload.name
+      end
+    end
+    """)
+
+    project = Reach.Project.from_sources([path], plugins: [])
+    result = Candidates.run(project, [], top: 10)
+
+    candidate = Enum.find(result.candidates, &(&1.kind == :introduce_boundary_contract))
+
+    assert candidate
+    assert candidate.actionability == :review_boundary_contract
+    assert candidate.keys == ["email", "id", "name"]
+    assert candidate.suggestion =~ "boundary contract"
+
+    File.rm_rf(dir)
+  end
+
+  test "promotes repeated options maps as typed map contract candidates" do
+    dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "options.ex")
+
+    File.write!(path, """
+    defmodule Options do
+      def first(input) do
+        opts = %{timeout: input.timeout, retries: input.retries, mode: input.mode}
+        opts.timeout
+        opts.retries
+      end
+
+      def second(input) do
+        opts = %{timeout: input.timeout, retries: input.retries, mode: input.mode}
+        opts.mode
+        opts.timeout
+      end
+    end
+    """)
+
+    project = Reach.Project.from_sources([path], plugins: [])
+    result = Candidates.run(project, [], top: 10)
+
+    candidate = Enum.find(result.candidates, &(&1.kind == :introduce_typed_map_contract))
+
+    assert candidate
+    assert candidate.actionability == :review_options_contract
+    assert candidate.keys == ["mode", "retries", "timeout"]
+    assert candidate.suggestion =~ "typed map"
+
+    File.rm_rf(dir)
+  end
+
   test "does not promote low-signal escaped maps as struct candidates" do
     dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)

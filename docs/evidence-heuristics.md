@@ -48,7 +48,7 @@ Implemented evidence:
 
 - local fixed-shape map creation followed by key reads/updates;
 - local function return shape followed by callsite reads;
-- advisory `:introduce_struct_contract` candidates when evidence is repeated or return-shape based.
+- advisory struct, boundary, or typed-map contract candidates when evidence is repeated or return-shape based.
 
 Promising upgrades:
 

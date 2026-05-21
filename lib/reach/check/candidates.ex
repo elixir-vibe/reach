@@ -9,7 +9,7 @@ defmodule Reach.Check.Candidates do
   alias Reach.Project.Query
 
   @note "Candidates are advisory. Reach reports graph/effect/architecture evidence; prove behavior preservation before editing."
-  @non_contract_roles [:accumulator, :assigns, :external_payload, :options]
+  @suppressed_map_contract_roles [:accumulator, :assigns]
   @shape_family_similarity 0.75
   @shape_family_min_shared_keys 3
 
@@ -35,8 +35,10 @@ defmodule Reach.Check.Candidates do
       introduce_boundary: 0,
       isolate_effects: 1,
       introduce_struct_contract: 2,
-      extract_pure_region: 3,
-      break_cycle: 4
+      introduce_boundary_contract: 3,
+      introduce_typed_map_contract: 4,
+      extract_pure_region: 5,
+      break_cycle: 6
     }
 
     risk_rank = %{high: 0, medium: 1, low: 2}
@@ -267,27 +269,24 @@ defmodule Reach.Check.Candidates do
       first = List.first(contracts)
       sources = contracts |> Enum.map(& &1.source) |> Enum.uniq()
 
+      profile = map_contract_candidate_profile(group)
+
       Candidate.new(
         id: candidate_id("R6", index),
-        kind: :introduce_struct_contract,
+        kind: profile.kind,
         target: map_contract_target(group),
         file: first.file,
         line: first.location.line,
-        benefit: :medium,
-        risk: :low,
+        benefit: profile.benefit,
+        risk: profile.risk,
         confidence: map_contract_confidence(contracts),
-        actionability: :review_domain_contract,
+        actionability: profile.actionability,
         evidence: map_contract_evidence(group, sources, candidate_config),
         keys: Enum.map(keys, &to_string/1),
         occurrences: length(contracts),
         sources: Enum.map(sources, &to_string/1),
-        proof: [
-          "Confirm this repeated map shape represents domain data, not an external JSON/API boundary.",
-          "Prefer a struct when the shape is internal and stable across functions.",
-          "Keep plain maps for dynamic, user-provided, or third-party payloads."
-        ],
-        suggestion:
-          "Consider replacing this repeated implicit map contract with a struct or explicit boundary type."
+        proof: profile.proof,
+        suggestion: profile.suggestion
       )
     end)
   end
@@ -346,12 +345,13 @@ defmodule Reach.Check.Candidates do
   end
 
   defp return_contract_candidate?(contract) do
-    contract.source == :return and contract.confidence == :high and length(contract.keys) >= 4 and
-      contract.role not in @non_contract_roles and not low_signal_escape?(contract)
+    contract.source in [:return, :cross_file_return] and contract.confidence == :high and
+      length(contract.keys) >= 4 and contract.role not in @suppressed_map_contract_roles and
+      not low_signal_escape?(contract)
   end
 
   defp all_non_contract_roles?(contracts) do
-    Enum.all?(contracts, &(&1.role in @non_contract_roles or low_signal_escape?(&1)))
+    Enum.all?(contracts, &(&1.role in @suppressed_map_contract_roles or low_signal_escape?(&1)))
   end
 
   defp low_signal_escape?(contract) do
@@ -362,6 +362,57 @@ defmodule Reach.Check.Candidates do
 
   defp map_contract_target(group) do
     "map shape family #{inspect(group.keys)} (+#{length(group.variant_keys)} variant keys)"
+  end
+
+  defp map_contract_candidate_profile(group) do
+    roles = Enum.map(group.contracts, & &1.role)
+
+    cond do
+      :external_payload in roles ->
+        %{
+          kind: :introduce_boundary_contract,
+          benefit: :medium,
+          risk: :medium,
+          actionability: :review_boundary_contract,
+          proof: [
+            "Confirm this map is an external payload or boundary DTO before changing runtime shape.",
+            "Prefer a decoder, validator, or schema at the boundary instead of passing an untyped map deeper.",
+            "Keep flexible maps when the upstream contract is intentionally dynamic."
+          ],
+          suggestion:
+            "Consider introducing an explicit boundary contract, decoder, or validator for this repeated payload shape."
+        }
+
+      :options in roles ->
+        %{
+          kind: :introduce_typed_map_contract,
+          benefit: :medium,
+          risk: :low,
+          actionability: :review_options_contract,
+          proof: [
+            "Confirm these options are internal and stable enough to document as a contract.",
+            "Prefer typed options or a validation schema when callers construct the same option shape repeatedly.",
+            "Keep plain keyword/options data when keys are intentionally open-ended."
+          ],
+          suggestion:
+            "Consider documenting this repeated options shape with a typed map or options validation schema."
+        }
+
+      true ->
+        %{
+          kind: :introduce_struct_contract,
+          benefit: :medium,
+          risk: :low,
+          actionability: :review_domain_contract,
+          proof: [
+            "Confirm this repeated map shape represents internal domain data, not an external JSON/API boundary.",
+            "Prefer a struct when the shape is internal and stable across functions.",
+            "Keep plain maps for dynamic, user-provided, or third-party payloads."
+          ],
+          suggestion:
+            "Consider replacing this repeated implicit map contract with a struct or explicit domain contract."
+        }
+    end
   end
 
   defp map_contract_confidence(contracts) do
