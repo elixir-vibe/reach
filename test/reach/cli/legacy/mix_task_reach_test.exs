@@ -1,6 +1,8 @@
 defmodule Mix.Tasks.ReachTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureIO
+
   alias Mix.Tasks.Reach, as: ReachTask
 
   @output_dir Path.join(System.tmp_dir!(), "reach_task_test")
@@ -9,6 +11,15 @@ defmodule Mix.Tasks.ReachTest do
     File.rm_rf!(@output_dir)
     on_exit(fn -> File.rm_rf!(@output_dir) end)
     :ok
+  end
+
+  test "prints help without analyzing" do
+    output = capture_io(fn -> ReachTask.run(["--help"]) end)
+
+    assert output =~ "mix reach"
+    assert output =~ "--format"
+    refute output =~ "Analyzing"
+    refute File.exists?(Path.join("reach_report", "index.html"))
   end
 
   test "generates HTML report for a file" do

@@ -14,6 +14,7 @@
 
 ### Fixed
 
+- **Root task help** — `mix reach --help` now prints usage information instead of generating the default HTML report.
 - **Protocol and macro-heavy visualizations** — Elixir frontend now attaches `defimpl`/`defprotocol` functions and nested modules to their real module names, and treats quoted macro-generated definitions as data while preserving `unquote` references. This removes bogus `(top-level)` graph buckets and repeated garbage nodes in reports for macro-heavy projects.
 - **Redundant computation false positives** — stateful IR counter calls are no longer reported as duplicate pure computations during Reach's own strict smell checks.
 
