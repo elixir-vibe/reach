@@ -93,6 +93,33 @@ defmodule Reach.Evidence.StandardLibraryBypassTest do
              StandardLibraryBypass.collect_ast(ast)
   end
 
+  test "collects reduce reverse chunk followed by reverse evidence" do
+    ast =
+      Code.string_to_quoted!("""
+      items
+      |> Enum.reduce([], fn item, acc ->
+        Enum.reverse(expand(item), acc)
+      end)
+      |> Enum.reverse()
+      """)
+
+    assert [%{kind: :manual_flat_map_prepend_reverse, replacement: "Enum.flat_map/2"}] =
+             StandardLibraryBypass.collect_ast(ast)
+  end
+
+  test "does not flag unsafe chunk prepend followed by reverse" do
+    ast =
+      Code.string_to_quoted!("""
+      items
+      |> Enum.reduce([], fn item, acc ->
+        expand(item) ++ acc
+      end)
+      |> Enum.reverse()
+      """)
+
+    assert [] = StandardLibraryBypass.collect_ast(ast)
+  end
+
   test "collects fetch bang followed by put evidence" do
     ast =
       Code.string_to_quoted!("""

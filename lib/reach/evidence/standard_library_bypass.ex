@@ -23,6 +23,7 @@ defmodule Reach.Evidence.StandardLibraryBypass do
       :manual_frequencies,
       :manual_frequencies_by,
       :manual_flat_map_reduce,
+      :manual_flat_map_prepend_reverse,
       :manual_map_update_bang
     ]
   end
@@ -44,7 +45,8 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   defp collect_node(node, acc), do: collect_direct(node, acc)
 
   defp collect_pipe_node(left, right, meta, acc) do
-    case {split_call(left) || enum_map_call(left), pipe_reader(right)} do
+    case {split_call(left) || enum_map_call(left) || flat_map_prepend_reverse_call(left),
+          pipe_reader(right)} do
       {{:string_split, subject, "/", _split_meta}, {:last, _reader_meta}} ->
         maybe_evidence(
           acc,
@@ -84,6 +86,17 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           true,
           :manual_flat_map,
           "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
+          "Enum.flat_map/2",
+          meta,
+          :high
+        )
+
+      {{:flat_map_prepend_reverse, _reduce_meta}, {:reverse, _reverse_meta}} ->
+        maybe_evidence(
+          acc,
+          true,
+          :manual_flat_map_prepend_reverse,
+          "Enum.reduce with Enum.reverse(chunk, acc) followed by reverse reimplements Enum.flat_map/2",
           "Enum.flat_map/2",
           meta,
           :high
@@ -212,6 +225,15 @@ defmodule Reach.Evidence.StandardLibraryBypass do
 
   defp enum_map_call(_node), do: nil
 
+  defp flat_map_prepend_reverse_call(node) do
+    with {:ok, meta, item, acc, body} <- reduce_empty_list_callback(node),
+         true <- reverse_chunk_into_acc?(body, item, acc) do
+      {:flat_map_prepend_reverse, meta}
+    else
+      _other -> nil
+    end
+  end
+
   defp pipe_reader({{:., meta, [{:__aliases__, _, [:List]}, fun]}, _call_meta, []})
        when fun in [:last, :first],
        do: {fun, meta}
@@ -225,6 +247,9 @@ defmodule Reach.Evidence.StandardLibraryBypass do
 
   defp pipe_reader({{:., meta, [{:__aliases__, _, [:Enum]}, :concat]}, _call_meta, []}),
     do: {:flatten, meta}
+
+  defp pipe_reader({{:., meta, [{:__aliases__, _, [:Enum]}, :reverse]}, _call_meta, []}),
+    do: {:reverse, meta}
 
   defp pipe_reader({fun, meta, []}) when fun in [:hd], do: {:first, meta}
   defp pipe_reader(_), do: nil
@@ -396,6 +421,17 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   end
 
   defp append_mapped_list?(_body, _item, _acc), do: false
+
+  defp reverse_chunk_into_acc?(
+         {{:., _, [{:__aliases__, _, [:Enum]}, :reverse]}, _, [chunk, acc]},
+         item,
+         expected_acc
+       ) do
+    same_ast?(acc, expected_acc) and references_ast?(chunk, item) and
+      not references_ast?(chunk, acc)
+  end
+
+  defp reverse_chunk_into_acc?(_body, _item, _acc), do: false
 
   defp references_ast?(node, expected) do
     {_node, found?} =

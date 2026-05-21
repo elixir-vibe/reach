@@ -33,11 +33,12 @@ Implemented high-confidence families:
 - `Map.update/4` for paired `Map.get`/`Map.put` or `Map.has_key?`/`Map.put` branches that update the same map/key.
 - `Enum.frequencies/1` and `Enum.frequencies_by/2` for reduce-based count maps with `%{}` initial accumulator, exact increment-by-one logic, and no extra payload work.
 - `Enum.flat_map/2` for reduce-based `acc ++ mapped_list` callbacks with an empty list accumulator.
+- `Enum.flat_map/2` for order-safe prepend/reverse reducers shaped as `Enum.reverse(chunk, acc)` followed by a final `Enum.reverse/1`.
 - `Map.update!/3` when code fetches a required existing key and immediately puts the transformed value back.
 
 Promising mined families that need stronger constraints before implementation:
 
-- `Enum.flat_map/2` variants where a reduce prepends mapped lists and reverses afterward.
+- Other `Enum.flat_map/2` prepend/reverse variants; avoid `chunk ++ acc |> Enum.reverse` because it reverses each chunk's internal order.
 - `URI.parse/1` for authority parsing such as `String.split(str, ":", parts: 2)`, but only for URI/host/endpoint variable names or surrounding URI semantics.
 - `Path.basename/1` / `Path.extname/1` for filename construction, but avoid generic labels/slugs.
 
