@@ -4,8 +4,8 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   import ExAST.Sigil
 
   alias Reach.Evidence.AST
-  alias Reach.Evidence.Fact
   alias Reach.Evidence.PatternRunner
+  alias Reach.Evidence.StandardLibraryBypass
 
   @manual_flat_map_concat_message "Enum.map followed by concat allocates an intermediate nested list; use Enum.flat_map/2"
   @manual_flat_map_flatten_message "Enum.map followed by List.flatten/1 may be Enum.flat_map/2 when the mapper returns a flat list; preserve List.flatten/1 if recursive flattening is required"
@@ -274,16 +274,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   defp reverse_chunk_into_acc?(_body, _item, _acc), do: false
 
   defp evidence(acc, kind, message, replacement, meta) do
-    [
-      %Fact{
-        family: :stdlib,
-        kind: kind,
-        message: message,
-        replacement: replacement,
-        meta: meta,
-        confidence: :high
-      }
-      | acc
-    ]
+    [StandardLibraryBypass.fact(kind, message, replacement, meta) | acc]
   end
 end

@@ -2,7 +2,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
   @moduledoc "Collects Map standard-library bypass evidence."
 
   alias Reach.Evidence.AST
-  alias Reach.Evidence.Fact
+  alias Reach.Evidence.StandardLibraryBypass
 
   def collect_ast(ast) do
     AST.collect(ast, &collect_node/2)
@@ -112,16 +112,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
   end
 
   defp evidence(acc, kind, message, replacement, meta) do
-    [
-      %Fact{
-        family: :stdlib,
-        kind: kind,
-        message: message,
-        replacement: replacement,
-        meta: meta,
-        confidence: :high
-      }
-      | acc
-    ]
+    [StandardLibraryBypass.fact(kind, message, replacement, meta) | acc]
   end
 end

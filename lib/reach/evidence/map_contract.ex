@@ -315,12 +315,7 @@ defmodule Reach.Evidence.MapContract do
         end
 
       match?({:ok, _source_var}, variable_name(rhs)) ->
-        with {:ok, source_var} <- variable_name(rhs),
-             true <- Map.has_key?(bindings, source_var) do
-          Map.put(bindings, var, %{bindings[source_var] | meta: meta})
-        else
-          _other -> bindings
-        end
+        put_existing_alias_binding(bindings, var, rhs, meta)
 
       true ->
         bindings
@@ -341,12 +336,7 @@ defmodule Reach.Evidence.MapContract do
         end
 
       match?({:ok, _source_var}, variable_name(rhs)) ->
-        with {:ok, source_var} <- variable_name(rhs),
-             true <- Map.has_key?(bindings, source_var) do
-          Map.put(bindings, var, %{bindings[source_var] | meta: meta})
-        else
-          _other -> bindings
-        end
+        put_existing_alias_binding(bindings, var, rhs, meta)
 
       true ->
         bindings
@@ -354,6 +344,14 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp put_return_value_binding(_statement, bindings, _return_shapes), do: bindings
+
+  defp put_existing_alias_binding(bindings, var, rhs, meta) do
+    {:ok, source_var} = variable_name(rhs)
+
+    if Map.has_key?(bindings, source_var),
+      do: Map.put(bindings, var, %{bindings[source_var] | meta: meta}),
+      else: bindings
+  end
 
   defp local_call({name, _meta, args}) when is_atom(name) and is_list(args),
     do: {:ok, {name, length(args)}}

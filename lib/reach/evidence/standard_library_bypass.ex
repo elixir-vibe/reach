@@ -1,6 +1,8 @@
 defmodule Reach.Evidence.StandardLibraryBypass do
   @moduledoc "Collects evidence of ad-hoc code that bypasses standard library helpers."
 
+  alias Reach.Evidence.Fact
+
   @families [
     Reach.Evidence.StandardLibraryBypass.PathURI,
     Reach.Evidence.StandardLibraryBypass.Enum,
@@ -13,6 +15,17 @@ defmodule Reach.Evidence.StandardLibraryBypass do
     @families
     |> Enum.flat_map(& &1.kinds())
     |> Enum.uniq()
+  end
+
+  def fact(kind, message, replacement, meta, confidence \\ :high) do
+    %Fact{
+      family: :stdlib,
+      kind: kind,
+      message: message,
+      replacement: replacement,
+      meta: meta,
+      confidence: confidence
+    }
   end
 
   def collect_ast(ast) do
