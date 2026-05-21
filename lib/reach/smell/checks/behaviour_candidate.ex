@@ -3,7 +3,7 @@ defmodule Reach.Smell.Checks.BehaviourCandidate do
 
   @behaviour Reach.Smell.Check
 
-  alias Reach.CloneAnalysis
+  alias Reach.Evidence.CloneAnalysis
   alias Reach.Config
   alias Reach.IR
   alias Reach.Smell.Finding

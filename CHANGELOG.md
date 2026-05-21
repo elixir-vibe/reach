@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- **Evidence provider namespace** — moved clone analysis under `Reach.Evidence.CloneAnalysis` and introduced `Reach.Evidence` as the namespace for reusable facts consumed by smells, checks, and refactoring candidates.
+
 ### Fixed
 
 - **Protocol and macro-heavy visualizations** — Elixir frontend now attaches `defimpl`/`defprotocol` functions and nested modules to their real module names, and treats quoted macro-generated definitions as data while preserving `unquote` references. This removes bogus `(top-level)` graph buckets and repeated garbage nodes in reports for macro-heavy projects.
