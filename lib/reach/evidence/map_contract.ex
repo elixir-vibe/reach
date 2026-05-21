@@ -190,17 +190,23 @@ defmodule Reach.Evidence.MapContract do
     |> Map.new()
   end
 
-  defp returned_shape(%{body: body, meta: meta}) do
-    case body |> last_expression() |> map_literal_keys() do
-      keys when length(keys) >= @min_keys -> %{keys: keys, meta: meta}
-      _keys -> nil
-    end
+  defp returned_shape(%{body: {:__block__, _meta, statements}, meta: meta})
+       when is_list(statements) do
+    bindings = collect_literal_map_bindings({:__block__, [], statements})
+    returned_expression_shape(List.last(statements), bindings, meta)
   end
 
-  defp last_expression({:__block__, _meta, statements}) when is_list(statements),
-    do: List.last(statements)
+  defp returned_shape(%{body: body, meta: meta}) do
+    returned_expression_shape(body, %{}, meta)
+  end
 
-  defp last_expression(body), do: body
+  defp returned_expression_shape(expression, bindings, fallback_meta) do
+    case {map_literal_keys(expression), variable_name(expression)} do
+      {keys, _variable} when length(keys) >= @min_keys -> %{keys: keys, meta: fallback_meta}
+      {_keys, {:ok, variable}} -> Map.get(bindings, variable)
+      _other -> nil
+    end
+  end
 
   defp collect_literal_map_bindings({:__block__, _meta, statements}) do
     Enum.reduce(statements, %{}, &put_literal_map_binding/2)

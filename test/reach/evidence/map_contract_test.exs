@@ -116,6 +116,29 @@ defmodule Reach.Evidence.MapContractTest do
     assert data.escaped?
   end
 
+  test "connects fixed-shape return map bindings to local callsite reads" do
+    ast =
+      Code.string_to_quoted!("""
+      def profile(user) do
+        profile = %{id: user.id, name: user.name, email: user.email}
+        result = profile
+        result
+      end
+
+      def render(user) do
+        data = profile(user)
+        data.id
+        Map.get(data, :email)
+      end
+      """)
+
+    assert [contract] = MapContract.collect_ast(ast)
+    assert contract.source == :return
+    assert contract.producer == {:profile, 1}
+    assert contract.keys == [:email, :id, :name]
+    assert contract.observed_keys == [:email, :id]
+  end
+
   test "collects project-level remote return shape contracts" do
     dir = Path.join(System.tmp_dir!(), "reach-map-project-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
@@ -125,7 +148,9 @@ defmodule Reach.Evidence.MapContractTest do
     File.write!(producer, """
     defmodule Accounts.Profile do
       def build(user) do
-        %{id: user.id, name: user.name, email: user.email}
+        profile = %{id: user.id, name: user.name, email: user.email}
+        result = profile
+        result
       end
     end
     """)
