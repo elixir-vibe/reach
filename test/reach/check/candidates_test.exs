@@ -45,4 +45,38 @@ defmodule Reach.Check.CandidatesTest do
 
     File.rm_rf(dir)
   end
+
+  test "does not promote template assigns maps as struct candidates" do
+    dir = Path.join(System.tmp_dir!(), "reach-candidates-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "emails.ex")
+
+    File.write!(path, """
+    defmodule Emails do
+      def template_assigns(input) do
+        %{
+          branding: input.branding,
+          customer: input.customer,
+          subject: input.subject,
+          to: input.to
+        }
+      end
+
+      def render(input) do
+        assigns = template_assigns(input)
+        assigns.branding
+        assigns.customer
+        assigns.subject
+        assigns.to
+      end
+    end
+    """)
+
+    project = Reach.Project.from_sources([path], plugins: [])
+    result = Candidates.run(project, [], top: 10)
+
+    refute Enum.any?(result.candidates, &(&1.kind == :introduce_struct_contract))
+
+    File.rm_rf(dir)
+  end
 end

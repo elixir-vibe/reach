@@ -76,6 +76,25 @@ defmodule Reach.Evidence.PatternRunnerTest do
              )
   end
 
+  test "skips ExAST alias collection failures for dynamic import options" do
+    ast =
+      Code.string_to_quoted!("""
+      defmodule DynamicImport do
+        import Some.Module, unquote(opts)
+      end
+      """)
+
+    assert [] =
+             PatternRunner.run(
+               ast,
+               [
+                 query:
+                   {~p[String.split(_, "&")], fn _match -> %{kind: :manual_query_parsing} end}
+               ],
+               family: :stdlib
+             )
+  end
+
   test "supports custom evidence structs without family fields" do
     ast = Code.string_to_quoted!("Enum.map(items, &expand/1) |> List.flatten()")
 

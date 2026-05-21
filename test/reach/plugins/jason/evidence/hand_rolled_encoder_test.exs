@@ -22,13 +22,28 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoderTest do
   test "collects manual JSON pretty-printer evidence" do
     ast =
       Code.string_to_quoted!("""
-      defp encode_json(value) do
-        :json.encode(value) |> IO.iodata_to_binary()
+      defp indent_json(value) do
+        value
+        |> to_string()
+        |> String.replace("\\\"", "\\\\\\\"")
       end
       """)
 
     assert [%{kind: :hand_rolled_json_encoder, replacement: "Jason.encode/2"}] =
              HandRolledEncoder.collect_ast(ast)
+  end
+
+  test "ignores stdlib JSON wrappers" do
+    ast =
+      Code.string_to_quoted!("""
+      def encode!(data) do
+        data
+        |> :json.encode()
+        |> IO.iodata_to_binary()
+      end
+      """)
+
+    assert [] = HandRolledEncoder.collect_ast(ast)
   end
 
   test "collects Jason encoders that delegate to hand-written to_map" do

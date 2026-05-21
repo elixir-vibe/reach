@@ -16,7 +16,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
         evidence(
           acc,
           :manual_map_update,
-          "Map.get plus paired Map.put branches reimplements Map.update/4",
+          "Map.has_key? plus paired Map.put branches reimplements Map.update/4",
           "Map.update/4",
           meta
         )
@@ -35,15 +35,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
     end
   end
 
-  defp map_update_shape({:case, meta, [get_call, [do: clauses]]}) when is_list(clauses) do
-    with {:ok, map, key} <- map_get_call(get_call),
-         true <- paired_map_put_branches?(clauses, map, key) do
-      {:ok, meta}
-    else
-      _other -> :error
-    end
-  end
-
   defp map_update_shape({:if, meta, [condition, [do: do_branch, else: else_branch]]}) do
     with {:ok, map, key} <- map_has_key_call(condition),
          true <- map_put_call?(do_branch, map, key),
@@ -55,20 +46,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
   end
 
   defp map_update_shape(_node), do: :error
-
-  defp paired_map_put_branches?([left, right], map, key) do
-    Enum.all?([left, right], fn
-      {:->, _meta, [_patterns, body]} -> map_put_call?(body, map, key)
-      _clause -> false
-    end)
-  end
-
-  defp paired_map_put_branches?(_clauses, _map, _key), do: false
-
-  defp map_get_call({{:., _, [{:__aliases__, _, [:Map]}, :get]}, _, [map, key | _]}),
-    do: {:ok, map, key}
-
-  defp map_get_call(_node), do: :error
 
   defp map_has_key_call({{:., _, [{:__aliases__, _, [:Map]}, :has_key?]}, _, [map, key]}),
     do: {:ok, map, key}

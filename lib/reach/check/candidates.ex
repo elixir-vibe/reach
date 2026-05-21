@@ -9,6 +9,7 @@ defmodule Reach.Check.Candidates do
   alias Reach.Project.Query
 
   @note "Candidates are advisory. Reach reports graph/effect/architecture evidence; prove behavior preservation before editing."
+  @non_contract_variable_names [:acc, :assigns, :cat, :count, :counts, :stats]
 
   def run(project, config, opts \\ []) do
     config = Config.normalize(config)
@@ -288,7 +289,7 @@ defmodule Reach.Check.Candidates do
 
   defp map_contract_candidate_group({keys, contracts}) do
     cond do
-      length(contracts) >= 2 ->
+      length(contracts) >= 2 and not all_non_contract_variables?(contracts) ->
         [{keys, contracts}]
 
       Enum.any?(contracts, &return_contract_candidate?/1) ->
@@ -300,8 +301,12 @@ defmodule Reach.Check.Candidates do
   end
 
   defp return_contract_candidate?(contract) do
-    contract.source == :return and length(contract.keys) >= 4 and
-      contract.variable not in [:acc, :stats, :counts, :count, :cat]
+    contract.source == :return and contract.confidence == :high and length(contract.keys) >= 4 and
+      contract.variable not in @non_contract_variable_names
+  end
+
+  defp all_non_contract_variables?(contracts) do
+    Enum.all?(contracts, &(&1.variable in @non_contract_variable_names))
   end
 
   defp project_source_files(project) do

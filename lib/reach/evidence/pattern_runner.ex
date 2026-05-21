@@ -11,7 +11,7 @@ defmodule Reach.Evidence.PatternRunner do
     patterns = Map.new(specs, fn {name, {pattern, _builder}} -> {name, pattern} end)
 
     ast
-    |> Patcher.find_many(patterns)
+    |> find_many(patterns)
     |> Enum.flat_map(fn match ->
       {_pattern, builder} = Map.fetch!(metadata, match.pattern)
 
@@ -21,6 +21,13 @@ defmodule Reach.Evidence.PatternRunner do
       |> Enum.map(&struct_evidence(evidence_module, family, &1, match))
       |> Enum.reject(&is_nil/1)
     end)
+  end
+
+  defp find_many(ast, patterns) do
+    Patcher.find_many(ast, patterns)
+  rescue
+    FunctionClauseError -> []
+    ArgumentError -> []
   end
 
   def match_meta(%{range: %{start: start}}) when is_list(start) do

@@ -14,7 +14,8 @@ defmodule Reach.Evidence.StandardLibraryBypass.PathURI do
        "manual path basename extraction; use Path.basename/1", "Path.basename/1"},
     path_extension:
       {~p[_ |> String.split(".") |> List.last()], :path_pipe, :manual_path_extension,
-       "manual path extension extraction; use Path.extname/1", "Path.extname/1"},
+       "manual path extension extraction; use Path.extname/1 and normalize the leading dot when needed",
+       "Path.extname/1"},
     uri_path_split:
       {~p[_ |> String.split("?") |> List.first()], :uri_pipe, :manual_uri_path_split,
        "manual URL splitting; use URI.parse/1", "URI.parse/1"},

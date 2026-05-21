@@ -29,19 +29,6 @@ defmodule Reach.Evidence.StandardLibraryBypassTest do
              StandardLibraryBypass.collect_ast(ast)
   end
 
-  test "collects paired Map.get and Map.put update evidence" do
-    ast =
-      Code.string_to_quoted!("""
-      case Map.get(groups, key) do
-        nil -> Map.put(groups, key, [value])
-        values -> Map.put(groups, key, [value | values])
-      end
-      """)
-
-    assert [%{kind: :manual_map_update, replacement: "Map.update/4"}] =
-             StandardLibraryBypass.collect_ast(ast)
-  end
-
   test "collects Map.has_key? conditional update evidence" do
     ast =
       Code.string_to_quoted!("""

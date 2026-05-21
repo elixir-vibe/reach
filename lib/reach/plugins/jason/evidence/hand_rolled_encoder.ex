@@ -35,8 +35,6 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
 
   defp pattern_specs do
     [
-      erlang_json_encode: {~p[:json.encode(_)], &manual_json_writer_evidence/1},
-      erlang_json_encode_value: {~p[:json.encode_value(_)], &manual_json_writer_evidence/1},
       jason_encoder_to_map: {~p[Jason.Encode.map(_, _)], &manual_jason_encoder_evidence/1}
     ]
   end
@@ -81,18 +79,6 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
 
   defp collect_node(_node, acc), do: acc
 
-  defp manual_json_writer_evidence(match) do
-    if enclosing_json_encoder?(match.node) do
-      %{
-        kind: :hand_rolled_json_encoder,
-        message: "hand-rolled JSON encoder or pretty-printer; use Jason.encode/2",
-        replacement: "Jason.encode/2",
-        meta: [line: :json_writer],
-        confidence: :high
-      }
-    end
-  end
-
   defp manual_jason_encoder_evidence(match) do
     if direct_jason_encoder_map?(match.node) do
       %{
@@ -119,18 +105,9 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   end
 
   defp manual_json_writer_body?(node) do
-    AST.contains_call?(node, {:erlang, :json, :encode}) or
-      AST.contains_call?(node, {:erlang, :json, :encode_value}) or
-      AST.contains_call?(node, {String, :duplicate}) or
+    AST.contains_call?(node, {String, :duplicate}) or
       AST.contains_call?(node, {String, :replace})
   end
-
-  defp enclosing_json_encoder?({{:., _, [:json, function]}, _, _args})
-       when function in [:encode, :encode_value] do
-    true
-  end
-
-  defp enclosing_json_encoder?(_node), do: false
 
   defp direct_jason_encoder_map?(
          {{:., _, [{:__aliases__, _, [:Jason, :Encode]}, :map]}, _, [to_map_call, _opts]}
