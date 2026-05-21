@@ -101,7 +101,8 @@ defmodule Reach.Plugins.LiveView do
       |> Enum.flat_map(fn clause ->
         case clause.children do
           [%Node{type: :literal, meta: %{value: event}} | _] when is_binary(event) ->
-            [{{func.meta[:module], event}, clause}]
+            target = if clause.source_span, do: clause, else: func
+            [{{func.meta[:module], event}, target}]
 
           _ ->
             []
@@ -201,22 +202,31 @@ defmodule Reach.Plugins.LiveView do
     end
   end
 
+  defp component_call?(%Node{type: :call, meta: %{module: Phoenix.LiveView.TagEngine}}), do: false
   defp component_call?(%Node{type: :call, meta: %{origin: %{kind: :component}}}), do: true
   defp component_call?(_), do: false
 
-  defp component_attrs(%Node{children: [%Node{type: :map, children: fields} | _]}) do
-    Enum.flat_map(fields, fn field ->
-      case field do
-        %Node{type: :map_field, children: [key_node, value_node]} ->
-          case literal_key(key_node) do
-            nil -> []
-            key -> [{key, value_node}]
-          end
+  defp component_attrs(%Node{children: children}) do
+    children
+    |> Enum.find(&(&1.type == :map))
+    |> case do
+      %Node{children: fields} ->
+        Enum.flat_map(fields, fn field ->
+          case field do
+            %Node{type: :map_field, children: [key_node, value_node]} ->
+              case literal_key(key_node) do
+                nil -> []
+                key -> [{key, value_node}]
+              end
 
-        _ ->
-          []
-      end
-    end)
+            _ ->
+              []
+          end
+        end)
+
+      _ ->
+        []
+    end
   end
 
   defp component_attrs(_), do: []
