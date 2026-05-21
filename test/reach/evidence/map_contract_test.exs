@@ -116,6 +116,46 @@ defmodule Reach.Evidence.MapContractTest do
     assert data.escaped?
   end
 
+  test "collects project-level remote return shape contracts" do
+    dir = Path.join(System.tmp_dir!(), "reach-map-project-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    producer = Path.join(dir, "producer.ex")
+    consumer = Path.join(dir, "consumer.ex")
+
+    File.write!(producer, """
+    defmodule Accounts.Profile do
+      def build(user) do
+        %{id: user.id, name: user.name, email: user.email}
+      end
+    end
+    """)
+
+    File.write!(consumer, """
+    defmodule Web.ProfileView do
+      def render(user) do
+        data = Accounts.Profile.build(user)
+        data.id
+        data.email
+      end
+    end
+    """)
+
+    project = Reach.Project.from_sources([producer, consumer], plugins: [])
+
+    assert [contract] =
+             project
+             |> MapContract.collect_project()
+             |> Enum.filter(&(&1.source == :cross_file_return))
+
+    assert contract.file == consumer
+    assert contract.producer == {Accounts.Profile, :build, 1}
+    assert contract.consumer == {Web.ProfileView, :render, 1}
+    assert contract.role == :domain
+    assert contract.observed_keys == [:email, :id]
+
+    File.rm_rf(dir)
+  end
+
   test "ignores map literals without later flow evidence" do
     ast =
       Code.string_to_quoted!("""

@@ -251,8 +251,7 @@ defmodule Reach.Check.Candidates do
 
   defp map_contract_candidates(project, candidate_config) do
     project
-    |> project_source_files()
-    |> Enum.flat_map(&map_contracts_in_file/1)
+    |> MapContract.collect_project()
     |> Enum.group_by(& &1.keys)
     |> Enum.flat_map(&map_contract_candidate_group/1)
     |> Enum.sort_by(fn {keys, contracts} -> {-length(contracts), length(keys), inspect(keys)} end)
@@ -311,35 +310,6 @@ defmodule Reach.Check.Candidates do
 
   defp low_signal_escape?(contract) do
     contract.escaped? and contract.read_count < 2 and contract.mutation_count == 0
-  end
-
-  defp project_source_files(project) do
-    project.nodes
-    |> Map.values()
-    |> Enum.flat_map(fn node ->
-      case node.source_span do
-        %{file: file} when is_binary(file) -> [file]
-        _span -> []
-      end
-    end)
-    |> Enum.uniq()
-    |> Enum.reject(&dependency_source_file?/1)
-    |> Enum.sort()
-  end
-
-  defp dependency_source_file?(file) do
-    String.contains?(file, "/deps/") or String.contains?(file, "/_build/")
-  end
-
-  defp map_contracts_in_file(file) do
-    with {:ok, source} <- File.read(file),
-         {:ok, ast} <- Code.string_to_quoted(source, emit_warnings: false) do
-      ast
-      |> MapContract.collect_ast()
-      |> Enum.map(&Map.put(&1, :file, file))
-    else
-      _error -> []
-    end
   end
 
   defp map_contract_confidence(contracts) do

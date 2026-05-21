@@ -20,7 +20,8 @@ defmodule Reach.Evidence.MapContract do
       :unused_keys,
       :read_count,
       :mutation_count,
-      :escaped?
+      :escaped?,
+      :consumer
     ]
   end
 
@@ -39,6 +40,64 @@ defmodule Reach.Evidence.MapContract do
     definitions = collect_function_definitions(ast)
 
     collect_local_contracts(definitions) ++ collect_return_contracts(definitions)
+  end
+
+  def collect_project(project) do
+    files =
+      project
+      |> project_source_files()
+      |> Enum.map(&source_file_ast/1)
+      |> Enum.filter(&match?({:ok, _file, _ast}, &1))
+
+    definitions_by_file =
+      Map.new(files, fn {:ok, file, ast} -> {file, collect_module_definitions(ast)} end)
+
+    return_shapes =
+      definitions_by_file
+      |> Map.values()
+      |> List.flatten()
+      |> collect_module_return_shapes()
+
+    Enum.flat_map(files, fn {:ok, file, ast} ->
+      collect_file_project_contracts(
+        file,
+        ast,
+        Map.fetch!(definitions_by_file, file),
+        return_shapes
+      )
+    end)
+  end
+
+  defp project_source_files(project) do
+    project.nodes
+    |> Map.values()
+    |> Enum.flat_map(fn node ->
+      case node.source_span do
+        %{file: file} when is_binary(file) -> [file]
+        _span -> []
+      end
+    end)
+    |> Enum.uniq()
+    |> Enum.reject(&dependency_source_file?/1)
+    |> Enum.sort()
+  end
+
+  defp dependency_source_file?(file) do
+    String.contains?(file, "/deps/") or String.contains?(file, "/_build/")
+  end
+
+  defp source_file_ast(file) do
+    with {:ok, source} <- File.read(file),
+         {:ok, ast} <- Code.string_to_quoted(source, emit_warnings: false) do
+      {:ok, file, ast}
+    end
+  end
+
+  defp collect_file_project_contracts(file, ast, module_definitions, return_shapes) do
+    ast
+    |> collect_ast()
+    |> Enum.map(&Map.put(&1, :file, file))
+    |> Kernel.++(collect_cross_function_contracts(module_definitions, return_shapes, file))
   end
 
   defp collect_function_definitions(ast) do
@@ -63,6 +122,42 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp add_function_definition(_head, _block, definitions), do: definitions
+
+  defp collect_module_definitions(ast) do
+    AST.collect(ast, fn
+      {:defmodule, _meta, [module_ast, block]}, modules ->
+        case module_name(module_ast) do
+          {:ok, module} -> collect_module_functions(module, block) ++ modules
+          :error -> modules
+        end
+
+      _node, modules ->
+        modules
+    end)
+  end
+
+  defp collect_module_functions(module, block) do
+    block
+    |> function_body()
+    |> case do
+      nil -> []
+      body -> Enum.map(collect_function_definitions(body), &Map.put(&1, :module, module))
+    end
+  end
+
+  defp module_name({:__aliases__, _meta, parts}) when is_list(parts),
+    do: {:ok, Module.concat(parts)}
+
+  defp module_name(_node), do: :error
+
+  defp collect_module_return_shapes(definitions) do
+    definitions
+    |> Map.new(fn definition ->
+      {{definition.module, definition.name, definition.arity}, returned_shape(definition)}
+    end)
+    |> Enum.reject(fn {_mfa, shape} -> is_nil(shape) end)
+    |> Map.new()
+  end
 
   defp function_body(do: body), do: body
   defp function_body([{{:__block__, _meta, [:do]}, body}]), do: body
@@ -136,6 +231,52 @@ defmodule Reach.Evidence.MapContract do
   defp collect_return_value_bindings(statement, return_shapes),
     do: put_return_value_binding(statement, %{}, return_shapes)
 
+  defp collect_cross_function_contracts(definitions, return_shapes, file) do
+    Enum.flat_map(definitions, fn definition ->
+      definition.body
+      |> collect_cross_function_bindings(return_shapes)
+      |> build_contracts(definition.body, :cross_file_return)
+      |> Enum.map(fn contract ->
+        contract
+        |> Map.put(:file, file)
+        |> Map.put(:consumer, {definition.module, definition.name, definition.arity})
+      end)
+    end)
+  end
+
+  defp collect_cross_function_bindings({:__block__, _meta, statements}, return_shapes) do
+    Enum.reduce(statements, %{}, &put_cross_function_binding(&1, &2, return_shapes))
+  end
+
+  defp collect_cross_function_bindings(statement, return_shapes),
+    do: put_cross_function_binding(statement, %{}, return_shapes)
+
+  defp put_cross_function_binding({:=, meta, [{var, _, context}, rhs]}, bindings, return_shapes)
+       when is_atom(var) and is_atom(context) do
+    cond do
+      match?({:ok, _producer}, remote_call(rhs)) ->
+        with {:ok, producer} <- remote_call(rhs),
+             %{keys: keys} <- Map.get(return_shapes, producer) do
+          Map.put(bindings, var, %{keys: keys, meta: meta, producer: producer})
+        else
+          _other -> bindings
+        end
+
+      match?({:ok, _source_var}, variable_name(rhs)) ->
+        with {:ok, source_var} <- variable_name(rhs),
+             true <- Map.has_key?(bindings, source_var) do
+          Map.put(bindings, var, %{bindings[source_var] | meta: meta})
+        else
+          _other -> bindings
+        end
+
+      true ->
+        bindings
+    end
+  end
+
+  defp put_cross_function_binding(_statement, bindings, _return_shapes), do: bindings
+
   defp put_return_value_binding({:=, meta, [{var, _, context}, rhs]}, bindings, return_shapes)
        when is_atom(var) and is_atom(context) do
     cond do
@@ -166,6 +307,16 @@ defmodule Reach.Evidence.MapContract do
     do: {:ok, {name, length(args)}}
 
   defp local_call(_node), do: :error
+
+  defp remote_call({{:., _meta, [module_ast, function]}, _call_meta, args})
+       when is_atom(function) and is_list(args) do
+    case module_name(module_ast) do
+      {:ok, module} -> {:ok, {module, function, length(args)}}
+      :error -> :error
+    end
+  end
+
+  defp remote_call(_node), do: :error
 
   defp variable_name({var, _meta, context}) when is_atom(var) and is_atom(context), do: {:ok, var}
   defp variable_name(_node), do: :error
@@ -337,7 +488,7 @@ defmodule Reach.Evidence.MapContract do
     do: :external_payload
 
   defp classify_role(variable, _source) when variable in @options_names, do: :options
-  defp classify_role(_variable, :return), do: :domain
+  defp classify_role(_variable, source) when source in [:return, :cross_file_return], do: :domain
   defp classify_role(_variable, _source), do: :unknown
 
   defp confidence(coverage, updates) do

@@ -98,7 +98,8 @@ defmodule Reach.EvidenceCorpusScan do
         unused_keys: contract.unused_keys,
         read_count: contract.read_count,
         mutation_count: contract.mutation_count,
-        escaped?: contract.escaped?
+        escaped?: contract.escaped?,
+        consumer: contract.consumer
       })
     end)
   end
