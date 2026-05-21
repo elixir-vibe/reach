@@ -25,7 +25,7 @@ Use evidence when a signal may be useful in multiple contexts or still needs cor
 
 ## Standard library bypass
 
-Implemented high-confidence families live in focused modules under `Reach.Evidence.StandardLibraryBypass.*` and are aggregated by `Reach.Evidence.StandardLibraryBypass`. Simple syntactic shapes should use ExAST pattern matching where practical; flow-sensitive or multi-statement shapes may use custom AST callbacks:
+Implemented high-confidence families live in focused modules under `Reach.Evidence.StandardLibraryBypass.*` and are aggregated by `Reach.Evidence.StandardLibraryBypass`. Simple syntactic shapes use `Reach.Evidence.PatternRunner`/ExAST pattern matching where practical; flow-sensitive or multi-statement shapes may use custom AST callbacks:
 
 - `Path.basename/1` and `Path.extname/1` for path-like `String.split` pipelines.
 - `URI.parse/1` and `URI.decode_query/1` for URI/query-like splits.

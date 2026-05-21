@@ -1,15 +1,33 @@
 defmodule Reach.Evidence.StandardLibraryBypass.PathURI do
   @moduledoc "Collects Path/URI standard-library bypass evidence."
 
+  import ExAST.Sigil
+
+  alias Reach.Evidence.PatternRunner
   alias Reach.Evidence.StandardLibraryBypass.Evidence
 
   @path_names ~w(path filepath file_path filename file dir directory source dest destination)a
   @uri_names ~w(url uri href endpoint query query_string qs)a
 
-  def collect_ast(ast) do
-    {_ast, evidence} = Macro.prewalk(ast, [], fn node, acc -> {node, collect_node(node, acc)} end)
-    Enum.reverse(evidence)
-  end
+  @pattern_evidence [
+    path_basename:
+      {~p[_ |> String.split("/") |> List.last()], :path_pipe, :manual_path_basename,
+       "manual path basename extraction; use Path.basename/1", "Path.basename/1"},
+    path_extension:
+      {~p[_ |> String.split(".") |> List.last()], :path_pipe, :manual_path_extension,
+       "manual path extension extraction; use Path.extname/1", "Path.extname/1"},
+    uri_path_split:
+      {~p[_ |> String.split("?") |> List.first()], :uri_pipe, :manual_uri_path_split,
+       "manual URL splitting; use URI.parse/1", "URI.parse/1"},
+    query_parsing:
+      {~p[String.split(_, "&")], :uri_direct, :manual_query_parsing,
+       "manual query-string splitting; use URI.decode_query/1", "URI.decode_query/1"},
+    uri_scheme_split:
+      {~p[String.split(_, "://")], :uri_direct, :manual_uri_scheme_split,
+       "manual URL scheme splitting; use URI.parse/1", "URI.parse/1"}
+  ]
+
+  def collect_ast(ast), do: PatternRunner.run(ast, pattern_specs(), evidence_module: Evidence)
 
   def kinds do
     [
@@ -21,128 +39,61 @@ defmodule Reach.Evidence.StandardLibraryBypass.PathURI do
     ]
   end
 
-  def collect_node({:|>, meta, [left, right]} = node, acc) do
-    acc = collect_pipe_node(left, right, meta, acc)
-    collect_direct(node, acc)
+  def collect_node(_node, acc), do: acc
+
+  defp pattern_specs do
+    Enum.map(@pattern_evidence, fn {name, {pattern, mode, kind, message, replacement}} ->
+      {name, {pattern, &build_evidence(&1, mode, kind, message, replacement)}}
+    end)
   end
 
-  def collect_node(node, acc), do: collect_direct(node, acc)
-
-  defp collect_pipe_node(left, right, meta, acc) do
-    case {split_call(left), pipe_reader(right)} do
-      {{:string_split, subject, "/", _split_meta}, {:last, _reader_meta}} ->
-        maybe_evidence(
-          acc,
-          path_subject?(subject),
-          :manual_path_basename,
-          "manual path basename extraction; use Path.basename/1",
-          "Path.basename/1",
-          meta,
-          :high
-        )
-
-      {{:string_split, subject, ".", _split_meta}, {:last, _reader_meta}} ->
-        maybe_evidence(
-          acc,
-          path_subject?(subject),
-          :manual_path_extension,
-          "manual path extension extraction; use Path.extname/1",
-          "Path.extname/1",
-          meta,
-          :high
-        )
-
-      {{:string_split, subject, "?", _split_meta}, {:first, _reader_meta}} ->
-        maybe_evidence(
-          acc,
-          uri_subject?(subject),
-          :manual_uri_path_split,
-          "manual URL splitting; use URI.parse/1",
-          "URI.parse/1",
-          meta,
-          :medium
-        )
-
-      _ ->
-        acc
+  defp build_evidence(match, :path_pipe, kind, message, replacement) do
+    with {:ok, subject} <- pipe_split_subject(match.node),
+         true <- path_subject?(subject) do
+      evidence(kind, message, replacement)
+    else
+      _other -> nil
     end
   end
 
-  defp collect_direct(node, acc) do
-    case split_call(node) do
-      {:string_split, subject, "&", meta} ->
-        maybe_evidence(
-          acc,
-          uri_subject?(subject),
-          :manual_query_parsing,
-          "manual query-string splitting; use URI.decode_query/1",
-          "URI.decode_query/1",
-          meta,
-          :medium
-        )
-
-      {:string_split, subject, "://", meta} ->
-        maybe_evidence(
-          acc,
-          uri_subject?(subject),
-          :manual_uri_scheme_split,
-          "manual URL scheme splitting; use URI.parse/1",
-          "URI.parse/1",
-          meta,
-          :medium
-        )
-
-      _ ->
-        acc
+  defp build_evidence(match, :uri_pipe, kind, message, replacement) do
+    with {:ok, subject} <- pipe_split_subject(match.node),
+         true <- uri_subject?(subject) do
+      evidence(kind, message, replacement)
+    else
+      _other -> nil
     end
   end
 
-  defp split_call(
-         {:|>, _pipe_meta,
-          [
-            subject,
-            {{:., meta, [{:__aliases__, _, [:String]}, :split]}, _call_meta, [delimiter | _]}
-          ]}
-       )
-       when is_binary(delimiter),
-       do: {:string_split, subject, delimiter, meta}
+  defp build_evidence(match, :uri_direct, kind, message, replacement) do
+    with {:ok, subject} <- direct_split_subject(match.node),
+         true <- uri_subject?(subject) do
+      evidence(kind, message, replacement)
+    else
+      _other -> nil
+    end
+  end
 
-  defp split_call(
-         {{:., meta, [{:__aliases__, _, [:String]}, :split]}, _call_meta,
-          [subject, delimiter | _]}
-       )
-       when is_binary(delimiter),
-       do: {:string_split, subject, delimiter, meta}
+  defp pipe_split_subject({:|>, _, [{:|>, _, [subject, _split_call]}, _reader]}),
+    do: {:ok, subject}
 
-  defp split_call({:split, meta, [subject, delimiter | _]}) when is_binary(delimiter),
-    do: {:string_split, subject, delimiter, meta}
+  defp pipe_split_subject(
+         {:|>, _,
+          [{{:., _, [{:__aliases__, _, [:String]}, :split]}, _, [subject, _delimiter]}, _reader]}
+       ),
+       do: {:ok, subject}
 
-  defp split_call(_), do: nil
+  defp pipe_split_subject(_node), do: :error
 
-  defp pipe_reader({{:., meta, [{:__aliases__, _, [:List]}, fun]}, _call_meta, []})
-       when fun in [:last, :first],
-       do: {fun, meta}
+  defp direct_split_subject(
+         {{:., _, [{:__aliases__, _, [:String]}, :split]}, _, [subject, _delimiter]}
+       ),
+       do: {:ok, subject}
 
-  defp pipe_reader({{:., meta, [{:__aliases__, _, [:Enum]}, :at]}, _call_meta, [index]})
-       when index in [-1, 0],
-       do: {if(index == -1, do: :last, else: :first), meta}
+  defp direct_split_subject(_node), do: :error
 
-  defp pipe_reader({fun, meta, []}) when fun in [:hd], do: {:first, meta}
-  defp pipe_reader(_), do: nil
-
-  defp maybe_evidence(acc, false, _kind, _message, _replacement, _meta, _confidence), do: acc
-
-  defp maybe_evidence(acc, true, kind, message, replacement, meta, confidence) do
-    [
-      %Evidence{
-        kind: kind,
-        message: message,
-        replacement: replacement,
-        meta: meta,
-        confidence: confidence
-      }
-      | acc
-    ]
+  defp evidence(kind, message, replacement) do
+    %{kind: kind, message: message, replacement: replacement, confidence: :high}
   end
 
   defp path_subject?(subject), do: subject_name(subject) in @path_names

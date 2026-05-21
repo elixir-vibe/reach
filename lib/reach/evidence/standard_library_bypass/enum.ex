@@ -3,19 +3,10 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
 
   import ExAST.Sigil
 
-  alias ExAST.Patcher
+  alias Reach.Evidence.PatternRunner
   alias Reach.Evidence.StandardLibraryBypass.Evidence
 
-  @pattern_evidence [
-    manual_flat_map_list:
-      {~p[Enum.map(_, _) |> List.flatten()], :manual_flat_map,
-       "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
-       "Enum.flat_map/2"},
-    manual_flat_map_concat:
-      {~p[Enum.map(_, _) |> Enum.concat()], :manual_flat_map,
-       "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
-       "Enum.flat_map/2"}
-  ]
+  @manual_flat_map_message "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2"
 
   def collect_ast(ast) do
     pattern_evidence(ast) ++ callback_evidence(ast)
@@ -32,29 +23,23 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   end
 
   defp pattern_evidence(ast) do
-    patterns =
-      Map.new(@pattern_evidence, fn {name, {pattern, _kind, _message, _replacement}} ->
-        {name, pattern}
-      end)
+    PatternRunner.run(ast, pattern_specs(), evidence_module: Evidence)
+  end
 
-    metadata =
-      Map.new(@pattern_evidence, fn {name, {_pattern, kind, message, replacement}} ->
-        {name, {kind, message, replacement}}
-      end)
+  defp pattern_specs do
+    [
+      manual_flat_map_list: {~p[Enum.map(_, _) |> List.flatten()], &manual_flat_map_evidence/1},
+      manual_flat_map_concat: {~p[Enum.map(_, _) |> Enum.concat()], &manual_flat_map_evidence/1}
+    ]
+  end
 
-    ast
-    |> Patcher.find_many(patterns)
-    |> Enum.map(fn match ->
-      {kind, message, replacement} = Map.fetch!(metadata, match.pattern)
-
-      %Evidence{
-        kind: kind,
-        message: message,
-        replacement: replacement,
-        meta: match_meta(match),
-        confidence: :high
-      }
-    end)
+  defp manual_flat_map_evidence(_match) do
+    %{
+      kind: :manual_flat_map,
+      message: @manual_flat_map_message,
+      replacement: "Enum.flat_map/2",
+      confidence: :high
+    }
   end
 
   defp callback_evidence(ast) do
@@ -288,13 +273,6 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   end
 
   defp same_ast?(left, right), do: Macro.to_string(left) == Macro.to_string(right)
-
-  defp match_meta(%{range: %{start: start}}) when is_list(start) do
-    [line: start[:line], column: start[:column]]
-  end
-
-  defp match_meta(%{node: {_form, meta, _args}}) when is_list(meta), do: meta
-  defp match_meta(_match), do: []
 
   defp evidence(acc, kind, message, replacement, meta) do
     [

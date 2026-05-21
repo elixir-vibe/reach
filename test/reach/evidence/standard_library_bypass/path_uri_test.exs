@@ -3,12 +3,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.PathURITest do
 
   alias Reach.Evidence.StandardLibraryBypass.PathURI
 
-  defp collect(ast) do
-    {_ast, evidence} =
-      Macro.prewalk(ast, [], fn node, acc -> {node, PathURI.collect_node(node, acc)} end)
-
-    Enum.reverse(evidence)
-  end
+  defp collect(ast), do: PathURI.collect_ast(ast)
 
   test "collects path and URI split evidence" do
     ast = Code.string_to_quoted!("path |> String.split(\"/\") |> List.last()")
