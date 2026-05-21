@@ -329,7 +329,7 @@ defmodule Reach.Check.Candidates do
 
   defp map_contracts_in_file(file) do
     with {:ok, source} <- File.read(file),
-         {:ok, ast} <- Code.string_to_quoted(source) do
+         {:ok, ast} <- Code.string_to_quoted(source, emit_warnings: false) do
       ast
       |> MapContract.collect_ast()
       |> Enum.map(&Map.put(&1, :file, file))

@@ -25,6 +25,31 @@ defmodule Reach.Scripts.EvidenceCorpusScanTest do
     File.rm_rf(dir)
   end
 
+  test "evidence corpus scanner suppresses parser warnings" do
+    dir =
+      Path.join(
+        System.tmp_dir!(),
+        "reach-evidence-warning-scan-#{System.unique_integer([:positive])}"
+      )
+
+    lib = Path.join(dir, "lib")
+    File.mkdir_p!(lib)
+
+    File.write!(Path.join(lib, "sample.ex"), """
+    defmodule Sample do
+      def deprecated_escape, do: "\\x{FF}"
+      def charlist, do: 'abc'
+      def run(items), do: items |> Enum.map(&List.wrap/1) |> List.flatten()
+    end
+    """)
+
+    assert {json, 0} = scan(["--kind", "stdlib", "--format", "json", dir])
+    assert [_result] = Jason.decode!(json)
+    refute json =~ "warning:"
+
+    File.rm_rf(dir)
+  end
+
   test "evidence corpus scanner includes map-contract structured fields" do
     dir = Path.join(System.tmp_dir!(), "reach-map-scan-#{System.unique_integer([:positive])}")
     lib = Path.join(dir, "lib")

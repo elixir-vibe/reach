@@ -7,7 +7,8 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   alias Reach.Evidence.Fact
   alias Reach.Evidence.PatternRunner
 
-  @manual_flat_map_message "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2"
+  @manual_flat_map_concat_message "Enum.map followed by concat allocates an intermediate nested list; use Enum.flat_map/2"
+  @manual_flat_map_flatten_message "Enum.map followed by List.flatten/1 may be Enum.flat_map/2 when the mapper returns a flat list; preserve List.flatten/1 if recursive flattening is required"
 
   def collect_ast(ast) do
     pattern_evidence(ast) ++ callback_evidence(ast)
@@ -29,15 +30,24 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
 
   defp pattern_specs do
     [
-      manual_flat_map_list: {~p[Enum.map(_, _) |> List.flatten()], &manual_flat_map_evidence/1},
-      manual_flat_map_concat: {~p[Enum.map(_, _) |> Enum.concat()], &manual_flat_map_evidence/1}
+      manual_flat_map_list: {~p[Enum.map(_, _) |> List.flatten()], &manual_flatten_evidence/1},
+      manual_flat_map_concat: {~p[Enum.map(_, _) |> Enum.concat()], &manual_concat_evidence/1}
     ]
   end
 
-  defp manual_flat_map_evidence(_match) do
+  defp manual_flatten_evidence(_match) do
     %{
       kind: :manual_flat_map,
-      message: @manual_flat_map_message,
+      message: @manual_flat_map_flatten_message,
+      replacement: "Enum.flat_map/2",
+      confidence: :medium
+    }
+  end
+
+  defp manual_concat_evidence(_match) do
+    %{
+      kind: :manual_flat_map,
+      message: @manual_flat_map_concat_message,
       replacement: "Enum.flat_map/2",
       confidence: :high
     }

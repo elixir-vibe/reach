@@ -28,6 +28,7 @@ defmodule Reach.EvidenceCorpusScan do
   end
 
   defp scan(paths, kind, limit, format) do
+    {:ok, _apps} = Application.ensure_all_started(:ex_unit)
     providers = Reach.Evidence.ast_providers_for(kind_family(kind), Reach.Plugin.detect())
 
     paths
@@ -40,13 +41,41 @@ defmodule Reach.EvidenceCorpusScan do
 
   defp scan_file(path, providers) do
     with {:ok, source} <- File.read(path),
-         {:ok, ast} <- Code.string_to_quoted(source) do
+         {:ok, ast} <- parse_source(source) do
       providers
-      |> Enum.flat_map(&provider_evidence(&1, ast))
+      |> Enum.flat_map(&provider_evidence_silently(&1, ast))
       |> Enum.map(&Map.put(&1, :file, path))
     else
       _error -> []
     end
+  end
+
+  defp parse_source(source) do
+    capture_stderr(fn ->
+      {result, _diagnostics} =
+        Code.with_diagnostics(fn ->
+          Code.string_to_quoted(source, emit_warnings: false)
+        end)
+
+      result
+    end)
+  end
+
+  defp capture_stderr(fun) do
+    parent = self()
+
+    ExUnit.CaptureIO.capture_io(:stderr, fn ->
+      send(parent, {:captured_result, fun.()})
+    end)
+
+    receive do
+      {:captured_result, result} -> result
+    end
+  end
+
+  defp provider_evidence_silently(provider, ast) do
+    {result, _diagnostics} = Code.with_diagnostics(fn -> provider_evidence(provider, ast) end)
+    result
   end
 
   defp provider_evidence(Reach.Evidence.MapContract, ast) do
