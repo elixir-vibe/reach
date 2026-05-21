@@ -3,6 +3,11 @@ defmodule Reach.Evidence.StandardLibraryBypass.Map do
 
   alias Reach.Evidence.StandardLibraryBypass.Evidence
 
+  def collect_ast(ast) do
+    {_ast, evidence} = Macro.prewalk(ast, [], fn node, acc -> {node, collect_node(node, acc)} end)
+    Enum.reverse(evidence)
+  end
+
   def kinds, do: [:manual_map_update, :manual_map_update_bang]
 
   def collect_node(node, acc) do

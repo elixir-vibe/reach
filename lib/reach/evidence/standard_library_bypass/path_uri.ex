@@ -6,6 +6,11 @@ defmodule Reach.Evidence.StandardLibraryBypass.PathURI do
   @path_names ~w(path filepath file_path filename file dir directory source dest destination)a
   @uri_names ~w(url uri href endpoint query query_string qs)a
 
+  def collect_ast(ast) do
+    {_ast, evidence} = Macro.prewalk(ast, [], fn node, acc -> {node, collect_node(node, acc)} end)
+    Enum.reverse(evidence)
+  end
+
   def kinds do
     [
       :manual_path_basename,

@@ -12,7 +12,7 @@ defmodule Reach.Evidence.StandardLibraryBypass.EnumTest do
 
   test "collects direct and reduce-based flat_map evidence" do
     ast = Code.string_to_quoted!("items |> Enum.map(&expand/1) |> List.flatten()")
-    assert [%{kind: :manual_flat_map}] = collect(ast)
+    assert [%{kind: :manual_flat_map}] = EnumEvidence.collect_ast(ast)
 
     ast =
       Code.string_to_quoted!("Enum.reduce(items, [], fn item, acc -> acc ++ expand(item) end)")

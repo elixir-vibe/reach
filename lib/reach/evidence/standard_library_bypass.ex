@@ -21,15 +21,8 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   end
 
   def collect_ast(ast) do
-    {_ast, evidence} =
-      Macro.prewalk(ast, [], fn node, acc ->
-        {node, collect_node(node, acc)}
-      end)
-
-    Enum.reverse(evidence)
-  end
-
-  defp collect_node(node, acc) do
-    Enum.reduce(@families, acc, fn family, acc -> family.collect_node(node, acc) end)
+    @families
+    |> Enum.flat_map(& &1.collect_ast(ast))
+    |> Enum.sort_by(&{&1.meta[:line] || 0, &1.meta[:column] || 0, &1.kind})
   end
 end

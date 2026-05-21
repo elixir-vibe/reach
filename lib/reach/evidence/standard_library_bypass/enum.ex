@@ -1,7 +1,25 @@
 defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   @moduledoc "Collects Enum standard-library bypass evidence."
 
+  import ExAST.Sigil
+
+  alias ExAST.Patcher
   alias Reach.Evidence.StandardLibraryBypass.Evidence
+
+  @pattern_evidence [
+    manual_flat_map_list:
+      {~p[Enum.map(_, _) |> List.flatten()], :manual_flat_map,
+       "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
+       "Enum.flat_map/2"},
+    manual_flat_map_concat:
+      {~p[Enum.map(_, _) |> Enum.concat()], :manual_flat_map,
+       "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
+       "Enum.flat_map/2"}
+  ]
+
+  def collect_ast(ast) do
+    pattern_evidence(ast) ++ callback_evidence(ast)
+  end
 
   def kinds do
     [
@@ -13,23 +31,52 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
     ]
   end
 
-  def collect_node({:|>, meta, [left, right]} = node, acc) do
+  defp pattern_evidence(ast) do
+    patterns =
+      Map.new(@pattern_evidence, fn {name, {pattern, _kind, _message, _replacement}} ->
+        {name, pattern}
+      end)
+
+    metadata =
+      Map.new(@pattern_evidence, fn {name, {_pattern, kind, message, replacement}} ->
+        {name, {kind, message, replacement}}
+      end)
+
+    ast
+    |> Patcher.find_many(patterns)
+    |> Enum.map(fn match ->
+      {kind, message, replacement} = Map.fetch!(metadata, match.pattern)
+
+      %Evidence{
+        kind: kind,
+        message: message,
+        replacement: replacement,
+        meta: match_meta(match),
+        confidence: :high
+      }
+    end)
+  end
+
+  defp callback_evidence(ast) do
+    {_ast, evidence} =
+      Macro.prewalk(ast, [], fn node, acc -> {node, collect_callback_node(node, acc)} end)
+
+    Enum.reverse(evidence)
+  end
+
+  def collect_node(node, acc), do: collect_callback_node(node, acc)
+
+  defp collect_callback_node({:|>, meta, [left, right]} = node, acc) do
     acc = collect_pipe_node(left, right, meta, acc)
     collect_direct(node, acc)
   end
 
-  def collect_node(node, acc), do: collect_direct(node, acc)
+  defp collect_callback_node(node, acc), do: collect_direct(node, acc)
 
   defp collect_pipe_node(left, right, meta, acc) do
     case {enum_map_call(left) || flat_map_prepend_reverse_call(left), pipe_reader(right)} do
       {{:enum_map, _enumerable, _mapper, _map_meta}, {:flatten, _flatten_meta}} ->
-        evidence(
-          acc,
-          :manual_flat_map,
-          "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
-          "Enum.flat_map/2",
-          meta
-        )
+        acc
 
       {{:flat_map_prepend_reverse, _reduce_meta}, {:reverse, _reverse_meta}} ->
         evidence(
@@ -241,6 +288,13 @@ defmodule Reach.Evidence.StandardLibraryBypass.Enum do
   end
 
   defp same_ast?(left, right), do: Macro.to_string(left) == Macro.to_string(right)
+
+  defp match_meta(%{range: %{start: start}}) when is_list(start) do
+    [line: start[:line], column: start[:column]]
+  end
+
+  defp match_meta(%{node: {_form, meta, _args}}) when is_list(meta), do: meta
+  defp match_meta(_match), do: []
 
   defp evidence(acc, kind, message, replacement, meta) do
     [
