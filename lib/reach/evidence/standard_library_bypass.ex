@@ -19,7 +19,14 @@ defmodule Reach.Evidence.StandardLibraryBypass do
   end
 
   defp collect_node({:|>, meta, [left, right]} = node, acc) do
-    case {split_call(left), pipe_reader(right)} do
+    acc = collect_pipe_node(left, right, meta, acc)
+    collect_direct(node, acc)
+  end
+
+  defp collect_node(node, acc), do: collect_direct(node, acc)
+
+  defp collect_pipe_node(left, right, meta, acc) do
+    case {split_call(left) || enum_map_call(left), pipe_reader(right)} do
       {{:string_split, subject, "/", _split_meta}, {:last, _reader_meta}} ->
         maybe_evidence(
           acc,
@@ -53,16 +60,25 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           :medium
         )
 
+      {{:enum_map, _enumerable, _mapper, _map_meta}, {:flatten, _flatten_meta}} ->
+        maybe_evidence(
+          acc,
+          true,
+          :manual_flat_map,
+          "Enum.map followed by flatten allocates an intermediate nested list; use Enum.flat_map/2",
+          "Enum.flat_map/2",
+          meta,
+          :high
+        )
+
       _ ->
-        collect_direct(node, acc)
+        acc
     end
   end
 
-  defp collect_node(node, acc), do: collect_direct(node, acc)
-
   defp collect_direct(node, acc) do
-    case split_call(node) do
-      {:string_split, subject, "&", meta} ->
+    case {split_call(node), map_update_shape(node)} do
+      {{:string_split, subject, "&", meta}, _map_update} ->
         maybe_evidence(
           acc,
           uri_subject?(subject),
@@ -73,7 +89,7 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           :medium
         )
 
-      {:string_split, subject, "://", meta} ->
+      {{:string_split, subject, "://", meta}, _map_update} ->
         maybe_evidence(
           acc,
           uri_subject?(subject),
@@ -82,6 +98,17 @@ defmodule Reach.Evidence.StandardLibraryBypass do
           "URI.parse/1",
           meta,
           :medium
+        )
+
+      {_split_call, {:ok, meta}} ->
+        maybe_evidence(
+          acc,
+          true,
+          :manual_map_update,
+          "Map.get plus paired Map.put branches reimplements Map.update/4",
+          "Map.update/4",
+          meta,
+          :high
         )
 
       _ ->
@@ -117,6 +144,19 @@ defmodule Reach.Evidence.StandardLibraryBypass do
 
   defp split_call(_), do: nil
 
+  defp enum_map_call(
+         {{:., meta, [{:__aliases__, _, [:Enum]}, :map]}, _call_meta, [enumerable, mapper]}
+       ),
+       do: {:enum_map, enumerable, mapper, meta}
+
+  defp enum_map_call(
+         {:|>, _pipe_meta,
+          [enumerable, {{:., meta, [{:__aliases__, _, [:Enum]}, :map]}, _call_meta, [mapper]}]}
+       ),
+       do: {:enum_map, enumerable, mapper, meta}
+
+  defp enum_map_call(_node), do: nil
+
   defp pipe_reader({{:., meta, [{:__aliases__, _, [:List]}, fun]}, _call_meta, []})
        when fun in [:last, :first],
        do: {fun, meta}
@@ -125,8 +165,65 @@ defmodule Reach.Evidence.StandardLibraryBypass do
        when index in [-1, 0],
        do: {if(index == -1, do: :last, else: :first), meta}
 
+  defp pipe_reader({{:., meta, [{:__aliases__, _, [:List]}, :flatten]}, _call_meta, []}),
+    do: {:flatten, meta}
+
+  defp pipe_reader({{:., meta, [{:__aliases__, _, [:Enum]}, :concat]}, _call_meta, []}),
+    do: {:flatten, meta}
+
   defp pipe_reader({fun, meta, []}) when fun in [:hd], do: {:first, meta}
   defp pipe_reader(_), do: nil
+
+  defp map_update_shape({:case, meta, [get_call, [do: clauses]]}) when is_list(clauses) do
+    with {:ok, map, key} <- map_get_call(get_call),
+         true <- paired_map_put_branches?(clauses, map, key) do
+      {:ok, meta}
+    else
+      _other -> :error
+    end
+  end
+
+  defp map_update_shape({:if, meta, [condition, [do: do_branch, else: else_branch]]}) do
+    with {:ok, map, key} <- map_has_key_call(condition),
+         true <- map_put_call?(do_branch, map, key),
+         true <- map_put_call?(else_branch, map, key) do
+      {:ok, meta}
+    else
+      _other -> :error
+    end
+  end
+
+  defp map_update_shape(_node), do: :error
+
+  defp paired_map_put_branches?(clauses, map, key) when length(clauses) == 2 do
+    Enum.all?(clauses, fn
+      {:->, _meta, [_patterns, body]} -> map_put_call?(body, map, key)
+      _clause -> false
+    end)
+  end
+
+  defp paired_map_put_branches?(_clauses, _map, _key), do: false
+
+  defp map_get_call({{:., _, [{:__aliases__, _, [:Map]}, :get]}, _, [map, key | _]}),
+    do: {:ok, map, key}
+
+  defp map_get_call(_node), do: :error
+
+  defp map_has_key_call({{:., _, [{:__aliases__, _, [:Map]}, :has_key?]}, _, [map, key]}),
+    do: {:ok, map, key}
+
+  defp map_has_key_call(_node), do: :error
+
+  defp map_put_call?(
+         {{:., _, [{:__aliases__, _, [:Map]}, :put]}, _, [map, key, _value]},
+         expected_map,
+         expected_key
+       ),
+       do: same_ast?(map, expected_map) and same_ast?(key, expected_key)
+
+  defp map_put_call?(_node, _expected_map, _expected_key), do: false
+
+  defp same_ast?(left, right), do: Macro.to_string(left) == Macro.to_string(right)
 
   defp path_subject?(subject), do: subject_name(subject) in @path_names
   defp uri_subject?(subject), do: subject_name(subject) in @uri_names

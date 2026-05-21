@@ -13,7 +13,9 @@ defmodule Reach.Smell.Checks.StandardLibraryBypass do
       :manual_path_extension,
       :manual_query_parsing,
       :manual_uri_path_split,
-      :manual_uri_scheme_split
+      :manual_uri_scheme_split,
+      :manual_flat_map,
+      :manual_map_update
     ]
   end
 
