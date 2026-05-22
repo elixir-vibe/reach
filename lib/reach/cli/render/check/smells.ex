@@ -39,10 +39,37 @@ defmodule Reach.CLI.Render.Check.Smells do
       render_group(structural_consistency(grouped), "Structural consistency")
       render_group(Map.get(grouped, :behaviour_candidate, []), "Behaviour candidates")
       render_group(Map.get(grouped, :dual_key_access, []), "Loose map contracts")
+      rendered_kinds = rendered_kinds()
+
       render_group(Map.get(grouped, :fixed_shape_map, []), "Repeated map shapes")
 
-      IO.puts("#{length(findings)} finding(s)\n")
+      grouped
+      |> Map.drop(rendered_kinds)
+      |> Enum.sort_by(fn {kind, _findings} -> to_string(kind) end)
+      |> Enum.each(fn {kind, findings} ->
+        render_group(findings, Format.humanize(kind))
+      end)
+
+      IO.puts("  #{length(findings)} finding(s)\n")
     end
+  end
+
+  defp rendered_kinds do
+    [
+      :redundant_traversal,
+      :suboptimal,
+      :redundant_computation,
+      :eager_pattern,
+      :string_building,
+      :config_phase,
+      :return_contract_drift,
+      :side_effect_order_drift,
+      :map_contract_drift,
+      :validation_drift,
+      :behaviour_candidate,
+      :dual_key_access,
+      :fixed_shape_map
+    ]
   end
 
   defp structural_consistency(grouped) do
