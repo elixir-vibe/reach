@@ -129,6 +129,7 @@ defmodule Reach.MixProject do
       Check: [~r/Reach\.Check/],
       Smells: [~r/Reach\.Smell/],
       OTP: [~r/Reach\.OTP/],
+      Evidence: [~r/Reach\.Evidence/],
       IR: [Reach.IR, Reach.IR.Node, Reach.IR.Helpers],
       Analysis: [
         Reach.ControlFlow,

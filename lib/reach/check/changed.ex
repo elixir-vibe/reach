@@ -4,8 +4,8 @@ defmodule Reach.Check.Changed do
   alias Reach.Check.Architecture
   alias Reach.Check.Changed.Function, as: ChangedFunction
   alias Reach.Check.Changed.Result
-  alias Reach.CloneAnalysis
   alias Reach.Config
+  alias Reach.Evidence.CloneAnalysis
   alias Reach.IR
   alias Reach.IR.Helpers, as: IRHelpers
   alias Reach.Project.Query

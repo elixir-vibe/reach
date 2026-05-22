@@ -2,6 +2,7 @@ defmodule Reach.Plugins.LiveView.HEExLowererTest do
   use ExUnit.Case, async: true
 
   alias Reach.Frontend.Elixir, as: ElixirFrontend
+  alias Reach.IR.Counter
   alias Reach.Plugins.LiveView.HEEx.Lowerer
   alias Reach.Plugins.LiveView.HEEx.Node
   alias Reach.Source.Span
@@ -53,7 +54,7 @@ defmodule Reach.Plugins.LiveView.HEExLowererTest do
     }
 
     ast = Lowerer.to_ast(tree)
-    nodes = ElixirFrontend.translate_ast(ast, Reach.IR.Counter.new(), "demo.heex") |> flatten()
+    nodes = ElixirFrontend.translate_ast(ast, Counter.new(), "demo.heex") |> flatten()
 
     assert Enum.any?(nodes, &(&1.type == :comprehension and &1.source_span.start_line == 2))
     assert Enum.any?(nodes, &(&1.type == :generator and &1.meta.origin.kind == :for))
@@ -79,7 +80,7 @@ defmodule Reach.Plugins.LiveView.HEExLowererTest do
     }
 
     ast = Lowerer.to_ast(tree)
-    nodes = ElixirFrontend.translate_ast(ast, Reach.IR.Counter.new(), "demo.heex") |> flatten()
+    nodes = ElixirFrontend.translate_ast(ast, Counter.new(), "demo.heex") |> flatten()
 
     assert Enum.any?(nodes, &(&1.type == :call and &1.meta[:function] == :__live_event__))
   end
@@ -111,7 +112,7 @@ defmodule Reach.Plugins.LiveView.HEExLowererTest do
     }
 
     ast = Lowerer.to_ast(tree)
-    nodes = ElixirFrontend.translate_ast(ast, Reach.IR.Counter.new(), "demo.heex") |> flatten()
+    nodes = ElixirFrontend.translate_ast(ast, Counter.new(), "demo.heex") |> flatten()
 
     assert Enum.any?(nodes, &(&1.type == :call and &1.meta[:function] == :card))
 

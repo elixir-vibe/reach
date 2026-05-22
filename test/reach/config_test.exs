@@ -8,9 +8,16 @@ defmodule Reach.ConfigTest do
              config =
              Config.normalize(
                layers: [domain: "MyApp.*"],
-               deps: [forbidden: [{:domain, :web}]],
+               deps: [
+                 mode: :allowlist,
+                 allowed: [domain: [:web]],
+                 forbidden: [{:domain, :web, except: ["MyApp.Domain.Legacy"]}]
+               ],
                calls: [forbidden: [{"MyApp.*", ["IO.puts"]}]],
-               effects: [allowed: [{"MyApp.Pure.*", [:pure]}]],
+               effects: [
+                 allowed: [{"MyApp.Pure.*", [:pure]}],
+                 by_layer: [domain: [:pure], web: :any]
+               ],
                boundaries: [
                  public: ["MyApp.Accounts"],
                  internal: ["MyApp.Accounts.Internal.*"],
@@ -29,7 +36,14 @@ defmodule Reach.ConfigTest do
                    high_risk_reason_count: 2
                  ]
                ],
-               checks: [baseline: ".reach-baseline.json"],
+               checks: [
+                 baseline: ".reach-baseline.json",
+                 layer_coverage: [
+                   require_all_modules: true,
+                   forbid_multiple_matches: true,
+                   ignore: ["Mix.Tasks.*"]
+                 ]
+               ],
                candidates: [
                  thresholds: [
                    mixed_effect_count: 3,
@@ -66,9 +80,12 @@ defmodule Reach.ConfigTest do
              )
 
     assert config.layers == [domain: "MyApp.*"]
-    assert config.deps.forbidden == [{:domain, :web}]
+    assert config.deps.mode == :allowlist
+    assert config.deps.allowed == [domain: [:web]]
+    assert config.deps.forbidden == [{:domain, :web, except: ["MyApp.Domain.Legacy"]}]
     assert config.calls.forbidden == [{"MyApp.*", ["IO.puts"]}]
     assert config.effects.allowed == [{"MyApp.Pure.*", [:pure]}]
+    assert config.effects.by_layer == [domain: [:pure], web: :any]
     assert config.boundaries.public == ["MyApp.Accounts"]
     assert config.boundaries.internal == ["MyApp.Accounts.Internal.*"]
 
@@ -84,6 +101,9 @@ defmodule Reach.ConfigTest do
     assert config.risk.changed.branch_heavy == 7
     assert config.risk.changed.high_risk_reason_count == 2
     assert config.checks.baseline == ".reach-baseline.json"
+    assert config.checks.layer_coverage.require_all_modules == true
+    assert config.checks.layer_coverage.forbid_multiple_matches == true
+    assert config.checks.layer_coverage.ignore == ["Mix.Tasks.*"]
     assert config.candidates.thresholds.mixed_effect_count == 3
     assert config.candidates.thresholds.branchy_function_branches == 9
     assert config.candidates.thresholds.high_risk_direct_callers == 5
@@ -133,6 +153,31 @@ defmodule Reach.ConfigTest do
     assert config.tests.hints == [{"lib/my_app/**", ["test/my_app"]}]
     assert config.source.forbidden_modules == ["MyApp.Legacy.*"]
     assert config.source.forbidden_files == ["lib/my_app/legacy/**"]
+  end
+
+  test "reports unknown layer references" do
+    assert {:error, errors} =
+             Config.from_terms(
+               layers: [domain: "MyApp.Domain.*"],
+               deps: [forbidden: [{:domain, :web}], allowed: [domain: [:repo]]],
+               effects: [by_layer: [logic: [:pure]]]
+             )
+
+    messages = Enum.map(errors, & &1.message)
+
+    assert Enum.any?(messages, &(&1 =~ "unknown layer :web"))
+    assert Enum.any?(messages, &(&1 =~ "unknown layer :repo"))
+    assert Enum.any?(messages, &(&1 =~ "unknown layer :logic"))
+  end
+
+  test "rejects allowlist deps combined with forbidden deps" do
+    assert {:error, errors} =
+             Config.from_terms(
+               layers: [domain: "MyApp.Domain.*", web: "MyAppWeb.*"],
+               deps: [mode: :allowlist, allowed: [domain: [:web]], forbidden: [{:web, :domain}]]
+             )
+
+    assert Enum.any?(errors, &(&1.message =~ "cannot be combined"))
   end
 
   test "reports nested config error paths" do

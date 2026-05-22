@@ -6,10 +6,24 @@
 
 - **LiveView/HEEx lowering** — added an optional LiveView plugin that recognizes `~H` and `.heex` templates, lowers HEEx control flow (`if`/`case`, `:if`, `:for`) into Reach's Elixir IR with template source labels/spans, and hides LiveView rendering helper edges from graph presentation. The plugin uses LiveView's parser when available and falls back to the stable `TagEngine` path for current 1.1.x projects.
 - **LiveView semantic edges** — LiveView analysis now connects `JS.push`/`push_event` calls to `handle_event/3`, assign writes to HEEx assign reads, parser-lowered component attr values to component calls, and stream writes to `@streams.*` reads. Static `phx-*` event attrs are modeled by the parser-backed HEEx lowerer when available.
+- **Architecture layer ergonomics** — `.reach.exs` now validates unknown layer references, supports allowlist-style dependency policy, dependency exceptions, optional layer coverage checks, and layer-cycle violations with concrete call-edge witnesses.
+
+### Changed
+
+- **Evidence provider namespace** — moved clone analysis under `Reach.Evidence.CloneAnalysis` and introduced `Reach.Evidence` as the namespace for reusable facts consumed by smells, checks, and refactoring candidates.
+- **Jason plugin smell** — added an evidence-backed smell check for hand-rolled JSON sanitizers, encoders, and simple `Jason.Encoder` implementations that should use Jason protocol support directly.
+- **Standard library bypass smell** — added conservative Path/URI checks for hand-written basename, extension, URL, and query-string splitting, plus higher-context `Enum.map`→flatten, order-safe reduce/reverse `Enum.flat_map`, paired `Map.has_key?`/`Map.put` update, `Map.update!`, and reduce-based `Enum.frequencies` heuristics.
+- **Map contract evidence** — added `Reach.Evidence.MapContract` as a reusable evidence provider for maps that are created with a fixed shape, returned from local functions, and then read/updated as implicit contracts.
+- **Map contract candidates** — `mix reach.check --candidates` now reports advisory struct, boundary, or typed-map contract candidates when repeated implicit map contracts appear in project source.
+- **Poison plugin rename** — split the Poison effect classifier into `Reach.Plugins.Poison` now that Jason has its own plugin.
+- **Evidence corpus scanner** — added `scripts/evidence_corpus_scan.exs` for focused Jason, standard-library bypass, and map-contract evidence scans across repositories, backed by lightweight `family/0` and `kinds/0` evidence provider metadata.
+- **Plugin evidence refinement** — added a generic `refine_evidence/2` plugin hook so dependency plugins can annotate reusable evidence without owning smell or candidate policy; Jason now classifies maps passed to `Jason.encode/1,2` or `Jason.encode!/1,2` as external payload contracts.
+- **Corpus-tuned evidence** — tightened evidence scanning after reviewing Hex corpus hits, including safe handling for dynamic aliases and avoiding `Enum.flat_map/2` suggestions for reduce callbacks shaped like `acc ++ [expr]`.
 
 ### Fixed
 
-- **Protocol and macro-heavy visualizations** — Elixir frontend now attaches `defimpl`/`defprotocol` functions and nested modules to their real module names, and treats quoted macro-generated definitions as data while preserving `unquote` references. This removes bogus `(top-level)` graph buckets and repeated garbage nodes in reports for macro-heavy projects.
+- **Root task help** — `mix reach --help` now prints usage information instead of generating the default HTML report.
+- **Protocol and macro-heavy visualizations** — Elixir frontend now attaches `defimpl`/`defprotocol` functions and nested modules to their real module names, including multi-part nested `defmodule` names, and treats quoted macro-generated definitions as data while preserving `unquote` references. This removes bogus `(top-level)` graph buckets and repeated garbage nodes in reports for macro-heavy projects.
 - **Redundant computation false positives** — stateful IR counter calls are no longer reported as duplicate pure computations during Reach's own strict smell checks.
 
 ## 2.5.0

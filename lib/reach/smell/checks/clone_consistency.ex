@@ -3,8 +3,8 @@ defmodule Reach.Smell.Checks.CloneConsistency do
 
   @behaviour Reach.Smell.Check
 
-  alias Reach.CloneAnalysis
   alias Reach.Config
+  alias Reach.Evidence.CloneAnalysis
   alias Reach.Smell.Finding
 
   @impl true

@@ -20,7 +20,7 @@ defmodule Reach.Project do
       )
   """
 
-  alias Reach.{DependencySummary, Frontend, IR}
+  alias Reach.{DependencySummary, Frontend, IR, Plugin}
   alias Reach.IR.Counter
 
   import Reach.IR.Helpers, only: [module_from_path: 1]
@@ -268,11 +268,11 @@ defmodule Reach.Project do
   end
 
   defp parse_source_file(path, opts) do
-    plugins = Reach.Plugin.resolve(opts)
+    plugins = Plugin.resolve(opts)
     ext = Path.extname(path)
 
-    if ext in Reach.Plugin.source_extensions(plugins) do
-      Reach.Plugin.parse_file(plugins, path, opts)
+    if ext in Plugin.source_extensions(plugins) do
+      Plugin.parse_file(plugins, path, opts)
     else
       Frontend.parse_file(path, opts)
     end

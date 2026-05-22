@@ -2,6 +2,7 @@ defmodule Reach.Plugins.LiveView.HEEx do
   @moduledoc false
 
   alias Reach.Frontend.Elixir, as: ElixirFrontend
+  alias Reach.IR.Counter
   alias Reach.Plugins.LiveView.HEEx.{Lowerer, Parser}
   alias Reach.Source.{Origin, Span}
 
@@ -27,7 +28,7 @@ defmodule Reach.Plugins.LiveView.HEEx do
          {:ok, ast} <- lower_template(source, file_options(source, path, opts), path, 1) do
       module = Keyword.get(opts, :module) || module_from_path(path)
       wrapper = wrap_render(module, ast, path)
-      counter = Keyword.get_lazy(opts, :counter, &Reach.IR.Counter.new/0)
+      counter = Keyword.get_lazy(opts, :counter, &Counter.new/0)
       {:ok, ElixirFrontend.translate_ast(wrapper, counter, path)}
     else
       {:error, _} = error -> error

@@ -1,6 +1,7 @@
 defmodule Reach.Plugins.LiveView.SemanticsTest do
   use ExUnit.Case, async: true
 
+  alias Reach.Frontend.Elixir, as: ElixirFrontend
   alias Reach.IR
   alias Reach.Plugins.LiveView
 
@@ -98,7 +99,7 @@ defmodule Reach.Plugins.LiveView.SemanticsTest do
   end
 
   defp parse!(source) do
-    {:ok, nodes} = Reach.Frontend.Elixir.parse(source, file: "demo.ex", plugins: [])
+    {:ok, nodes} = ElixirFrontend.parse(source, file: "demo.ex", plugins: [])
     nodes
   end
 

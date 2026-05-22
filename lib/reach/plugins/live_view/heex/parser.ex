@@ -43,7 +43,7 @@ defmodule Reach.Plugins.LiveView.HEEx.Parser do
       skip_macro_components: true
     ]
 
-    case apply(@parser, :parse, [source, parser_opts]) do
+    case :erlang.apply(@parser, :parse, [source, parser_opts]) do
       {:ok, parsed} -> {:ok, parsed}
       {:error, line, column, message} -> {:error, {line, column, message}}
       other -> {:error, other}
@@ -131,7 +131,7 @@ defmodule Reach.Plugins.LiveView.HEEx.Parser do
   defp normalize_attr({name, {:expr, code, expr_meta}, meta})
        when name in [":if", ":for", ":key"] do
     %Node.SpecialAttr{
-      name: name |> String.trim_leading(":") |> String.to_atom(),
+      name: name |> String.trim_leading(":") |> source_atom(),
       code: code,
       ast: parse_expr(code, expr_meta),
       span: span(meta)
@@ -151,6 +151,8 @@ defmodule Reach.Plugins.LiveView.HEEx.Parser do
   end
 
   defp special_attrs(attrs), do: Enum.filter(attrs, &match?(%Node.SpecialAttr{}, &1))
+
+  defp source_atom(name) when is_binary(name), do: :erlang.binary_to_atom(name, :utf8)
 
   defp parse_expr(code, meta) do
     Code.string_to_quoted!(code, line: meta_line(meta), column: meta_column(meta), columns: true)
@@ -216,8 +218,7 @@ defmodule Reach.Plugins.LiveView.HEEx.Parser do
 
   defp merge_spans(first, _), do: first
 
-  defp meta_list(meta) when is_map(meta), do: [line: meta_line(meta), column: meta_column(meta)]
-  defp meta_list(_), do: []
+  defp meta_list(meta), do: [line: meta_line(meta), column: meta_column(meta)]
 
   defp restore_process_value(key, nil), do: Process.delete(key)
   defp restore_process_value(key, value), do: Process.put(key, value)

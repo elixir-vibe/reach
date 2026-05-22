@@ -1091,15 +1091,26 @@ defmodule Reach.Frontend.Elixir do
     {[], module_name(module)}
   end
 
-  defp module_name_for_def({:__aliases__, _, [part]} = alias_ast) when is_atom(part) do
-    case Process.get(:reach_current_module) do
-      nil -> module_name(alias_ast)
-      parent when is_atom(parent) -> Module.concat(parent, part)
-      parent -> {:dynamic, [parent, part]}
+  defp module_name_for_def({:__aliases__, _, parts} = alias_ast) when is_list(parts) do
+    cond do
+      not Enum.all?(parts, &is_atom/1) ->
+        module_name(alias_ast)
+
+      absolute_module_alias?(parts) ->
+        module_name(alias_ast)
+
+      parent = Process.get(:reach_current_module) ->
+        Module.concat(parent, Module.concat(parts))
+
+      true ->
+        module_name(alias_ast)
     end
   end
 
   defp module_name_for_def(alias_ast), do: module_name(alias_ast)
+
+  defp absolute_module_alias?([Elixir | _]), do: true
+  defp absolute_module_alias?(_parts), do: false
 
   defp module_name({:__aliases__, _, parts}) do
     if Enum.all?(parts, &is_atom/1) do
@@ -1113,13 +1124,21 @@ defmodule Reach.Frontend.Elixir do
   defp module_name(atom) when is_atom(atom), do: atom
   defp module_name(other), do: other
 
+  defp protocol_impl_module(protocol, _target) when not is_atom(protocol), do: protocol
   defp protocol_impl_module(protocol, nil), do: protocol
 
-  defp protocol_impl_module(protocol, {:__aliases__, _, _} = target),
-    do: Module.concat(protocol, module_name(target))
+  defp protocol_impl_module(protocol, {:__aliases__, _, _} = target) do
+    case module_name(target) do
+      module when is_atom(module) -> Module.concat(protocol, module)
+      _dynamic -> protocol
+    end
+  end
 
-  defp protocol_impl_module(protocol, target) when is_atom(target),
-    do: Module.concat(protocol, target)
+  defp protocol_impl_module(protocol, target) when is_atom(target) do
+    Module.concat(protocol, target)
+  rescue
+    ArgumentError -> protocol
+  end
 
   defp protocol_impl_module(protocol, _target), do: protocol
 

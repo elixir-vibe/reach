@@ -98,18 +98,20 @@ defmodule Reach.Plugins.LiveView do
     |> Enum.flat_map(fn func ->
       func.children
       |> Enum.filter(&(&1.type == :clause))
-      |> Enum.flat_map(fn clause ->
-        case clause.children do
-          [%Node{type: :literal, meta: %{value: event}} | _] when is_binary(event) ->
-            target = if clause.source_span, do: clause, else: func
-            [{{func.meta[:module], event}, target}]
-
-          _ ->
-            []
-        end
-      end)
+      |> Enum.flat_map(&event_handler_clause(func, &1))
     end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+  end
+
+  defp event_handler_clause(func, clause) do
+    case clause.children do
+      [%Node{type: :literal, meta: %{value: event}} | _] when is_binary(event) ->
+        target = if clause.source_span, do: clause, else: func
+        [{{func.meta[:module], event}, target}]
+
+      _ ->
+        []
+    end
   end
 
   defp live_event_node?(%Node{type: :call, meta: %{function: fun}}) when fun in @event_attrs,
@@ -140,24 +142,7 @@ defmodule Reach.Plugins.LiveView do
   defp event_name(_), do: nil
 
   defp live_assign_edges(function_defs) do
-    by_module =
-      Enum.group_by(function_defs, & &1.meta[:module], fn func ->
-        nodes = IR.all_nodes(func)
-
-        %{
-          writes: Enum.flat_map(nodes, &assign_writes/1),
-          reads: Enum.flat_map(nodes, &assign_reads/1)
-        }
-      end)
-
-    for {_module, groups} <- by_module,
-        write <- Enum.flat_map(groups, & &1.writes),
-        read <- Enum.flat_map(groups, & &1.reads),
-        elem(write, 0) == elem(read, 0) do
-      {_key, write_node} = write
-      {_key, read_node} = read
-      {write_node.id, read_node.id, {:live_assign, elem(write, 0)}}
-    end
+    live_key_edges(function_defs, &assign_writes/1, &assign_reads/1, :live_assign)
   end
 
   defp assign_writes(
@@ -215,19 +200,7 @@ defmodule Reach.Plugins.LiveView do
     |> Enum.find(&(&1.type == :map))
     |> case do
       %Node{children: fields} ->
-        Enum.flat_map(fields, fn field ->
-          case field do
-            %Node{type: :map_field, children: [key_node, value_node]} ->
-              case literal_key(key_node) do
-                nil -> []
-                key when key in [:inner_block, :__changed__, :__slot__] -> []
-                key -> [{key, value_node}]
-              end
-
-            _ ->
-              []
-          end
-        end)
+        Enum.flat_map(fields, &component_attr_field/1)
 
       _ ->
         []
@@ -235,6 +208,16 @@ defmodule Reach.Plugins.LiveView do
   end
 
   defp component_attrs(_), do: []
+
+  defp component_attr_field(%Node{type: :map_field, children: [key_node, value_node]}) do
+    case literal_key(key_node) do
+      nil -> []
+      key when key in [:inner_block, :__changed__, :__slot__] -> []
+      key -> [{key, value_node}]
+    end
+  end
+
+  defp component_attr_field(_field), do: []
 
   defp attr_vars({_key, value}) do
     value
@@ -249,13 +232,17 @@ defmodule Reach.Plugins.LiveView do
   end
 
   defp live_stream_edges(function_defs) do
+    live_key_edges(function_defs, &stream_writes/1, &stream_reads/1, :live_stream)
+  end
+
+  defp live_key_edges(function_defs, write_fun, read_fun, edge_kind) do
     by_module =
       Enum.group_by(function_defs, & &1.meta[:module], fn func ->
         nodes = IR.all_nodes(func)
 
         %{
-          writes: Enum.flat_map(nodes, &stream_writes/1),
-          reads: Enum.flat_map(nodes, &stream_reads/1)
+          writes: Enum.flat_map(nodes, write_fun),
+          reads: Enum.flat_map(nodes, read_fun)
         }
       end)
 
@@ -265,7 +252,7 @@ defmodule Reach.Plugins.LiveView do
         elem(write, 0) == elem(read, 0) do
       {_key, write_node} = write
       {_key, read_node} = read
-      {write_node.id, read_node.id, {:live_stream, elem(write, 0)}}
+      {write_node.id, read_node.id, {edge_kind, elem(write, 0)}}
     end
   end
 

@@ -112,6 +112,22 @@ layers: [
 
 Patterns are module-name strings with `*` wildcards. A layer may have one pattern or a list of patterns.
 
+Reach validates layer references in dependency policy. A dependency rule that names an undeclared layer fails config validation before analysis runs.
+
+Layer coverage can be enabled when you want every project module to belong to exactly one layer:
+
+```elixir
+checks: [
+  layer_coverage: [
+    require_all_modules: true,
+    forbid_multiple_matches: true,
+    ignore: ["Mix.Tasks.*", "MyApp.Generated.*"]
+  ]
+]
+```
+
+`require_all_modules` reports modules that match no layer. `forbid_multiple_matches` reports modules that match more than one layer. `ignore` excludes generated code, tasks, or other modules from coverage checks.
+
 ### `deps[:forbidden]`
 
 Declare layer-to-layer dependencies that should not exist.
@@ -120,12 +136,41 @@ Declare layer-to-layer dependencies that should not exist.
 deps: [
   forbidden: [
     {:domain, :web},
-    {:data, :web}
+    {:data, :web},
+    {:domain, :data, except: ["MyApp.Domain.Migrations"]}
   ]
 ]
 ```
 
-`mix reach.check --arch` reports `forbidden_dependency` violations with caller, callee, call, file, and line evidence.
+`mix reach.check --arch` reports `forbidden_dependency` violations with caller, callee, call, file, and line evidence. Layer cycle violations include concrete edge witnesses so you can see which calls create the cycle.
+
+Use `except` to allow matching caller modules through an otherwise-forbidden layer edge. Use `except_edges` when only a specific caller-to-callee seam is allowed:
+
+```elixir
+deps: [
+  forbidden: [
+    {:domain, :data,
+     except_edges: [
+       {"MyApp.Domain.RepoBoundary", "MyApp.Repo"}
+     ]}
+  ]
+]
+```
+
+For strict architectures, use allowlist mode instead of enumerating forbidden pairs:
+
+```elixir
+deps: [
+  mode: :allowlist,
+  allowed: [
+    web: [:domain],
+    domain: [],
+    data: [:domain]
+  ]
+]
+```
+
+In allowlist mode, same-layer calls are allowed and every cross-layer edge not listed in `allowed` is reported.
 
 ### `source[:forbidden_modules]`
 
@@ -197,9 +242,15 @@ effects: [
   allowed: [
     {"MyApp.Pure.*", [:pure, :unknown]},
     {"MyAppWeb.*", [:pure, :read, :write, :send, :io, :unknown]}
+  ],
+  by_layer: [
+    domain: [:pure, :exception],
+    web: :any
   ]
 ]
 ```
+
+`allowed` applies to matching module patterns. `by_layer` applies to modules assigned through `layers`; direct module-pattern policies take precedence. Use `:any` for layers where all effects are allowed.
 
 Known effect atoms include:
 

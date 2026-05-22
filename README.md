@@ -90,6 +90,8 @@ Reach 2.x uses five canonical analysis tasks plus the HTML report task.
 
 Use `--format json` for automation. Canonical commands emit pure JSON envelopes with stable command names.
 
+Reach separates reusable evidence from user-facing output. `Reach.Evidence.*` providers collect facts that can be consumed by smells, checks, and advisory candidates; plugin-specific evidence and smells live under `Reach.Plugins.*` and are auto-enabled only when the dependency is present. Plugins can also refine generic evidence with dependency-specific context, such as marking maps passed to `Jason.encode!/1` as external payload contracts. For provider and refinement conventions, see `docs/evidence-providers.md`. For tuning evidence providers across real projects, use `scripts/evidence_corpus_scan.exs`; see `docs/evidence-heuristics.md` for the evidence-first backlog and promotion rules.
+
 Older task names were removed in Reach 2.0 and fail fast with migration guidance. See the [Canonical CLI guide](guides/cli.md).
 
 ## Configuration

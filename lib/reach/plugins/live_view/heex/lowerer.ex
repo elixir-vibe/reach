@@ -147,10 +147,10 @@ defmodule Reach.Plugins.LiveView.HEEx.Lowerer do
   end
 
   defp attr_field(%Node.Attr{name: name, value: {:expr, _code, ast}}),
-    do: [{String.to_atom(name), ast}]
+    do: [{source_atom(name), ast}]
 
   defp attr_field(%Node.Attr{name: name, value: {:string, value}}),
-    do: [{String.to_atom(name), value}]
+    do: [{source_atom(name), value}]
 
   defp attr_field(_), do: []
 
@@ -177,8 +177,8 @@ defmodule Reach.Plugins.LiveView.HEEx.Lowerer do
 
   defp dynamic_attr_asts(attrs) do
     attrs
-    |> Enum.reject(&match?(%Node.SpecialAttr{}, &1))
     |> Enum.reject(fn
+      %Node.SpecialAttr{} -> true
       %Node.Attr{name: name} -> name in @event_attrs
       _ -> false
     end)
@@ -195,13 +195,13 @@ defmodule Reach.Plugins.LiveView.HEEx.Lowerer do
   defp component_label(:remote_component, name), do: "<#{name}>"
 
   defp component_call(:local_component, name, args, span) do
-    {String.to_atom(name), meta_from_span(span), args}
+    {source_atom(name), meta_from_span(span), args}
   end
 
   defp component_call(:remote_component, name, args, span) do
     case remote_component_parts(name) do
       {mod, fun} -> {{:., meta_from_span(span), [mod, fun]}, meta_from_span(span), args}
-      nil -> {String.to_atom(name), meta_from_span(span), args}
+      nil -> {source_atom(name), meta_from_span(span), args}
     end
   end
 
@@ -212,9 +212,11 @@ defmodule Reach.Plugins.LiveView.HEEx.Lowerer do
 
       parts ->
         {fun, mod_parts} = List.pop_at(parts, -1)
-        {{:__aliases__, [], Enum.map(mod_parts, &String.to_atom/1)}, String.to_atom(fun)}
+        {{:__aliases__, [], Enum.map(mod_parts, &source_atom/1)}, source_atom(fun)}
     end
   end
+
+  defp source_atom(name) when is_binary(name), do: :erlang.binary_to_atom(name, :utf8)
 
   defp block_ast([], _origin), do: nil
   defp block_ast([single], nil), do: single

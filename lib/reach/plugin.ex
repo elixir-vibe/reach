@@ -103,6 +103,9 @@ defmodule Reach.Plugin do
               {:ok, [Node.t()]} | {:error, term()}
 
   @callback smell_checks() :: [module()]
+  @callback evidence_providers() :: [module()]
+  @callback refine_evidence(evidence :: struct() | map(), context :: map()) ::
+              struct() | map() | :unchanged
   @callback trace_pattern(pattern :: String.t()) :: (Node.t() -> boolean()) | nil
   @callback behaviour_label(callbacks :: [atom()]) :: String.t() | nil
   @callback ignore_call_edge?(Graph.Edge.t()) :: boolean()
@@ -115,6 +118,8 @@ defmodule Reach.Plugin do
                       source_language: 1,
                       parse_file: 2,
                       smell_checks: 0,
+                      evidence_providers: 0,
+                      refine_evidence: 2,
                       trace_pattern: 1,
                       behaviour_label: 1,
                       ignore_call_edge?: 1
@@ -128,8 +133,8 @@ defmodule Reach.Plugin do
     {GenStage, Reach.Plugins.GenStage},
     {Jido.Action, Reach.Plugins.Jido},
     {OpenTelemetry.Tracer, Reach.Plugins.OpenTelemetry},
-    {Jason, Reach.Plugins.JSON},
-    {Poison, Reach.Plugins.JSON},
+    {Jason, Reach.Plugins.Jason},
+    {Poison, Reach.Plugins.Poison},
     {QuickBEAM, Reach.Plugins.QuickBEAM}
   ]
 
@@ -174,14 +179,16 @@ defmodule Reach.Plugin do
 
   @doc "Asks plugins to lower a framework-specific Elixir AST node."
   def lower_elixir_ast(plugins, ast, opts) do
-    Enum.find_value(plugins, :ignore, fn plugin ->
-      if exports?(plugin, :lower_elixir_ast, 2) do
-        case plugin.lower_elixir_ast(ast, opts) do
-          :ignore -> nil
-          result -> result
-        end
+    Enum.find_value(plugins, :ignore, &lower_elixir_ast_with_plugin(&1, ast, opts))
+  end
+
+  defp lower_elixir_ast_with_plugin(plugin, ast, opts) do
+    if exports?(plugin, :lower_elixir_ast, 2) do
+      case plugin.lower_elixir_ast(ast, opts) do
+        :ignore -> nil
+        result -> result
       end
-    end)
+    end
   end
 
   @doc "Returns source extensions handled by plugins."
@@ -239,6 +246,41 @@ defmodule Reach.Plugin do
     end)
     |> Enum.uniq()
   end
+
+  @doc "Returns evidence providers contributed by plugins."
+  def evidence_providers(plugins) do
+    plugins
+    |> Enum.flat_map(fn plugin ->
+      if exports?(plugin, :evidence_providers, 0), do: plugin.evidence_providers(), else: []
+    end)
+    |> Enum.uniq()
+  end
+
+  @doc "Lets plugins annotate or adjust evidence facts without owning user-facing policy."
+  def refine_evidence(plugins, evidence, context \\ %{}) do
+    Enum.reduce(plugins, evidence, fn plugin, evidence ->
+      if exports?(plugin, :refine_evidence, 2) do
+        apply_evidence_refinement(evidence, plugin.refine_evidence(evidence, context))
+      else
+        evidence
+      end
+    end)
+  end
+
+  defp apply_evidence_refinement(evidence, :unchanged), do: evidence
+
+  defp apply_evidence_refinement(evidence, updates) when is_map(updates) do
+    if same_struct?(evidence, updates) do
+      updates
+    else
+      Map.merge(evidence, updates)
+    end
+  end
+
+  defp apply_evidence_refinement(evidence, _other), do: evidence
+
+  defp same_struct?(%module{}, %module{}), do: true
+  defp same_struct?(_evidence, _updates), do: false
 
   @doc "Compiles a framework-specific trace pattern, if a plugin recognizes it."
   def trace_pattern(plugins, pattern) do
