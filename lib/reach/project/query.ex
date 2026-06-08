@@ -5,8 +5,6 @@ defmodule Reach.Project.Query do
 
   @function_index_cache_key {__MODULE__, :function_index}
 
-  def function_index(%{cache_key: nil} = project), do: build_function_index(project)
-
   def function_index(%{cache_key: key} = project) do
     case Process.get(@function_index_cache_key) do
       {^key, index} ->
