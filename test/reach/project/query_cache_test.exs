@@ -4,6 +4,11 @@ defmodule Reach.Project.QueryCacheTest do
   alias Reach.Project
   alias Reach.Project.Query
 
+  setup do
+    Query.reset_cache()
+    :ok
+  end
+
   test "function indexes do not leak between projects in the same process" do
     first = project_with("FirstOnly", "run")
     second = project_with("SecondOnly", "execute")
@@ -13,6 +18,34 @@ defmodule Reach.Project.QueryCacheTest do
 
     assert Query.find_function(second, {SecondOnly, :execute, 0})
     refute Query.find_function(second, {FirstOnly, :run, 0})
+  end
+
+  test "function_index is memoized within a process for the same project" do
+    project = project_with("Memoized", "go")
+
+    first = Query.function_index(project)
+    second = Query.function_index(project)
+
+    assert :erts_debug.same(first, second)
+  end
+
+  test "reset_cache invalidates the cached function index" do
+    project = project_with("Resettable", "do_thing")
+
+    first = Query.function_index(project)
+    Query.reset_cache()
+    second = Query.function_index(project)
+
+    refute :erts_debug.same(first, second)
+  end
+
+  test "projects without a cache_key skip the cache and rebuild every call" do
+    project = project_with("Uncached", "act") |> Map.put(:cache_key, nil)
+
+    first = Query.function_index(project)
+    second = Query.function_index(project)
+
+    refute :erts_debug.same(first, second)
   end
 
   defp project_with(module, function) do
