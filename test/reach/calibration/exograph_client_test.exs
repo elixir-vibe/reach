@@ -54,6 +54,37 @@ defmodule Reach.Calibration.ExographClientTest do
              body["query"]["predicates"]
   end
 
+  test "follows candidate cursors before deduplicating package versions" do
+    request = fn _url, body ->
+      case body["cursor"] do
+        nil ->
+          {:ok,
+           %{
+             "results" => [%{"package" => "alpha", "package_version" => "1.0.0"}],
+             "next_cursor" => "next"
+           }}
+
+        "next" ->
+          {:ok,
+           %{
+             "results" => [%{"package" => "beta", "package_version" => "2.0.0"}],
+             "next_cursor" => nil
+           }}
+      end
+    end
+
+    assert {:ok, versions} =
+             ExographClient.package_versions(
+               base_url: "http://exograph.test",
+               limit: 2,
+               candidate_limit: 10,
+               kinds: MapSet.new([:dual_key_fallback]),
+               request: request
+             )
+
+    assert Enum.map(versions, & &1["package_name"]) == ["alpha", "beta"]
+  end
+
   test "hydrates the selected package version" do
     parent = self()
 

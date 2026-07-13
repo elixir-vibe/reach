@@ -10,9 +10,13 @@ defmodule Reach.Calibration.ExographClient do
 
   @spec package_versions(keyword()) :: {:ok, [map()]} | {:error, term()}
   def package_versions(opts) do
-    case Candidates.patterns(Keyword.get(opts, :kinds)) do
-      :all -> all_package_versions(opts)
-      patterns -> candidate_package_versions(patterns, opts)
+    if Keyword.get(opts, :limit, 25) > 0 do
+      case Candidates.patterns(Keyword.get(opts, :kinds)) do
+        :all -> all_package_versions(opts)
+        patterns -> candidate_package_versions(patterns, opts)
+      end
+    else
+      {:error, :invalid_package_limit}
     end
   end
 
@@ -63,23 +67,33 @@ defmodule Reach.Calibration.ExographClient do
   end
 
   defp candidate_versions(pattern, limit, opts) do
+    fetch_candidate_pages(pattern, min(limit, 200), limit, nil, [], 0, opts)
+  end
+
+  defp fetch_candidate_pages(pattern, page_size, limit, cursor, versions, seen, opts) do
     query = %{
       "version" => 1,
       "source" => "fragment",
       "binding" => "f",
       "predicates" => [%{"op" => "contains", "binding" => "f", "value" => pattern}],
       "joins" => [],
-      "limit" => limit
+      "limit" => min(page_size, limit - seen)
     }
 
-    with {:ok, response} <- post(opts, "/api/query", %{"query" => query}),
-         results when is_list(results) <- response["results"] do
-      versions =
-        results
-        |> Enum.map(&candidate_version/1)
-        |> Enum.reject(&is_nil/1)
+    body = %{"query" => query, "cursor" => cursor}
 
-      {:ok, versions}
+    with {:ok, response} <- post(opts, "/api/query", body),
+         results when is_list(results) <- response["results"] do
+      candidates = results |> Enum.map(&candidate_version/1) |> Enum.reject(&is_nil/1)
+      seen = seen + length(results)
+      versions = candidates ++ versions
+      next_cursor = response["next_cursor"]
+
+      if is_binary(next_cursor) and results != [] and seen < limit do
+        fetch_candidate_pages(pattern, page_size, limit, next_cursor, versions, seen, opts)
+      else
+        {:ok, Enum.reverse(versions)}
+      end
     else
       nil -> {:error, :missing_query_results}
       {:error, _reason} = error -> error
