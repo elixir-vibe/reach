@@ -330,6 +330,23 @@ defmodule Reach.MacroFactTest do
            ] = MacroFact.collect_project(project)
   end
 
+  test "collects behaviour declarations" do
+    source = ~S'''
+    defmodule MyApp.Implementation do
+      @behaviour MyApp.Contract
+    end
+    '''
+
+    assert {:ok,
+            [
+              %MacroFact{
+                kind: :behaviour_declaration,
+                owner_module: MyApp.Implementation,
+                target: MyApp.Contract
+              }
+            ]} = MacroFact.collect_source(source)
+  end
+
   test "collects broad map types from specs and callbacks" do
     source = ~S'''
     defmodule MyApp.Contract do

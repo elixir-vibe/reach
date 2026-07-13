@@ -41,6 +41,7 @@ defmodule Reach.MacroFact do
   @kinds [
     :macro_dsl_declaration,
     :typespec_declaration,
+    :behaviour_declaration,
     :schema_declaration,
     :phoenix_router_use,
     :phoenix_component_use,
@@ -306,6 +307,32 @@ defmodule Reach.MacroFact do
   defp statements({:__block__, _meta, statements}) when is_list(statements), do: statements
   defp statements(nil), do: []
   defp statements(statement), do: [statement]
+
+  defp collect_declaration(
+         {:@, attribute_meta, [{:behaviour, _meta, [behaviour_ast]}]},
+         module,
+         nesting,
+         file
+       ) do
+    behaviour = module_name(behaviour_ast)
+
+    [
+      %__MODULE__{
+        kind: :behaviour_declaration,
+        source: location(attribute_meta, file),
+        owner_module: module,
+        target: behaviour,
+        generated?: false,
+        framework: :elixir,
+        name: :behaviour,
+        arity: nil,
+        call_module: behaviour,
+        nesting: Enum.reverse(nesting),
+        data: %{},
+        confidence: :high
+      }
+    ]
+  end
 
   defp collect_declaration(
          {:@, attribute_meta, [{kind, _meta, [{:"::", _type_meta, [head, return_type]}]}]},
