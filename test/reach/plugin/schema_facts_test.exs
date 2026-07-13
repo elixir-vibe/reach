@@ -35,6 +35,33 @@ defmodule Reach.Plugin.SchemaFactsTest do
             ]} = MacroFact.collect_source(source, plugins: [Reach.Plugins.Zoi])
   end
 
+  test "Zoi plugin connects parsed values to schema declarations" do
+    source = """
+    defmodule Contract do
+      @schema Zoi.object(%{name: Zoi.string() |> Zoi.required()})
+      def validate(input), do: Zoi.parse(@schema, input)
+    end
+    """
+
+    assert {:ok, facts} = MacroFact.collect_source(source, plugins: [Reach.Plugins.Zoi])
+
+    assert Enum.any?(facts, fn
+             %MacroFact{
+               framework: :zoi,
+               name: :parse,
+               data: %{
+                 schema_identity: {:zoi, Contract, {:attribute, :schema}},
+                 usage: %{function: {Contract, :validate, 1}, input: :input},
+                 required_fields: [:name]
+               }
+             } ->
+               true
+
+             _fact ->
+               false
+           end)
+  end
+
   test "NimbleOptions plugin resolves module attribute schemas" do
     source = """
     defmodule Contract do
@@ -56,6 +83,7 @@ defmodule Reach.Plugin.SchemaFactsTest do
                owner_module: Contract,
                data: %{
                  schema_identity: {:nimble_options, Contract, {:attribute, :schema}},
+                 usage: %{function: {Contract, :validate, 1}, input: :options},
                  fields: [name: :atom, count: :atom],
                  field_specs: [
                    %{name: :name, type: :string, required?: true, default: :none},

@@ -7,6 +7,8 @@ defmodule Reach.Plugins.SchemaFacts do
     Enum.flat_map(Reach.AST.modules_in_file(ast), fn module_ast ->
       {module, body} = module_and_body(module_ast)
 
+      attributes = module_attributes(body)
+
       collect(body, fn
         {{:., _dot_meta, [{:__aliases__, _, [:Zoi]}, function]}, meta, arguments}
         when function in [:object, :struct] and is_list(arguments) ->
@@ -18,6 +20,21 @@ defmodule Reach.Plugins.SchemaFacts do
             {:call, function, meta[:line]},
             meta,
             file
+          )
+
+        {{:., _dot_meta, [{:__aliases__, _, [:Zoi]}, function]}, meta, [schema, input]} = node
+        when function in [:parse, :parse!] ->
+          {schema, identity} = resolve_attribute(schema, attributes)
+
+          schema_fact(
+            :zoi,
+            module,
+            function,
+            zoi_schema(schema),
+            identity,
+            meta,
+            file,
+            usage(body, module, node, input)
           )
 
         _node ->
@@ -33,10 +50,20 @@ defmodule Reach.Plugins.SchemaFacts do
 
       collect(body, fn
         {{:., _dot_meta, [{:__aliases__, _, [:NimbleOptions]}, function]}, meta,
-         [_options, schema | _]}
+         [options, schema | _]} = node
         when function in [:validate, :validate!] ->
           {schema, identity} = resolve_attribute(schema, attributes)
-          schema_fact(:nimble_options, module, function, schema, identity, meta, file)
+
+          schema_fact(
+            :nimble_options,
+            module,
+            function,
+            schema,
+            identity,
+            meta,
+            file,
+            usage(body, module, node, options)
+          )
 
         _node ->
           []
@@ -54,6 +81,10 @@ defmodule Reach.Plugins.SchemaFacts do
   end
 
   defp schema_fact(framework, module, name, schema, identity, meta, file) do
+    schema_fact(framework, module, name, schema, identity, meta, file, nil)
+  end
+
+  defp schema_fact(framework, module, name, schema, identity, meta, file, usage) do
     field_specs = schema_field_specs(schema, framework)
     fields = Enum.map(field_specs, &{&1.name, &1.key_representation})
 
@@ -74,6 +105,7 @@ defmodule Reach.Plugins.SchemaFacts do
           nesting: [],
           data: %{
             schema_identity: {framework, module, identity},
+            usage: usage,
             fields: fields,
             field_specs: field_specs,
             required_fields: required_fields(field_specs),
@@ -203,6 +235,51 @@ defmodule Reach.Plugins.SchemaFacts do
 
   defp key_kind(key) when is_atom(key), do: :atom
   defp key_kind(key) when is_binary(key), do: :string
+
+  defp zoi_schema({{:., _, [{:__aliases__, _, [:Zoi]}, function]}, _, arguments})
+       when function in [:object, :struct] and is_list(arguments),
+       do: List.last(arguments)
+
+  defp zoi_schema(_schema), do: nil
+
+  defp usage(body, module, call, input) do
+    %{
+      function: containing_function(body, module, call),
+      input: input_variable(input)
+    }
+  end
+
+  defp containing_function(body, module, target) do
+    body
+    |> statements()
+    |> Enum.find_value(fn
+      {kind, _meta, [head, definition]} when kind in [:def, :defp] ->
+        if contains_ast?(definition, target), do: function_id(module, head)
+
+      _statement ->
+        nil
+    end)
+  end
+
+  defp contains_ast?(ast, target) do
+    {_ast, found?} =
+      Macro.prewalk(ast, false, fn
+        node, false -> {node, node == target}
+        node, true -> {node, true}
+      end)
+
+    found?
+  end
+
+  defp function_id(module, {:when, _meta, [head | _guards]}), do: function_id(module, head)
+
+  defp function_id(module, {name, _meta, arguments}) when is_atom(name) and is_list(arguments),
+    do: {module, name, length(arguments)}
+
+  defp function_id(_module, _head), do: nil
+
+  defp input_variable({name, _meta, context}) when is_atom(name) and is_atom(context), do: name
+  defp input_variable(_input), do: nil
 
   defp module_attributes(body) do
     body
