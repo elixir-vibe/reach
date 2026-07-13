@@ -139,12 +139,14 @@ defmodule Reach.Smell.Checks.FalseSuccessError do
   defp module_parts({:__block__, _meta, [value]}), do: module_parts(value)
   defp module_parts(_module), do: []
 
-  defp split_atom(atom) do
+  defp split_atom(atom) when is_atom(atom) do
     atom
     |> Atom.to_string()
     |> Macro.underscore()
     |> String.split(~r/[^a-z0-9]+|_/, trim: true)
   end
+
+  defp split_atom(_non_atom), do: []
 
   defp error_tuple_pattern?(pattern) do
     case tuple_items(pattern) do
