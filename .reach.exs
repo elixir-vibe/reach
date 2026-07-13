@@ -9,6 +9,7 @@ end
 layers = [
   cli: ["Mix.Tasks.*", "Reach.CLI.*"],
   plugin: ["Reach.Plugin", "Reach.Plugin.*", "Reach.Plugins.*"],
+  calibration: ["Reach.Calibration.*"],
   evidence: ["Reach.Evidence", "Reach.Evidence.*"],
   smell: ["Reach.Smell.*"],
   check: ["Reach.Check.*"],
@@ -67,6 +68,7 @@ removed_files = [
       {:project, :cli},
       {:visualize, :cli},
       {:evidence, :cli},
+      {:calibration, :cli},
       {:smell, :cli},
       {:check, :cli}
     ]
@@ -74,7 +76,7 @@ removed_files = [
   calls: [
     forbidden:
       forbid_cli_or_mix.(
-        ~w(Reach.Evidence.* Reach.Smell.* Reach.Frontend.* Reach.Plugin Reach.Plugins.*)
+        ~w(Reach.Calibration.* Reach.Evidence.* Reach.Smell.* Reach.Frontend.* Reach.Plugin Reach.Plugins.*)
       ) ++
         [
           {"Reach.Check.*", cli_render_calls},

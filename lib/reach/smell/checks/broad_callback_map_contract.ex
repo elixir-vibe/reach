@@ -173,7 +173,7 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
       kind: :broad_callback_map_contract,
       message:
         "#{format_target(callback.target)} parameter #{parameter_index + 1} declares map() but implementations consistently read fixed keys #{Enum.map_join(shape.keys, ", ", &inspect/1)}",
-      location: source_location(callback.source),
+      location: Helpers.source_location(callback.source),
       evidence: Enum.map(accesses, &Helpers.location(&1.node)) |> Enum.uniq(),
       keys: shape.keys,
       modules: modules,
@@ -182,7 +182,4 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
   end
 
   defp format_target({module, name, arity}), do: "#{inspect(module)}.#{name}/#{arity}"
-  defp source_location(%{file: file, line: line}), do: "#{file}:#{line}"
-  defp source_location(%{line: line}), do: "line #{line}"
-  defp source_location(_source), do: "unknown"
 end

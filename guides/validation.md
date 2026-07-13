@@ -31,6 +31,24 @@ failures=0
 
 Reach uses ProgramFacts-generated Elixir projects and oracle facts to validate call graphs, layouts, data flow, effects, architecture policies, branch/control-flow policies, and syntax policies.
 
+## Exograph corpus calibration
+
+Reach can consume Exograph's versioned query and hydration APIs without making
+Exograph execute Reach analyzers:
+
+```bash
+mix run scripts/exograph_corpus_scan.exs -- \
+  --base-url http://localhost:4200 \
+  --limit 25 \
+  --kinds dual_key_fallback,false_collapsing_lookup \
+  --output /tmp/reach-calibration.json
+```
+
+Each finding receives a stable review ID. Supply a JSON object mapping those IDs
+to `true_positive` or `false_positive` with `--labels`; the report then includes
+reviewed precision per smell kind. Snapshot fingerprints and package versions
+make reviewed samples reproducible.
+
 ## Block quality
 
 Visualization changes must preserve source coverage, disjoint block ranges, branch boundaries, clause blocks, non-empty labels, connected exits, and no duplicated lines.

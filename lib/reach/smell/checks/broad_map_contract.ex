@@ -53,7 +53,7 @@ defmodule Reach.Smell.Checks.BroadMapContract do
         kind: :broad_map_contract,
         message:
           "#{format_target(spec.target)} declares map() but consistently reads fixed keys #{Enum.map_join(keys, ", ", &inspect/1)}; declare the shape explicitly",
-        location: source_location(spec.source),
+        location: Helpers.source_location(spec.source),
         evidence: Enum.map(accesses, &Helpers.location(&1.node)) |> Enum.uniq(),
         keys: keys,
         confidence: :high
@@ -62,8 +62,4 @@ defmodule Reach.Smell.Checks.BroadMapContract do
   end
 
   defp format_target({module, name, arity}), do: "#{inspect(module)}.#{name}/#{arity}"
-
-  defp source_location(%{file: file, line: line}), do: "#{file}:#{line}"
-  defp source_location(%{line: line}), do: "line #{line}"
-  defp source_location(_source), do: "unknown"
 end

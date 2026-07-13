@@ -25,6 +25,10 @@ defmodule Reach.Smell.Helpers do
     end
   end
 
+  def source_location(%{file: file, line: line}), do: "#{file}:#{line}"
+  def source_location(%{line: line}), do: "line #{line}"
+  def source_location(_source), do: "unknown"
+
   def ast_modules_in_file(ast), do: Reach.AST.modules_in_file(ast)
 
   @doc "Returns true if `node` is inside a loop body (reduce/map/for/recursion)."

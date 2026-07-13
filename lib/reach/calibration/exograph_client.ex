@@ -1,0 +1,148 @@
+defmodule Reach.Calibration.ExographClient do
+  @moduledoc "HTTP consumer for Exograph's versioned query and hydration API."
+
+  @behaviour Reach.Calibration.Source
+
+  @type request_fun :: (String.t(), map() -> {:ok, map()} | {:error, term()})
+  @type package_version :: %{String.t() => term()}
+
+  alias Reach.Calibration.Candidates
+
+  @spec package_versions(keyword()) :: {:ok, [map()]} | {:error, term()}
+  def package_versions(opts) do
+    case Candidates.patterns(Keyword.get(opts, :kinds)) do
+      :all -> all_package_versions(opts)
+      patterns -> candidate_package_versions(patterns, opts)
+    end
+  end
+
+  defp all_package_versions(opts) do
+    query = %{
+      "version" => 1,
+      "source" => "package_version",
+      "binding" => "v",
+      "predicates" => [],
+      "joins" => [],
+      "limit" => Keyword.get(opts, :limit, 25)
+    }
+
+    with {:ok, response} <- post(opts, "/api/query", %{"query" => query}),
+         results when is_list(results) <- response["results"] do
+      {:ok, results}
+    else
+      nil -> {:error, :missing_query_results}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp candidate_package_versions(patterns, opts) do
+    limit = Keyword.get(opts, :limit, 25)
+    candidate_limit = Keyword.get(opts, :candidate_limit, max(limit * 20, limit))
+
+    patterns
+    |> Enum.reduce_while({:ok, []}, fn pattern, {:ok, versions} ->
+      case candidate_versions(pattern, candidate_limit, opts) do
+        {:ok, candidates} -> {:cont, {:ok, [candidates | versions]}}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, version_groups} ->
+        versions =
+          version_groups
+          |> Enum.reverse()
+          |> List.flatten()
+          |> Enum.uniq_by(&version_identity/1)
+          |> Enum.take(limit)
+
+        {:ok, versions}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp candidate_versions(pattern, limit, opts) do
+    query = %{
+      "version" => 1,
+      "source" => "fragment",
+      "binding" => "f",
+      "predicates" => [%{"op" => "contains", "binding" => "f", "value" => pattern}],
+      "joins" => [],
+      "limit" => limit
+    }
+
+    with {:ok, response} <- post(opts, "/api/query", %{"query" => query}),
+         results when is_list(results) <- response["results"] do
+      versions =
+        results
+        |> Enum.map(&candidate_version/1)
+        |> Enum.reject(&is_nil/1)
+
+      {:ok, versions}
+    else
+      nil -> {:error, :missing_query_results}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp candidate_version(%{"package" => package, "package_version" => version})
+       when is_binary(package) and is_binary(version) do
+    %{"ecosystem" => "hex", "package_name" => package, "version" => version}
+  end
+
+  defp candidate_version(_result), do: nil
+
+  defp version_identity(version) do
+    {version["ecosystem"], version["package_name"], version["version"]}
+  end
+
+  @spec hydrate(package_version(), keyword()) :: {:ok, map()} | {:error, term()}
+  def hydrate(version, opts) when is_map(version) do
+    body = %{
+      "ecosystem" => version["ecosystem"] || "hex",
+      "packageName" => version["package_name"],
+      "version" => version["version"],
+      "paths" => Keyword.get(opts, :paths, ["lib/**"])
+    }
+
+    post(opts, "/api/hydrate", body)
+  end
+
+  defp post(opts, path, body) do
+    base_url = Keyword.fetch!(opts, :base_url)
+    request = Keyword.get(opts, :request, &request/2)
+    request.(String.trim_trailing(base_url, "/") <> path, body)
+  end
+
+  defp request(url, body) do
+    :inets.start()
+    :ssl.start()
+
+    request = {
+      String.to_charlist(url),
+      [{~c"content-type", ~c"application/json"}],
+      ~c"application/json",
+      JSON.encode!(body)
+    }
+
+    case :httpc.request(:post, request, [timeout: 30_000], body_format: :binary) do
+      {:ok, {{_http_version, status, _reason}, _headers, response_body}}
+      when status in 200..299 ->
+        JSON.decode(response_body)
+
+      {:ok, {{_http_version, status, _reason}, _headers, response_body}} ->
+        {:error, {:http_error, status, decode_error(response_body)}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp decode_error(body) do
+    case JSON.decode(body) do
+      {:ok, decoded} -> decoded
+      {:error, _reason} -> body
+    end
+  end
+end

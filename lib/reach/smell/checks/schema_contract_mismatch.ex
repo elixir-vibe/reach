@@ -33,8 +33,8 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
         kind: :mixed_schema_key_representation,
         message:
           "#{fact.framework} schema mixes atom and string field keys; choose one boundary representation",
-        location: source_location(fact.source),
-        evidence: [source_location(fact.source)],
+        location: Helpers.source_location(fact.source),
+        evidence: [Helpers.source_location(fact.source)],
         keys: Enum.map(fact.data.fields, &elem(&1, 0)),
         confidence: :high
       )
@@ -121,7 +121,7 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
       Finding.new(
         kind: kind,
         message: "#{message}: #{Enum.map_join(keys, ", ", &inspect/1)}",
-        location: source_location(fact.source),
+        location: Helpers.source_location(fact.source),
         evidence: Enum.map(accesses, &Helpers.location(&1.node)),
         keys: keys,
         confidence: :high
@@ -145,8 +145,4 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
        do: true
 
   defp mixed_key_schema?(_fact), do: false
-
-  defp source_location(%{file: file, line: line}), do: "#{file}:#{line}"
-  defp source_location(%{line: line}), do: "line #{line}"
-  defp source_location(_source), do: "unknown"
 end
