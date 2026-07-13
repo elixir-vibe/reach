@@ -5,6 +5,8 @@ defmodule Reach.Check.ChangedTest do
 
   alias Mix.Tasks.Reach.Check
   alias Reach.Check.Changed
+  alias Reach.Check.Changed.Range
+  alias Reach.CLI.Render.Check, as: CheckRender
   alias Reach.Project.Query
 
   test "changed analysis reports cloned sibling functions" do
@@ -144,7 +146,159 @@ defmodule Reach.Check.ChangedTest do
     end)
   end
 
-  test "reach.check changed mode reports files and functions" do
+  test "changed analysis reports high confidence for fully assessed ranges" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/covered.ex")
+      File.mkdir_p!(Path.dirname(file))
+
+      File.write!(file, """
+      defmodule Covered do
+        def run do
+          :ok
+        end
+      end
+      """)
+
+      project = Reach.Project.from_sources([file], plugins: [])
+
+      result =
+        Changed.run(project, [],
+          base: "HEAD",
+          files: ["lib/covered.ex"],
+          changed_ranges: %{
+            "lib/covered.ex" => [
+              Range.new(old_start: 2, old_count: 0, new_start: 2, new_count: 3)
+            ]
+          }
+        )
+
+      assert result.risk == :low
+      assert result.confidence == :high
+      assert result.coverage.coverage_percent == 100.0
+      assert result.coverage.assessed_line_count == 3
+      assert result.coverage.unassessed_files == []
+    end)
+  end
+
+  test "changed analysis separates partial coverage from low risk" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/partial.ex")
+      File.mkdir_p!(Path.dirname(file))
+
+      File.write!(file, """
+      defmodule Partial do
+        @moduledoc false
+
+        # setup outside a function
+        def run do
+          :ok
+        end
+      end
+      """)
+
+      project = Reach.Project.from_sources([file], plugins: [])
+
+      result =
+        Changed.run(project, [],
+          base: "HEAD",
+          files: ["lib/partial.ex"],
+          changed_ranges: %{
+            "lib/partial.ex" => [
+              Range.new(old_start: 2, old_count: 0, new_start: 2, new_count: 5)
+            ]
+          }
+        )
+
+      assert result.risk == :low
+      assert result.confidence == :partial
+      assert result.coverage.assessed_line_count == 2
+      assert result.coverage.unassessed_line_count == 3
+      assert result.coverage.coverage_percent == 40.0
+      assert result.coverage.partially_assessed_file_count == 1
+      assert result.coverage.unassessed_files == ["lib/partial.ex"]
+    end)
+  end
+
+  test "non-source changes are explicitly unassessed in text output" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/example.ex")
+      File.mkdir_p!(Path.dirname(file))
+      File.write!(file, "defmodule CoverageExample do\n  def run, do: :ok\nend\n")
+      project = Reach.Project.from_sources([file], plugins: [])
+
+      result =
+        Changed.run(project, [],
+          base: "HEAD",
+          files: ["README.md"],
+          changed_ranges: %{
+            "README.md" => [
+              Range.new(old_start: 1, old_count: 0, new_start: 1, new_count: 10)
+            ]
+          }
+        )
+
+      assert result.risk == :low
+      assert result.confidence == :none
+      assert result.coverage.coverage_percent == 0.0
+      assert result.coverage.unassessed_files == ["README.md"]
+
+      output = capture_io(fn -> CheckRender.render_changed_text(result) end)
+      assert output =~ "risk=low confidence=none"
+      assert output =~ "coverage=0.0% lines=0/10 assessed"
+      assert output =~ "Unassessed files (1)"
+      assert output =~ "README.md"
+    end)
+  end
+
+  test "deleted-only changes remain unassessed instead of appearing confidently low-risk" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/current.ex")
+      File.mkdir_p!(Path.dirname(file))
+      File.write!(file, "defmodule Current do\n  def run, do: :ok\nend\n")
+      project = Reach.Project.from_sources([file], plugins: [])
+
+      result =
+        Changed.run(project, [],
+          base: "HEAD",
+          files: ["lib/deleted.ex"],
+          changed_ranges: %{
+            "lib/deleted.ex" => [
+              Range.new(old_start: 1, old_count: 3, new_start: 0, new_count: 0)
+            ]
+          }
+        )
+
+      assert result.risk == :low
+      assert result.confidence == :none
+      assert result.coverage.changed_line_count == 3
+      assert result.coverage.assessed_line_count == 0
+      assert result.coverage.deleted_line_count == 3
+      assert result.coverage.unassessed_files == ["lib/deleted.ex"]
+    end)
+  end
+
+  test "changed ranges retain deleted-only hunks" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/deleted.ex")
+      File.mkdir_p!(Path.dirname(file))
+      File.write!(file, "defmodule Deleted do\n  def run, do: :ok\nend\n")
+      git!(repo, ["add", "."])
+      git!(repo, ["commit", "-m", "initial"])
+      File.rm!(file)
+      git!(repo, ["add", "-A"])
+      git!(repo, ["commit", "-m", "delete source"])
+
+      ranges = File.cd!(repo, fn -> Changed.changed_ranges("HEAD~1") end)
+
+      assert %{
+               "lib/deleted.ex" => [
+                 %Range{old_count: 3, new_count: 0}
+               ]
+             } = ranges
+    end)
+  end
+
+  test "reach.check changed mode reports files, functions, and coverage" do
     output =
       capture_io(fn -> Check.run(["--changed", "--base", "HEAD", "--format", "json"]) end)
 
@@ -157,6 +311,9 @@ defmodule Reach.Check.ChangedTest do
     assert {:ok, data} = JSON.decode(json)
     assert is_list(data["changed_files"])
     assert is_list(data["changed_functions"])
+    assert data["confidence"] == "high"
+    assert data["coverage"]["coverage_percent"] == 100.0
+    assert data["coverage"]["unassessed_files"] == []
   end
 
   defp in_tmp_git_repo(fun) do

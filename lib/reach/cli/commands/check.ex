@@ -153,7 +153,7 @@ defmodule Reach.CLI.Commands.Check do
 
     result =
       if map_size(ranges) == 0 do
-        Changed.empty_result(base, config)
+        Changed.empty_result(base, config, files)
       else
         project = Project.load([quiet: opts[:format] == "json"] ++ plugin_opts(opts))
         Changed.run(project, config, base: base, files: files, changed_ranges: ranges)
