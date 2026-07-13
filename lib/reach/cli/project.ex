@@ -8,25 +8,22 @@ defmodule Reach.CLI.Project do
   def display_root, do: Process.get(@display_root_key)
 
   def load(opts \\ []) do
+    Query.reset_cache()
     quiet? = Keyword.get(opts, :quiet, false)
     compile(quiet?)
 
-    project =
-      case Keyword.get(opts, :paths) do
-        nil ->
-          set_display_root(File.cwd!())
-          unless quiet?, do: Mix.shell().info("Analyzing project...")
-          Reach.Project.from_mix_project(project_opts(opts))
+    case Keyword.get(opts, :paths) do
+      nil ->
+        set_display_root(File.cwd!())
+        unless quiet?, do: Mix.shell().info("Analyzing project...")
+        Reach.Project.from_mix_project(project_opts(opts))
 
-        paths ->
-          set_display_root(display_root_for_paths(paths))
-          paths = expand_paths(paths)
-          unless quiet?, do: Mix.shell().info("Analyzing #{length(paths)} file(s)...")
-          Reach.Project.from_sources(paths, project_opts(opts))
-      end
-
-    Query.reset_cache()
-    project
+      paths ->
+        set_display_root(display_root_for_paths(paths))
+        paths = expand_paths(paths)
+        unless quiet?, do: Mix.shell().info("Analyzing #{length(paths)} file(s)...")
+        Reach.Project.from_sources(paths, project_opts(opts))
+    end
   end
 
   defp set_display_root(root), do: Process.put(@display_root_key, Path.expand(root))

@@ -31,11 +31,12 @@ defmodule Reach.Project do
           nodes: %{IR.Node.id() => IR.Node.t()},
           call_graph: Graph.t(),
           summaries: %{{module(), atom(), non_neg_integer()} => map()},
-          plugins: [module()]
+          plugins: [module()],
+          cache_key: reference() | nil
         }
 
   @enforce_keys [:modules, :graph, :nodes, :call_graph]
-  defstruct [:modules, :graph, :nodes, :call_graph, summaries: %{}, plugins: []]
+  defstruct [:modules, :graph, :nodes, :call_graph, summaries: %{}, plugins: [], cache_key: nil]
 
   @doc """
   Builds a project graph from source file paths.
@@ -312,7 +313,8 @@ defmodule Reach.Project do
       graph: Graph.new(type: :directed),
       nodes: nodes,
       call_graph: Graph.new(type: :directed),
-      plugins: plugins
+      plugins: plugins,
+      cache_key: make_ref()
     }
   end
 
@@ -403,7 +405,8 @@ defmodule Reach.Project do
       nodes: merged_nodes,
       call_graph: merged_call_graph,
       summaries: summaries,
-      plugins: plugins
+      plugins: plugins,
+      cache_key: make_ref()
     }
   end
 

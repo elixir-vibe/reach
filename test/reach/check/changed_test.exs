@@ -5,6 +5,7 @@ defmodule Reach.Check.ChangedTest do
 
   alias Mix.Tasks.Reach.Check
   alias Reach.Check.Changed
+  alias Reach.Project.Query
 
   test "changed analysis reports cloned sibling functions" do
     in_tmp_git_repo(fn repo ->
@@ -59,6 +60,87 @@ defmodule Reach.Check.ChangedTest do
         end)
 
       assert [%{id: "ExampleB.normalize/1", clone_siblings: [_ | _]}] = result.changed_functions
+    end)
+  end
+
+  test "changed analysis selects functions from large ranges without expanding every line" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/large_range.ex")
+      File.mkdir_p!(Path.dirname(file))
+
+      File.write!(file, """
+      defmodule LargeRange do
+        def first do
+          :first
+        end
+
+        def second do
+          :second
+        end
+      end
+      """)
+
+      project = Reach.Project.from_sources([file], plugins: [])
+
+      functions =
+        Changed.changed_functions(project, %{"lib/large_range.ex" => [{3, 1_000_000}]}, [])
+
+      assert Enum.map(functions, & &1.id) == ["LargeRange.first/0", "LargeRange.second/0"]
+    end)
+  end
+
+  test "range lookup preserves point lookup semantics" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/range_semantics.ex")
+      File.mkdir_p!(Path.dirname(file))
+
+      File.write!(file, """
+      defmodule RangeSemantics do
+        def first, do: :first
+        def second, do: :second
+        def third, do: :third
+      end
+      """)
+
+      project = Reach.Project.from_sources([file], plugins: [])
+      ranges = %{"lib/range_semantics.ex" => [{2, 2}, {4, 5}]}
+
+      expected =
+        ranges
+        |> Enum.flat_map(fn {path, path_ranges} ->
+          path_ranges
+          |> Enum.flat_map(fn {first, last} -> first..last end)
+          |> Enum.map(&Query.find_function_at_location(project, path, &1))
+        end)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.uniq_by(& &1.id)
+
+      assert Enum.map(Query.functions_in_ranges(project, ranges), & &1.id) ==
+               Enum.map(expected, & &1.id)
+    end)
+  end
+
+  test "changed analysis includes the function preceding a body-only range" do
+    in_tmp_git_repo(fn repo ->
+      file = Path.join(repo, "lib/body_change.ex")
+      File.mkdir_p!(Path.dirname(file))
+
+      File.write!(file, """
+      defmodule BodyChange do
+        def first do
+          :first
+        end
+
+        def second do
+          :second
+        end
+      end
+      """)
+
+      project = Reach.Project.from_sources([file], plugins: [])
+
+      assert [%{id: "BodyChange.second/0"}] =
+               Changed.changed_functions(project, %{"lib/body_change.ex" => [{7, 7}]}, [])
     end)
   end
 

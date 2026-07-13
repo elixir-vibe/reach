@@ -67,13 +67,8 @@ defmodule Reach.Check.Changed do
   end
 
   def changed_functions(project, changed_ranges, config) do
-    changed_ranges
-    |> Enum.flat_map(fn {file, ranges} ->
-      ranges
-      |> Enum.flat_map(fn {first, last} -> first..last end)
-      |> Enum.map(&Query.find_function_at_location(project, file, &1))
-      |> Enum.reject(&is_nil/1)
-    end)
+    project
+    |> Query.functions_in_ranges(changed_ranges)
     |> Enum.uniq_by(&{&1.meta[:module], &1.meta[:name], &1.meta[:arity]})
     |> Enum.map(&function_summary(project, &1, Config.normalize(config)))
     |> Enum.sort_by(&{&1.file || "", &1.line || 0, &1.id})
