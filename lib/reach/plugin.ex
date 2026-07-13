@@ -108,6 +108,7 @@ defmodule Reach.Plugin do
   @callback inference_hints() :: %{optional(:deps) => [atom()], optional(:source) => [String.t()]}
   @callback refine_evidence(evidence :: struct() | map(), context :: map()) ::
               struct() | map() | :unchanged
+  @callback macro_facts(ast :: Macro.t(), context :: map()) :: [Reach.MacroFact.t()]
   @callback refine_macro_fact(fact :: Reach.MacroFact.t(), context :: map()) ::
               Reach.MacroFact.t() | map() | :unchanged
   @callback trace_pattern(pattern :: String.t()) :: (Node.t() -> boolean()) | nil
@@ -125,6 +126,7 @@ defmodule Reach.Plugin do
                       smell_checks: 0,
                       evidence_providers: 0,
                       inference_hints: 0,
+                      macro_facts: 2,
                       refine_evidence: 2,
                       refine_macro_fact: 2,
                       trace_pattern: 1,
@@ -144,6 +146,8 @@ defmodule Reach.Plugin do
     {ExUnit.Case, Reach.Plugins.ExUnit},
     {Jason, Reach.Plugins.Jason},
     {Poison, Reach.Plugins.Poison},
+    {Zoi, Reach.Plugins.Zoi},
+    {NimbleOptions, Reach.Plugins.NimbleOptions},
     {QuickBEAM, Reach.Plugins.QuickBEAM}
   ]
 
@@ -303,6 +307,13 @@ defmodule Reach.Plugin do
 
   defp same_struct?(%module{}, %module{}), do: true
   defp same_struct?(_evidence, _updates), do: false
+
+  @doc "Collects source-first macro/DSL facts contributed by plugins."
+  def macro_facts(plugins, ast, context \\ %{}) do
+    Enum.flat_map(plugins, fn plugin ->
+      if exports?(plugin, :macro_facts, 2), do: plugin.macro_facts(ast, context), else: []
+    end)
+  end
 
   @doc "Lets plugins annotate source-first macro/DSL facts without owning generic policy."
   def refine_macro_fact(plugins, fact, context \\ %{}) do

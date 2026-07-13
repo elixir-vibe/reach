@@ -41,6 +41,7 @@ defmodule Reach.MacroFact do
   @kinds [
     :macro_dsl_declaration,
     :typespec_declaration,
+    :schema_declaration,
     :phoenix_router_use,
     :phoenix_component_use,
     :phoenix_live_view_use,
@@ -81,10 +82,15 @@ defmodule Reach.MacroFact do
     plugins = Keyword.get(opts, :plugins, [])
     context = Keyword.get(opts, :context, %{})
 
-    ast
-    |> Reach.AST.modules_in_file()
-    |> Enum.flat_map(&collect_module(&1, file))
-    |> refine_facts(plugins, Map.put_new(context, :file, file))
+    context = Map.put_new(context, :file, file)
+
+    generic_facts =
+      ast
+      |> Reach.AST.modules_in_file()
+      |> Enum.flat_map(&collect_module(&1, file))
+
+    plugin_facts = Reach.Plugin.macro_facts(plugins, ast, context)
+    refine_facts(generic_facts ++ plugin_facts, plugins, context)
   end
 
   @doc "Parses and collects macro/DSL facts from an Elixir source string."
