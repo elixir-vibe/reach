@@ -4,10 +4,32 @@ defmodule Reach.Project.Query do
   alias Reach.IR.Helpers, as: IRHelpers
 
   @default_value_lineage_nodes 200
+  @function_index_cache_key {__MODULE__, :function_index}
 
-  def function_index(project), do: build_function_index(project)
+  def function_index(project) do
+    case Map.get(project, :cache_key) do
+      nil ->
+        build_function_index(project)
 
-  def reset_cache, do: :ok
+      cache_key ->
+        signature = {cache_key, project.nodes, project.call_graph}
+
+        case Process.get(@function_index_cache_key) do
+          {^signature, index} ->
+            index
+
+          _miss ->
+            index = build_function_index(project)
+            Process.put(@function_index_cache_key, {signature, index})
+            index
+        end
+    end
+  end
+
+  def reset_cache do
+    Process.delete(@function_index_cache_key)
+    :ok
+  end
 
   @doc "Indexes direct value-producing predecessors for all project nodes."
   @spec value_predecessor_index(Reach.Project.t()) :: %{
@@ -154,24 +176,23 @@ defmodule Reach.Project.Query do
   def find_function_at_location(project, file, line) do
     index = function_index(project)
 
-    exact_fns = Map.get(index.by_file, file, [])
+    index
+    |> functions_for_file(file)
+    |> Enum.filter(fn node -> node.source_span.start_line <= line end)
+    |> Enum.max_by(& &1.source_span.start_line, fn -> nil end)
+  end
 
-    result =
-      exact_fns
-      |> Enum.filter(fn node -> node.source_span.start_line <= line end)
-      |> Enum.max_by(& &1.source_span.start_line, fn -> nil end)
+  @doc "Returns functions selected by changed line ranges, without expanding ranges into lines."
+  def functions_in_ranges(project, ranges_by_file) when is_map(ranges_by_file) do
+    index = build_function_location_index(project)
 
-    if result do
-      result
-    else
-      index.all
-      |> Enum.filter(fn node ->
-        node.source_span != nil and
-          file_matches?(node.source_span.file, file) and
-          node.source_span.start_line <= line
-      end)
-      |> Enum.max_by(& &1.source_span.start_line, fn -> nil end)
-    end
+    ranges_by_file
+    |> Enum.flat_map(fn {file, ranges} ->
+      index
+      |> functions_for_file(file)
+      |> functions_in_file_ranges(ranges)
+    end)
+    |> Enum.uniq_by(& &1.id)
   end
 
   def resolve_function(project, target) do
@@ -257,21 +278,13 @@ defmodule Reach.Project.Query do
   end
 
   defp build_function_index(project) do
-    func_defs = for {_id, node} <- project.nodes, node.type == :function_def, do: node
+    %{all: func_defs, by_file: by_file} = build_function_location_index(project)
 
     by_name_arity = Enum.group_by(func_defs, fn node -> {node.meta[:name], node.meta[:arity]} end)
 
     by_module =
       Enum.group_by(func_defs, fn node ->
         {node.meta[:module], node.meta[:name], node.meta[:arity]}
-      end)
-
-    by_file =
-      func_defs
-      |> Enum.filter(fn node -> node.source_span != nil end)
-      |> Enum.group_by(fn node -> node.source_span[:file] end)
-      |> Map.new(fn {file, functions} ->
-        {file, Enum.sort_by(functions, fn node -> node.source_span[:start_line] end)}
       end)
 
     node_to_function = build_node_to_function_index(project)
@@ -287,6 +300,60 @@ defmodule Reach.Project.Query do
       all: func_defs
     }
   end
+
+  defp build_function_location_index(project) do
+    func_defs = for {_id, node} <- project.nodes, node.type == :function_def, do: node
+
+    by_file =
+      func_defs
+      |> Enum.filter(& &1.source_span)
+      |> Enum.group_by(& &1.source_span.file)
+      |> Map.new(fn {file, functions} ->
+        {file, Enum.sort_by(functions, & &1.source_span.start_line)}
+      end)
+
+    %{all: func_defs, by_file: by_file}
+  end
+
+  defp functions_for_file(index, file) do
+    case Map.get(index.by_file, file, []) do
+      [] ->
+        index.all
+        |> Enum.filter(fn node ->
+          node.source_span != nil and file_matches?(node.source_span.file, file)
+        end)
+        |> Enum.sort_by(& &1.source_span.start_line)
+
+      exact_functions ->
+        exact_functions
+    end
+  end
+
+  defp functions_in_file_ranges(functions, ranges) do
+    ranges
+    |> Enum.flat_map(&functions_in_range(functions, &1))
+    |> Enum.uniq_by(& &1.id)
+  end
+
+  defp functions_in_range(functions, {first, last})
+       when is_integer(first) and is_integer(last) and first <= last do
+    preceding =
+      functions
+      |> Enum.take_while(&(&1.source_span.start_line <= first))
+      |> List.last()
+
+    started_in_range =
+      Enum.filter(functions, fn function ->
+        line = function.source_span.start_line
+        line >= first and line <= last
+      end)
+
+    [preceding | started_in_range]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq_by(& &1.id)
+  end
+
+  defp functions_in_range(_functions, _invalid_range), do: []
 
   defp find_function_node(index, nil, fun, arity) do
     find_by_module(index, nil, fun, arity) || find_sole_candidate(index, fun, arity)

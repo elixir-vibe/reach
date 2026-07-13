@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.
+
 ## 2.7.5 - 2026-06-12
 
 ### Changed
