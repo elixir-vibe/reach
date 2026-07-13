@@ -70,7 +70,8 @@ defmodule Reach.Smell.Checks.FixedShapeMap do
     occurrence_count = length(occurrences)
 
     if occurrence_count >= config.min_occurrences do
-      locations = occurrences |> Enum.map(& &1.location) |> Enum.uniq()
+      locations =
+        occurrences |> Enum.map(& &1.location) |> Enum.uniq() |> Enum.sort_by(&location_key/1)
 
       [
         Finding.new(
@@ -87,4 +88,17 @@ defmodule Reach.Smell.Checks.FixedShapeMap do
       []
     end
   end
+
+  defp location_key(%{file: file, line: line}), do: {file, line}
+
+  defp location_key(location) when is_binary(location) do
+    {line, path_parts} = location |> String.split(":") |> List.pop_at(-1)
+
+    case Integer.parse(line) do
+      {line, ""} -> {Enum.join(path_parts, ":"), line}
+      _other -> {location, 0}
+    end
+  end
+
+  defp location_key(location), do: {inspect(location), 0}
 end

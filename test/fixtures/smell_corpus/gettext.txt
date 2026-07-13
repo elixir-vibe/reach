@@ -1,0 +1,8 @@
+lib/gettext/compiler.ex:438  unsafe_atom_creation
+lib/gettext/compiler.ex:640  suboptimal
+lib/gettext/extractor.ex:132  string_building
+lib/gettext/extractor.ex:133  string_building
+lib/gettext/extractor.ex:134  string_building
+lib/gettext/extractor.ex:385  suboptimal
+lib/gettext/interpolation/default.ex:58  unsafe_atom_creation
+lib/gettext/merger.ex:102  suboptimal

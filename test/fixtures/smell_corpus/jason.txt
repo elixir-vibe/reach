@@ -1,0 +1,4 @@
+lib/codegen.ex:73  suboptimal
+lib/codegen.ex:80  suboptimal
+lib/decoder.ex:397  redundant_computation
+lib/decoder.ex:421  redundant_computation

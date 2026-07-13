@@ -1,0 +1,6 @@
+lib/floki/html/tokenizer.ex:2676  suboptimal
+lib/floki/html_parser/fast_html.ex:1  behaviour_candidate
+lib/floki/html_tree.ex:263  suboptimal
+lib/floki/selector.ex:110  suboptimal
+lib/floki/selector/pseudo_class.ex:183  suboptimal
+lib/floki/selector/pseudo_class.ex:192  suboptimal
