@@ -841,6 +841,12 @@ defmodule Reach.SmellTest do
 
       assert finding.keys == ["id", "kind", "target"]
       assert finding.occurrences == 3
+      assert String.ends_with?(finding.location, ":2")
+
+      assert Enum.map(finding.evidence, fn location ->
+               location |> String.split(":") |> List.last()
+             end) == ["2", "3", "4"]
+
       assert finding.message =~ "consider a struct or explicit contract"
     end
 

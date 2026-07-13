@@ -45,6 +45,11 @@ jobs:
           key: plt-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
           restore-keys: plt-${{ matrix.otp }}-${{ matrix.elixir }}-
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/reach/smell-corpus
+          key: smell-corpus-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('test/support/smell_corpus.ex') }}
+
       - run: mix deps.get
       - run: mix ci
         if: matrix.elixir == '1.20'
