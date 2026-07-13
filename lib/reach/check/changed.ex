@@ -2,7 +2,9 @@ defmodule Reach.Check.Changed do
   @moduledoc "Analyzes changed functions for risk, impact, and clone siblings."
 
   alias Reach.Check.Architecture
+  alias Reach.Check.Changed.Coverage
   alias Reach.Check.Changed.Function, as: ChangedFunction
+  alias Reach.Check.Changed.Range
   alias Reach.Check.Changed.Result
   alias Reach.Config
   alias Reach.Evidence.CloneAnalysis
@@ -16,19 +18,23 @@ defmodule Reach.Check.Changed do
     changed_ranges = Keyword.get_lazy(opts, :changed_ranges, fn -> changed_ranges(base) end)
     normalized_config = Config.normalize(config)
 
+    function_nodes = changed_function_nodes(project, changed_ranges)
+
     functions =
-      project
-      |> changed_functions(changed_ranges, normalized_config)
+      function_nodes
+      |> summarize_functions(project, normalized_config)
       |> add_clone_siblings(project, normalized_config)
 
-    result(base, files, functions, normalized_config)
+    coverage = Coverage.analyze(files, changed_ranges, function_nodes)
+    result(base, files, functions, coverage, normalized_config)
   end
 
-  def empty_result(base, config) do
-    result(base, [], [], Config.normalize(config))
+  def empty_result(base, config, files \\ []) do
+    coverage = Coverage.analyze(files, %{}, [])
+    result(base, files, [], coverage, Config.normalize(config))
   end
 
-  defp result(base, files, functions, config) do
+  defp result(base, files, functions, coverage, config) do
     tests = suggested_tests(files, functions, config.tests.hints)
     {risk, risk_reasons} = aggregate_change_risk(functions)
 
@@ -36,6 +42,8 @@ defmodule Reach.Check.Changed do
       base: base,
       risk: risk,
       risk_reasons: risk_reasons,
+      confidence: coverage.confidence,
+      coverage: coverage,
       changed_files: files,
       changed_functions: functions,
       public_api_changes: Enum.filter(functions, & &1.public_api),
@@ -68,9 +76,31 @@ defmodule Reach.Check.Changed do
 
   def changed_functions(project, changed_ranges, config) do
     project
-    |> Query.functions_in_ranges(changed_ranges)
+    |> changed_function_nodes(changed_ranges)
+    |> summarize_functions(project, Config.normalize(config))
+  end
+
+  defp changed_function_nodes(project, changed_ranges) do
+    current_ranges =
+      Map.new(changed_ranges, fn {file, ranges} ->
+        {file, Enum.flat_map(ranges, &(Range.normalize(&1) |> current_range()))}
+      end)
+
+    project
+    |> Query.functions_in_ranges(current_ranges)
     |> Enum.uniq_by(&{&1.meta[:module], &1.meta[:name], &1.meta[:arity]})
-    |> Enum.map(&function_summary(project, &1, Config.normalize(config)))
+  end
+
+  defp current_range(range) do
+    case Range.current_lines(range) do
+      nil -> []
+      lines -> [lines]
+    end
+  end
+
+  defp summarize_functions(function_nodes, project, config) do
+    function_nodes
+    |> Enum.map(&function_summary(project, &1, config))
     |> Enum.sort_by(&{&1.file || "", &1.line || 0, &1.id})
   end
 
@@ -215,34 +245,70 @@ defmodule Reach.Check.Changed do
   defp parse_diff_ranges(output) do
     output
     |> String.split("\n")
-    |> Enum.reduce({nil, %{}}, fn line, {file, acc} ->
-      cond do
-        String.starts_with?(line, "+++ b/") ->
-          {String.replace_prefix(line, "+++ b/", ""), acc}
-
-        String.starts_with?(line, "@@") and file not in [nil, "/dev/null"] ->
-          {file, add_hunk_range(acc, file, parse_hunk_range(line))}
-
-        true ->
-          {file, acc}
-      end
-    end)
+    |> Enum.reduce({%{old_file: nil, new_file: nil}, %{}}, &parse_diff_line/2)
     |> elem(1)
     |> Map.new(fn {file, ranges} -> {file, Enum.reverse(ranges)} end)
   end
+
+  defp parse_diff_line("diff --git " <> _rest, {_state, acc}) do
+    {%{old_file: nil, new_file: nil}, acc}
+  end
+
+  defp parse_diff_line("--- a/" <> file, {state, acc}) do
+    {%{state | old_file: file}, acc}
+  end
+
+  defp parse_diff_line("--- /dev/null", {state, acc}) do
+    {%{state | old_file: nil}, acc}
+  end
+
+  defp parse_diff_line("+++ b/" <> file, {state, acc}) do
+    {%{state | new_file: file}, acc}
+  end
+
+  defp parse_diff_line("+++ /dev/null", {state, acc}) do
+    {%{state | new_file: nil}, acc}
+  end
+
+  defp parse_diff_line("@@" <> _rest = line, {state, acc}) do
+    file = state.new_file || state.old_file
+
+    if file do
+      {state, add_hunk_range(acc, file, parse_hunk_range(line))}
+    else
+      {state, acc}
+    end
+  end
+
+  defp parse_diff_line(_line, state_and_acc), do: state_and_acc
 
   defp add_hunk_range(acc, _file, nil), do: acc
   defp add_hunk_range(acc, file, range), do: Map.update(acc, file, [range], &[range | &1])
 
   defp parse_hunk_range(line) do
-    case Regex.run(~r/\+(\d+)(?:,(\d+))?/, line) do
-      [_, start] -> {String.to_integer(start), String.to_integer(start)}
-      [_, _start, "0"] -> nil
-      [_, start, count] -> range_from_count(String.to_integer(start), String.to_integer(count))
+    case Regex.run(~r/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/, line) do
+      [_, old_start, old_count, new_start, new_count] ->
+        diff_range(old_start, old_count, new_start, new_count)
+
+      [_, old_start, old_count, new_start] ->
+        diff_range(old_start, old_count, new_start, "")
+
+      _ ->
+        nil
     end
   end
 
-  defp range_from_count(start, count), do: {start, start + count - 1}
+  defp diff_range(old_start, old_count, new_start, new_count) do
+    Range.new(
+      old_start: String.to_integer(old_start),
+      old_count: diff_count(old_count),
+      new_start: String.to_integer(new_start),
+      new_count: diff_count(new_count)
+    )
+  end
+
+  defp diff_count(""), do: 1
+  defp diff_count(count), do: String.to_integer(count)
 
   defp function_summary(project, func, config) do
     id = {func.meta[:module], func.meta[:name], func.meta[:arity]}

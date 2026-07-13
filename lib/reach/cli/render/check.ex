@@ -116,7 +116,10 @@ defmodule Reach.CLI.Render.Check do
 
   def render_changed_text(result) do
     Text.section("Changed Code", [
-      Text.line("base=#{result.base} risk=#{risk_label(result.risk)}")
+      Text.line(
+        "base=#{result.base} risk=#{risk_label(result.risk)} confidence=#{confidence_label(result.confidence)}"
+      ),
+      Text.line(coverage_summary(result.coverage))
     ])
 
     if result.risk_reasons != [] do
@@ -126,6 +129,13 @@ defmodule Reach.CLI.Render.Check do
     []
     |> add_omitted(
       render_limited_section("Changed files", result.changed_files, &IO.puts("  #{&1}"))
+    )
+    |> add_omitted(
+      render_limited_section(
+        "Unassessed files",
+        result.coverage.unassessed_files,
+        &IO.puts("  #{&1}")
+      )
     )
     |> add_omitted(
       render_limited_section("Changed functions", result.changed_functions, fn function ->
@@ -227,6 +237,18 @@ defmodule Reach.CLI.Render.Check do
   end
 
   defp risk_label(risk), do: Format.risk(risk)
+
+  defp confidence_label(:high), do: Format.green("high")
+  defp confidence_label(:partial), do: Format.yellow("partial")
+  defp confidence_label(:none), do: Format.red("none")
+  defp confidence_label(confidence), do: to_string(confidence)
+
+  defp coverage_summary(coverage) do
+    files =
+      "files=#{coverage.fully_assessed_file_count}/#{coverage.partially_assessed_file_count}/#{coverage.unassessed_file_count} full/partial/unassessed"
+
+    "coverage=#{coverage.coverage_percent}% lines=#{coverage.assessed_line_count}/#{coverage.changed_line_count} assessed #{files} deleted=#{coverage.deleted_line_count}"
+  end
 
   defp json_envelope(result) do
     %Reach.CLI.JSONEnvelope{

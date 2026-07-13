@@ -6,6 +6,7 @@
 
 - Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.
 - Effect and risk values now remain typed atoms through domain and text-rendering layers; only JSON serialization converts them to strings.
+- Changed-code output now reports assessment confidence and line/file coverage separately from function risk, including deleted-only and otherwise unassessed changes.
 
 ## 2.7.5 - 2026-06-12
 
