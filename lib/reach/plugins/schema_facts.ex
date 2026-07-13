@@ -10,7 +10,15 @@ defmodule Reach.Plugins.SchemaFacts do
       collect(body, fn
         {{:., _dot_meta, [{:__aliases__, _, [:Zoi]}, function]}, meta, arguments}
         when function in [:object, :struct] and is_list(arguments) ->
-          schema_fact(:zoi, module, function, List.last(arguments), meta, file)
+          schema_fact(
+            :zoi,
+            module,
+            function,
+            List.last(arguments),
+            {:call, function, meta[:line]},
+            meta,
+            file
+          )
 
         _node ->
           []
@@ -27,8 +35,8 @@ defmodule Reach.Plugins.SchemaFacts do
         {{:., _dot_meta, [{:__aliases__, _, [:NimbleOptions]}, function]}, meta,
          [_options, schema | _]}
         when function in [:validate, :validate!] ->
-          schema = resolve_attribute(schema, attributes)
-          schema_fact(:nimble_options, module, function, schema, meta, file)
+          {schema, identity} = resolve_attribute(schema, attributes)
+          schema_fact(:nimble_options, module, function, schema, identity, meta, file)
 
         _node ->
           []
@@ -45,8 +53,9 @@ defmodule Reach.Plugins.SchemaFacts do
     Enum.reverse(facts)
   end
 
-  defp schema_fact(framework, module, name, schema, meta, file) do
-    fields = schema_fields(schema)
+  defp schema_fact(framework, module, name, schema, identity, meta, file) do
+    field_specs = schema_field_specs(schema, framework)
+    fields = Enum.map(field_specs, &{&1.name, &1.key_representation})
 
     if fields == [] do
       []
@@ -63,33 +72,124 @@ defmodule Reach.Plugins.SchemaFacts do
           arity: nil,
           call_module: framework_module(framework),
           nesting: [],
-          data: %{fields: fields, key_representation: key_representation(fields)},
+          data: %{
+            schema_identity: {framework, module, identity},
+            fields: fields,
+            field_specs: field_specs,
+            required_fields: required_fields(field_specs),
+            defaults: defaults(field_specs),
+            key_representation: key_representation(fields)
+          },
           confidence: :high
         }
       ]
     end
   end
 
-  defp schema_fields(
-         {{:., _dot_meta, [{:__aliases__, _, [:NimbleOptions]}, :new!]}, _meta, [schema]}
+  defp schema_field_specs(
+         {{:., _dot_meta, [{:__aliases__, _, [:NimbleOptions]}, :new!]}, _meta, [schema]},
+         :nimble_options
        ),
-       do: schema_fields(schema)
+       do: schema_field_specs(schema, :nimble_options)
 
-  defp schema_fields({:%{}, _meta, entries}) when is_list(entries) do
+  defp schema_field_specs({:%{}, _meta, entries}, :zoi) when is_list(entries) do
+    field_specs(entries, &zoi_field_spec/2)
+  end
+
+  defp schema_field_specs(entries, :nimble_options) when is_list(entries) do
+    field_specs(entries, &nimble_field_spec/2)
+  end
+
+  defp schema_field_specs(_schema, _framework), do: []
+
+  defp field_specs(entries, builder) do
     Enum.flat_map(entries, fn
-      {key, _value} when is_atom(key) or is_binary(key) -> [{key, key_kind(key)}]
+      {key, value} when is_atom(key) or is_binary(key) -> [builder.(key, value)]
       _entry -> []
     end)
   end
 
-  defp schema_fields(entries) when is_list(entries) do
-    Enum.flat_map(entries, fn
-      {key, _value} when is_atom(key) or is_binary(key) -> [{key, key_kind(key)}]
-      _entry -> []
-    end)
+  defp zoi_field_spec(key, schema) do
+    calls = remote_call_names(schema, Zoi)
+
+    %{
+      name: key,
+      key_representation: key_kind(key),
+      type: zoi_type(calls),
+      required?: :required in calls,
+      default: zoi_default(schema)
+    }
   end
 
-  defp schema_fields(_schema), do: []
+  defp nimble_field_spec(key, options) do
+    %{
+      name: key,
+      key_representation: key_kind(key),
+      type: keyword_literal(options, :type),
+      required?: keyword_literal(options, :required) == true,
+      default: keyword_value(options, :default)
+    }
+  end
+
+  defp remote_call_names(ast, module) do
+    {_ast, names} =
+      Macro.prewalk(ast, [], fn
+        {{:., _, [{:__aliases__, _, parts}, name]}, _, _args} = node, names ->
+          if Module.concat(parts) == module, do: {node, [name | names]}, else: {node, names}
+
+        node, names ->
+          {node, names}
+      end)
+
+    names
+  end
+
+  defp zoi_type(calls) do
+    Enum.find(calls, &(&1 not in [:required, :default, :optional, :nullable]))
+  end
+
+  defp zoi_default(ast) do
+    {_ast, default} =
+      Macro.prewalk(ast, :none, fn
+        {{:., _, [{:__aliases__, _, [:Zoi]}, :default]}, _, [value]} = node, :none ->
+          {node, literal(value)}
+
+        node, default ->
+          {node, default}
+      end)
+
+    default
+  end
+
+  defp keyword_literal(options, key) do
+    case keyword_value(options, key) do
+      :none -> nil
+      value -> value
+    end
+  end
+
+  defp keyword_value(options, key) when is_list(options) do
+    case List.keyfind(options, key, 0) do
+      {^key, value} -> literal(value)
+      nil -> :none
+    end
+  end
+
+  defp keyword_value(_options, _key), do: :none
+
+  defp literal(value) when is_atom(value) or is_binary(value) or is_number(value), do: value
+  defp literal(value) when is_list(value), do: value
+  defp literal(_value), do: :dynamic
+
+  defp required_fields(field_specs) do
+    field_specs |> Enum.filter(& &1.required?) |> Enum.map(& &1.name)
+  end
+
+  defp defaults(field_specs) do
+    field_specs
+    |> Enum.reject(&(&1.default == :none))
+    |> Map.new(&{&1.name, &1.default})
+  end
 
   defp key_representation(fields) do
     fields
@@ -115,9 +215,9 @@ defmodule Reach.Plugins.SchemaFacts do
   end
 
   defp resolve_attribute({:@, _meta, [{name, _name_meta, _args}]}, attributes),
-    do: Map.get(attributes, name)
+    do: {Map.get(attributes, name), {:attribute, name}}
 
-  defp resolve_attribute(schema, _attributes), do: schema
+  defp resolve_attribute(schema, _attributes), do: {schema, :inline}
 
   defp module_and_body({:defmodule, _meta, [module_ast, body]}) do
     {module_name(module_ast), keyword_body(body)}
