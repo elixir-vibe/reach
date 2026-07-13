@@ -51,6 +51,25 @@ defmodule Reach.Smell.Checks.DefaultDriftTest do
     assert Enum.any?(findings, &(&1.kind == :default_drift))
   end
 
+  test "does not flag defaults selected by mutually exclusive case clauses" do
+    findings =
+      project_from_string("""
+      defmodule Options do
+        def shutdown(child) do
+          type = Map.get(child, :type, :worker)
+
+          case type do
+            :worker -> Map.get(child, :shutdown, 5_000)
+            :supervisor -> Map.get(child, :shutdown, :infinity)
+          end
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :default_drift))
+  end
+
   test "does not join unrelated map origins" do
     findings =
       project_from_string("""

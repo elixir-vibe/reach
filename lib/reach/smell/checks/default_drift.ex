@@ -11,12 +11,14 @@ defmodule Reach.Smell.Checks.DefaultDrift do
 
   @impl true
   def run(project) do
+    parent_index = parent_index(project.nodes)
+
     project
     |> MapContract.collect_key_accesses()
     |> Enum.flat_map(&access_default/1)
     |> Enum.reject(fn {access, _default} -> access.map_origins == [] end)
     |> Enum.group_by(fn {access, _default} -> {access.map_origins, access.logical_key} end)
-    |> Enum.flat_map(&finding_for_group/1)
+    |> Enum.flat_map(&finding_for_group(&1, parent_index))
   end
 
   defp access_default(%{default_node: %{type: :literal, meta: %{value: value}}} = access) do
@@ -25,11 +27,13 @@ defmodule Reach.Smell.Checks.DefaultDrift do
 
   defp access_default(_access), do: []
 
-  defp finding_for_group({_contract_key, accesses_and_defaults}) do
+  defp finding_for_group({_contract_key, accesses_and_defaults}, parent_index) do
     defaults = accesses_and_defaults |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> Enum.sort()
 
-    if length(defaults) >= 2 do
-      accesses = Enum.map(accesses_and_defaults, &elem(&1, 0))
+    accesses = Enum.map(accesses_and_defaults, &elem(&1, 0))
+
+    if length(defaults) >= 2 and
+         not mutually_exclusive_defaults?(accesses_and_defaults, parent_index) do
       first = List.first(accesses)
 
       [
@@ -45,6 +49,37 @@ defmodule Reach.Smell.Checks.DefaultDrift do
       ]
     else
       []
+    end
+  end
+
+  defp mutually_exclusive_defaults?(accesses_and_defaults, parent_index) do
+    accesses = Enum.map(accesses_and_defaults, &elem(&1, 0))
+    functions = accesses |> Enum.map(& &1.function) |> Enum.uniq()
+    contexts = Enum.map(accesses, &clause_context(&1.node.id, parent_index))
+
+    length(functions) == 1 and Enum.all?(contexts, & &1) and
+      contexts |> Enum.uniq() |> length() >= 2 and
+      accesses_and_defaults
+      |> Enum.group_by(
+        fn {access, _default} -> clause_context(access.node.id, parent_index) end,
+        &elem(&1, 1)
+      )
+      |> Enum.all?(fn {_context, defaults} -> length(Enum.uniq(defaults)) == 1 end)
+  end
+
+  defp parent_index(nodes) do
+    nodes
+    |> Map.values()
+    |> Enum.reduce(%{}, fn node, index ->
+      Enum.reduce(node.children, index, &Map.put(&2, &1.id, node))
+    end)
+  end
+
+  defp clause_context(node_id, parent_index) do
+    case parent_index[node_id] do
+      %{type: :clause, id: id} -> id
+      %{id: parent_id} -> clause_context(parent_id, parent_index)
+      nil -> nil
     end
   end
 end
