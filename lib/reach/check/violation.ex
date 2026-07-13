@@ -25,5 +25,11 @@ defmodule Reach.Check.Violation do
     :message
   ]
 
+  @type t :: %__MODULE__{
+          allowed_effects: [Reach.Effects.effect()] | nil,
+          actual_effects: [Reach.Effects.effect()] | nil,
+          disallowed_effects: [Reach.Effects.effect()] | nil
+        }
+
   def new(attrs) when is_list(attrs) or is_map(attrs), do: struct!(__MODULE__, attrs)
 end

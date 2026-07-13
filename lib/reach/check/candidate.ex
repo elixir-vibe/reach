@@ -26,5 +26,11 @@ defmodule Reach.Check.Candidate do
     :sources
   ]
 
+  @type t :: %__MODULE__{
+          risk: :high | :medium | :low,
+          confidence: :high | :medium | :low,
+          effects: [Reach.Effects.effect()] | nil
+        }
+
   def new(attrs) when is_list(attrs) or is_map(attrs), do: struct!(__MODULE__, attrs)
 end

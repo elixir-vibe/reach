@@ -80,7 +80,7 @@ defmodule Reach.Plugin do
   Return an effect atom (`:pure`, `:read`, `:write`, `:io`, `:send`,
   `:exception`) or `nil` to defer to the next classifier.
   """
-  @callback classify_effect(node :: Node.t()) :: atom() | nil
+  @callback classify_effect(node :: Node.t()) :: Reach.Effects.effect() | nil
 
   @doc """
   Extracts embedded code from IR nodes (e.g. JS strings passed to

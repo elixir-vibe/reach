@@ -45,7 +45,7 @@ defmodule Reach.Inspect.Candidates do
           confidence: :medium,
           actionability: :review_effect_order,
           evidence: ["mixed_effects"],
-          effects: Enum.map(effects, &to_string/1),
+          effects: effects,
           proof: [
             "Preserve side-effect order exactly.",
             "Extract only pure decision/preparation code first.",

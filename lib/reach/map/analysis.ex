@@ -101,7 +101,7 @@ defmodule Reach.Map.Analysis do
         display_function: IRHelpers.func_id_to_string(mfa),
         file: func.source_span && func.source_span.file,
         line: func.source_span && func.source_span.start_line,
-        effects: Enum.map(effects, &to_string/1),
+        effects: effects,
         calls: effect_calls(func, project.plugins)
       )
     end)

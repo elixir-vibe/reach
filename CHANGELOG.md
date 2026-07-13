@@ -5,6 +5,7 @@
 ### Fixed
 
 - Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.
+- Effect and risk values now remain typed atoms through domain and text-rendering layers; only JSON serialization converts them to strings.
 
 ## 2.7.5 - 2026-06-12
 

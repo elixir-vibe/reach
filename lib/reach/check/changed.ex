@@ -126,7 +126,7 @@ defmodule Reach.Check.Changed do
       id: fragment_id(fragment),
       file: fragment.file,
       line: fragment.line,
-      effects: Enum.map(fragment.effects, &to_string/1),
+      effects: fragment.effects,
       return_shapes: Enum.map(fragment.return_shapes, &to_string/1)
     }
   end
@@ -262,7 +262,7 @@ defmodule Reach.Check.Changed do
       risk: risk,
       risk_reasons: reasons,
       public_api: public_api_function?(func, config),
-      effects: Enum.map(effects, &to_string/1),
+      effects: effects,
       branch_count: branches,
       direct_callers: Enum.map(direct_callers, &IRHelpers.func_id_to_string(&1.id)),
       direct_caller_count: length(direct_callers),
