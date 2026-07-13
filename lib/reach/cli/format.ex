@@ -2,6 +2,7 @@ defmodule Reach.CLI.Format do
   @moduledoc false
 
   alias Reach.CLI.Project
+  alias Reach.Effects
 
   # ── Color helpers ──
 
@@ -20,30 +21,25 @@ defmodule Reach.CLI.Format do
   def bright(text), do: c(text, IO.ANSI.bright())
   def faint(text), do: c(text, IO.ANSI.faint())
 
+  @type risk :: :high | :medium | :low
+
+  @spec risk(risk()) :: String.t()
   def risk(:high), do: red("high")
-  def risk("high"), do: red("high")
   def risk(:medium), do: yellow("medium")
-  def risk("medium"), do: yellow("medium")
   def risk(:low), do: green("low")
-  def risk("low"), do: green("low")
-  def risk(other), do: to_string(other)
 
-  def effect("pure"), do: green("pure")
+  @spec effect(Effects.effect()) :: String.t()
   def effect(:pure), do: green("pure")
-  def effect("unknown"), do: yellow("unknown")
   def effect(:unknown), do: yellow("unknown")
-  def effect("io"), do: cyan("io")
   def effect(:io), do: cyan("io")
-  def effect("read"), do: blue("read")
   def effect(:read), do: blue("read")
-  def effect("write"), do: magenta("write")
   def effect(:write), do: magenta("write")
-  def effect("exception"), do: red("exception")
   def effect(:exception), do: red("exception")
-  def effect("send"), do: magenta("send")
   def effect(:send), do: magenta("send")
-  def effect(other), do: to_string(other)
+  def effect(:receive), do: magenta("receive")
+  def effect(:nif), do: red("nif")
 
+  @spec effects_join([Effects.effect()], String.t()) :: String.t()
   def effects_join(effects, separator \\ ", ") do
     Enum.map_join(effects, separator, &effect/1)
   end

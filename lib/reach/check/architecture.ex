@@ -374,9 +374,9 @@ defmodule Reach.Check.Architecture do
           type: :effect_policy,
           module: inspect(module),
           function: "#{func.meta[:name]}/#{func.meta[:arity]}",
-          allowed_effects: Enum.map(allowed, &to_string/1),
-          actual_effects: Enum.map(effects, &to_string/1),
-          disallowed_effects: Enum.map(disallowed, &to_string/1),
+          allowed_effects: allowed,
+          actual_effects: effects,
+          disallowed_effects: disallowed,
           file: func.source_span && func.source_span.file,
           line: func.source_span && func.source_span.start_line
         )

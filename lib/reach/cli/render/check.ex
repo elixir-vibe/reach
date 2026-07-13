@@ -33,7 +33,7 @@ defmodule Reach.CLI.Render.Check do
       )
 
       IO.puts(
-        "    benefit=#{candidate.benefit} risk=#{Format.risk(candidate.risk)} confidence=#{Format.risk(Map.get(candidate, :confidence, :unknown))}"
+        "    benefit=#{candidate.benefit} risk=#{Format.risk(candidate.risk)} confidence=#{Format.risk(candidate.confidence)}"
       )
 
       if Map.get(candidate, :file) do

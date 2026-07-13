@@ -17,5 +17,11 @@ defmodule Reach.Check.Changed.Function do
     clone_siblings: []
   ]
 
+  @type t :: %__MODULE__{
+          risk: :high | :medium | :low,
+          effects: [Reach.Effects.effect()],
+          clone_siblings: [map()]
+        }
+
   def new(attrs), do: struct!(__MODULE__, attrs)
 end
