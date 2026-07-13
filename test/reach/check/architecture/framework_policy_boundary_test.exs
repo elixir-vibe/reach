@@ -7,7 +7,7 @@ defmodule Reach.Check.Architecture.FrameworkPolicyBoundaryTest do
     "lib/reach/otp/analysis.ex"
   ]
 
-  @framework_terms ~w(Phoenix Ecto Oban Ash Jason Poison ExUnit GenStage Broadway OpenTelemetry QuickBEAM Jido)
+  @framework_terms ~w(Phoenix Ecto Oban Ash Nx Jason Poison ExUnit GenStage Broadway OpenTelemetry QuickBEAM Jido)
   @framework_callbacks ~w(mount handle_event handle_params perform handle_batch handle_demand handle_events)
 
   test "generic analysis modules do not encode framework policy" do

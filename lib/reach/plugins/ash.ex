@@ -2,9 +2,8 @@ defmodule Reach.Plugins.Ash do
   @moduledoc "Plugin for Ash framework action and resource semantics."
   @behaviour Reach.Plugin
 
-  alias Reach.IR
+  alias Reach.{AST, IR, MacroFact}
   alias Reach.IR.Node
-  alias Reach.MacroFact
 
   @impl true
   def inference_hints do
@@ -239,6 +238,20 @@ defmodule Reach.Plugins.Ash do
     :extra_states,
     :deprecated_states
   ]
+
+  @reinterpreted_block_dsl @ash_resource_block_dsl ++ @ash_action_dsl ++ @state_machine_dsl
+
+  @impl true
+  def reinterpreted_ast?(ast) do
+    case AST.call(ast) do
+      {nil, :expr, [_expression]} -> true
+      {Ash.Expr, :expr, [_expression]} -> true
+      {nil, name, args} when name in @reinterpreted_block_dsl -> block_call?(args)
+      _other -> false
+    end
+  end
+
+  defp block_call?(args), do: args |> List.last() |> AST.keyword?(:do)
 
   # --- Ash.Notifier ---
 

@@ -2,9 +2,8 @@ defmodule Reach.Plugins.Ecto do
   @moduledoc "Plugin for Ecto query DSL, Repo calls, and schema semantics."
   @behaviour Reach.Plugin
 
-  alias Reach.IR
+  alias Reach.{AST, IR, MacroFact}
   alias Reach.IR.Node
-  alias Reach.MacroFact
 
   import Reach.Plugins.Helpers, only: [find_vars_in: 1]
 
@@ -107,6 +106,23 @@ defmodule Reach.Plugins.Ecto do
     :like,
     :ilike
   ]
+
+  @reinterpreted_query_macros @query_dsl ++ [:dynamic]
+
+  @impl true
+  def reinterpreted_ast?(ast) do
+    case AST.call(ast) do
+      {nil, name, [_argument | _rest]} when name in @reinterpreted_query_macros ->
+        true
+
+      {module, name, [_argument | _rest]}
+      when module in [Ecto.Query, Ecto.Query.API] and name in @reinterpreted_query_macros ->
+        true
+
+      _other ->
+        false
+    end
+  end
 
   @changeset_fns [
     :cast,

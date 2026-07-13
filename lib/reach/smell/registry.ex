@@ -5,6 +5,16 @@ defmodule Reach.Smell.Registry do
 
   def checks(config \\ nil), do: checks(nil, config)
 
+  @doc "Returns the finding kinds emitted by a smell check."
+  @spec kinds(module()) :: [atom()]
+  def kinds(check) do
+    cond do
+      function_exported?(check, :kinds, 0) -> check.kinds()
+      pattern_check?(check) -> pattern_kinds(check.__reach_pattern_check__())
+      true -> []
+    end
+  end
+
   def checks(project, config) do
     builtin_checks()
     |> Kernel.++(plugin_checks(project))
@@ -59,6 +69,17 @@ defmodule Reach.Smell.Registry do
   end
 
   defp reach_plugin_check?(_module), do: false
+
+  defp pattern_kinds(metadata) do
+    Enum.map(metadata.patterns ++ metadata.queries, fn
+      {_matcher, kind, _message} -> kind
+      {_matcher, kind, _message, _prefilter} -> kind
+    end)
+  end
+
+  defp pattern_check?(check) do
+    Code.ensure_loaded?(check) and function_exported?(check, :__reach_pattern_check__, 0)
+  end
 
   defp check?(module) do
     Code.ensure_loaded?(module) and Check in behaviours(module)

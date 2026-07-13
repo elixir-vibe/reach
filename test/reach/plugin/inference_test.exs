@@ -18,7 +18,8 @@ defmodule Reach.Plugin.InferenceTest do
         [
           {:phoenix, "~> 1.8"},
           {:ecto_sql, "~> 3.13"},
-          {:oban, "~> 2.19"}
+          {:oban, "~> 2.19"},
+          {:nx, "~> 0.10"}
         ]
       end
     end
@@ -29,6 +30,7 @@ defmodule Reach.Plugin.InferenceTest do
     assert Reach.Plugins.Phoenix in plugins
     assert Reach.Plugins.Ecto in plugins
     assert Reach.Plugins.Oban in plugins
+    assert Reach.Plugins.Nx in plugins
     refute File.exists?(marker)
   end
 

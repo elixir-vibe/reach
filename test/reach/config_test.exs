@@ -60,6 +60,7 @@ defmodule Reach.ConfigTest do
                  strict: true,
                  custom_checks: [MyApp.ReachSmells.NoFoo],
                  ignore: [paths: ["vendor/**"], modules: ["Generated.*"]],
+                 dsl_macros: [{MyApp.Expr, :expr, 1}, {nil, :query, :any}],
                  fixed_shape_map: [
                    min_keys: 4,
                    min_occurrences: 5,
@@ -125,6 +126,7 @@ defmodule Reach.ConfigTest do
     assert config.smells.strict == true
     assert config.smells.custom_checks == [MyApp.ReachSmells.NoFoo]
     assert config.smells.ignore == [paths: ["vendor/**"], modules: ["Generated.*"]]
+    assert config.smells.dsl_macros == [{MyApp.Expr, :expr, 1}, {nil, :query, :any}]
     assert config.smells.fixed_shape_map.min_keys == 4
     assert config.smells.fixed_shape_map.min_occurrences == 5
     assert config.smells.fixed_shape_map.evidence_limit == 6
@@ -147,6 +149,13 @@ defmodule Reach.ConfigTest do
     assert config.clone_analysis.parse_timeout == 2_000
     assert config.clone_analysis.ignore == ["lib/generated/**"]
     assert config.clone_analysis.max_clones == 7
+  end
+
+  test "rejects malformed DSL macro shapes" do
+    assert {:error, errors} = Config.from_terms(smells: [dsl_macros: [{MyDSL, :expr}]])
+
+    assert %Config.Error{path: [:smells, :dsl_macros]} =
+             Enum.find(errors, &(&1.path == [:smells, :dsl_macros]))
   end
 
   test "accepts flat compatibility aliases" do

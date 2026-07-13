@@ -99,6 +99,7 @@ defmodule Reach.Config do
     defstruct strict: false,
               custom_checks: [],
               ignore: [],
+              dsl_macros: [],
               fixed_shape_map: nil,
               behaviour_candidate: nil
   end
@@ -136,6 +137,8 @@ defmodule Reach.Config do
       )
     end
   end
+
+  @type t :: %__MODULE__{}
 
   defstruct layers: [],
             deps: nil,
@@ -299,6 +302,7 @@ defmodule Reach.Config do
         strict: nested(config, [:smells, :strict], nil, false),
         custom_checks: nested(config, [:smells, :custom_checks], nil, []),
         ignore: nested(config, [:smells, :ignore], nil, []),
+        dsl_macros: nested(config, [:smells, :dsl_macros], nil, []),
         fixed_shape_map: %Smells.FixedShapeMap{
           min_keys: nested(config, [:smells, :fixed_shape_map, :min_keys], nil, 3),
           min_occurrences: nested(config, [:smells, :fixed_shape_map, :min_occurrences], nil, 3),
@@ -575,6 +579,12 @@ defmodule Reach.Config do
       &valid_ignore?/1,
       "expected keyword list with paths and modules"
     )
+    |> check(
+      config,
+      [:smells, :dsl_macros],
+      &valid_dsl_macros?/1,
+      "expected {module_or_nil, function, arity_or_any} tuples"
+    )
     |> check(config, [:smells, :fixed_shape_map], &valid_group?/1, "expected keyword list")
     |> check(config, [:smells, :behaviour_candidate], &valid_group?/1, "expected keyword list")
     |> check(
@@ -787,6 +797,7 @@ defmodule Reach.Config do
       :strict,
       :custom_checks,
       :ignore,
+      :dsl_macros,
       :fixed_shape_map,
       :behaviour_candidate
     ])
@@ -934,6 +945,22 @@ defmodule Reach.Config do
   end
 
   defp valid_ignore?(_value), do: false
+
+  defp valid_dsl_macros?(value) when is_list(value) do
+    Enum.all?(value, fn
+      {module, function, :any} when is_atom(module) and is_atom(function) ->
+        true
+
+      {module, function, arity}
+      when is_atom(module) and is_atom(function) and is_integer(arity) and arity >= 0 ->
+        true
+
+      _shape ->
+        false
+    end)
+  end
+
+  defp valid_dsl_macros?(_value), do: false
 
   defp valid_except_edges?(value) when is_list(value) do
     Enum.all?(value, fn

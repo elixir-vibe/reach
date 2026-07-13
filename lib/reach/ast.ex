@@ -14,4 +14,42 @@ defmodule Reach.AST do
 
     Enum.reverse(modules)
   end
+
+  @doc "Returns the module, function, and arguments represented by an Elixir call AST node."
+  @spec call(Macro.t()) :: {module() | nil, atom(), [Macro.t()]} | nil
+  def call({{:., _dot_meta, [module_ast, name]}, _meta, args})
+      when is_atom(name) and is_list(args) do
+    case ast_module(module_ast) do
+      nil -> nil
+      module -> {module, name, args}
+    end
+  end
+
+  def call({name, _meta, args}) when is_atom(name) and is_list(args),
+    do: {nil, name, args}
+
+  def call(_ast), do: nil
+
+  @doc "Returns whether keyword AST contains a key."
+  @spec keyword?(Macro.t(), atom()) :: boolean()
+  def keyword?(entries, key) when is_list(entries) do
+    Enum.any?(entries, fn
+      {{:__block__, _meta, [^key]}, _value} -> true
+      {^key, _value} -> true
+      _entry -> false
+    end)
+  end
+
+  def keyword?(_entries, _key), do: false
+
+  defp ast_module({:__aliases__, _meta, parts}) when is_list(parts) do
+    if Enum.all?(parts, &is_atom/1) do
+      Module.safe_concat(parts)
+    end
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp ast_module(module) when is_atom(module), do: module
+  defp ast_module(_ast), do: nil
 end

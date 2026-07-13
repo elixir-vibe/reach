@@ -74,6 +74,10 @@ The file must evaluate to a keyword list. Start from [`examples/reach.exs`](../e
     max_clones: 50
   ],
   smells: [
+    dsl_macros: [
+      {MyApp.Expr, :expr, 1},
+      {nil, :imported_query, :any}
+    ],
     fixed_shape_map: [
       min_keys: 3,
       min_occurrences: 3,
@@ -526,6 +530,21 @@ smells: [
 ```
 
 Custom checks run alongside Reach's built-in smell checks and participate in `--strict` and baseline filtering. A custom check must implement `Reach.Smell.Check` and define `run/1`. See the custom smells guide for a deeper walkthrough.
+
+### `smells[:dsl_macros]`
+
+Some macros reinterpret ordinary Elixir syntax, so generic AST/IR smells are not valid inside them. Reach plugins guard known Ecto query, Ash expression/resource, and Nx `defn` ranges automatically. Configure project-specific DSLs as `{module_or_nil, function, arity_or_any}` tuples:
+
+```elixir
+smells: [
+  dsl_macros: [
+    {MyApp.Expr, :expr, 1},
+    {nil, :imported_query, :any}
+  ]
+]
+```
+
+Use `nil` for imported/local macro calls and a module for qualified calls. Plugin-provided findings remain active inside their own DSL ranges; only generic findings are guarded.
 
 ### Built-in smell examples
 
