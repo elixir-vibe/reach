@@ -844,6 +844,19 @@ defmodule Reach.SmellTest do
       assert finding.message =~ "consider a struct or explicit contract"
     end
 
+    test "does not flag repeated map patterns" do
+      findings =
+        run_smell_task("""
+        defmodule RepeatedPatterns do
+          def a(%{id: id, kind: kind, target: target}), do: {id, kind, target}
+          def b(%{id: id, kind: kind, target: target}), do: {id, kind, target}
+          def c(%{id: id, kind: kind, target: target}), do: {id, kind, target}
+        end
+        """)
+
+      assert Enum.filter(findings, &(&1.kind == :fixed_shape_map)) == []
+    end
+
     test "does not flag isolated map literals" do
       findings =
         run_smell_task("""

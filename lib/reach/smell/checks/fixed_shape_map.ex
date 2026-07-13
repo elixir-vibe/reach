@@ -35,7 +35,7 @@ defmodule Reach.Smell.Checks.FixedShapeMap do
   defp maps_in_function(function, config) do
     function
     |> IR.all_nodes()
-    |> Enum.filter(&(&1.type == :map and &1.source_span))
+    |> Enum.filter(&(&1.type == :map and not is_nil(&1.source_span) and not map_pattern?(&1)))
     |> Enum.flat_map(&map_shape(&1, config))
   end
 
@@ -59,6 +59,12 @@ defmodule Reach.Smell.Checks.FixedShapeMap do
   end
 
   defp field_key(_field), do: []
+
+  defp map_pattern?(node) do
+    node
+    |> IR.all_nodes()
+    |> Enum.any?(&(&1.meta[:binding_role] == :definition))
+  end
 
   defp fixed_shape_finding({keys, occurrences}, config) do
     occurrence_count = length(occurrences)
