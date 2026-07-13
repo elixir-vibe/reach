@@ -7,7 +7,9 @@ defmodule Reach.ProgramFactsStress do
   def run do
     Mix.Task.run("app.start")
 
-    Code.require_file("test_helpers/reach/test/program_facts/project.ex", File.cwd!())
+    unless Code.ensure_loaded?(Reach.Test.ProgramFacts.Project) do
+      Code.require_file("test/support/program_facts/project.ex", File.cwd!())
+    end
 
     iterations =
       System.get_env("PROGRAM_FACTS_STRESS_ITERATIONS", "100")

@@ -94,6 +94,7 @@ removed_files = [
       forbid_multiple_matches: true,
       ignore: [
         "Reach.MixProject",
+        "Reach.Test.*",
         "Reach.CLI.JSONEnvelope",
         "Jason.Encoder.*",
         "JSON.Encoder.*"

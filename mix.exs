@@ -10,6 +10,7 @@ defmodule Reach.MixProject do
       version: @version,
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       aliases: aliases(),
       elixirc_options: [
@@ -19,7 +20,7 @@ defmodule Reach.MixProject do
         ]
       ],
       dialyzer: [
-        plt_add_apps: [:mix, :eex, :boxart],
+        plt_add_apps: [:mix, :eex, :ex_unit, :boxart, :program_facts],
         flags: [:no_opaque]
       ],
       name: "Reach",
@@ -40,6 +41,9 @@ defmodule Reach.MixProject do
   def cli do
     [preferred_envs: [ci: :test, docs: :docs, "hex.publish": :docs]]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_env), do: ["lib"]
 
   defp aliases do
     [

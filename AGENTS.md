@@ -109,14 +109,14 @@ Before reorganizing tests, preserve the full inventory:
 
 ```bash
 mix test --trace > /tmp/reach-test-inventory-before.txt
-rg 'test "|property "|describe "' test test_helpers > /tmp/reach-test-declarations-before.txt
+rg 'test "|property "|describe "' test > /tmp/reach-test-declarations-before.txt
 ```
 
 Move tests with `git mv` first, keep test names unchanged, then split/refactor. Afterward:
 
 ```bash
 mix test --trace > /tmp/reach-test-inventory-after.txt
-rg 'test "|property "|describe "' test test_helpers > /tmp/reach-test-declarations-after.txt
+rg 'test "|property "|describe "' test > /tmp/reach-test-declarations-after.txt
 ```
 
 No existing test name may disappear unless it is intentionally replaced by an equivalent test noted in the commit message.

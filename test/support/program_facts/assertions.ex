@@ -109,7 +109,8 @@ defmodule Reach.Test.ProgramFacts.Assertions do
            "expected #{label} to be discovered, missing: #{inspect(missing)}"
   end
 
-  defp assert_branch_construct_visible(%{kind: kind}, summary) when kind in [:if, :case, :cond, :with] do
+  defp assert_branch_construct_visible(%{kind: kind}, summary)
+       when kind in [:if, :case, :cond, :with] do
     assert Enum.any?(summary.case_nodes, &case_node_matches?(&1, kind)),
            "expected generated #{kind} branch construct to be visible"
   end
@@ -170,8 +171,9 @@ defmodule Reach.Test.ProgramFacts.Assertions do
   defp clause_count(summary, :multi_clause_function), do: function_clause_count(summary)
   defp clause_count(summary, :callback), do: function_clause_count(summary)
   defp clause_count(summary, :guard), do: function_clause_count(summary)
-  defp clause_count(summary, :try), do: function_clause_count(summary)
-  defp clause_count(summary, :receive), do: count_clause_kind(summary, [:receive_clause, :timeout_clause])
+
+  defp clause_count(summary, :receive),
+    do: count_clause_kind(summary, [:receive_clause, :timeout_clause])
 
   defp assert_node_type(types, type) do
     assert Map.get(types, type, 0) > 0,
