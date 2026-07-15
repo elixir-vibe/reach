@@ -31,20 +31,31 @@ defmodule Reach.EvidenceCorpusScan do
     {:ok, _apps} = Application.ensure_all_started(:ex_unit)
     plugins = Reach.Plugin.detect()
     providers = Reach.Evidence.ast_providers_for(kind_family(kind), plugins)
+    plugin_provider_set = plugins |> Reach.Plugin.evidence_providers() |> MapSet.new()
 
     paths
     |> Enum.flat_map(&Path.wildcard(Path.join(&1, "{lib,test}/**/*.{ex,exs}")))
     |> Enum.uniq()
     |> Enum.sort()
-    |> Enum.flat_map(&scan_file(&1, providers, plugins))
+    |> Enum.flat_map(&scan_file(&1, providers, plugin_provider_set, plugins))
     |> print_results(limit, format)
   end
 
-  defp scan_file(path, providers, plugins) do
+  defp scan_file(path, providers, plugin_provider_set, plugins) do
     with {:ok, source} <- File.read(path),
          {:ok, ast} <- parse_source(source) do
-      providers
-      |> Enum.flat_map(&provider_evidence_silently(&1, ast, plugins))
+      {plugin_providers, generic_providers} =
+        Enum.split_with(providers, &MapSet.member?(plugin_provider_set, &1))
+
+      generic_evidence =
+        generic_providers
+        |> Enum.flat_map(&provider_evidence_silently(&1, ast, plugins))
+        |> Reach.Evidence.DSLGuard.filter(ast, plugins)
+
+      plugin_evidence =
+        Enum.flat_map(plugin_providers, &provider_evidence_silently(&1, ast, plugins))
+
+      (generic_evidence ++ plugin_evidence)
       |> Enum.map(&Map.put(&1, :file, path))
     else
       _error -> []

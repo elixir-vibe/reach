@@ -25,6 +25,9 @@ defmodule Reach.Plugin do
      framework-specific trace presets, behaviour labels, and visualization
      edge filtering.
 
+  7. **Reinterpreted DSL semantics** — `reinterpreted_ast?/1` identifies macro
+     ranges where generic Elixir smell/evidence rules do not apply.
+
   ## Implementing a plugin
 
       defmodule MyPlugin do
@@ -40,7 +43,7 @@ defmodule Reach.Plugin do
 
   ## Built-in plugins
 
-  Plugins for Phoenix, Ecto, Oban, GenStage, Jido, and OpenTelemetry
+  Plugins for Phoenix, Ecto, Ash, Nx, Oban, GenStage, Jido, and OpenTelemetry
   are included and auto-detected at runtime. Override with the
   `:plugins` option:
 
@@ -114,6 +117,9 @@ defmodule Reach.Plugin do
   @callback trace_pattern(pattern :: String.t()) :: (Node.t() -> boolean()) | nil
   @callback behaviour_label(callbacks :: [atom()]) :: String.t() | nil
   @callback expected_effect_boundary?(module(), atom(), non_neg_integer()) :: boolean() | nil
+  @doc "Returns whether an AST node introduces a DSL that reinterprets ordinary Elixir semantics."
+  @callback reinterpreted_ast?(ast :: Macro.t()) :: boolean()
+
   @callback ignore_call_edge?(Graph.Edge.t()) :: boolean()
 
   @optional_callbacks analyze_project: 3,
@@ -132,6 +138,7 @@ defmodule Reach.Plugin do
                       trace_pattern: 1,
                       behaviour_label: 1,
                       expected_effect_boundary?: 3,
+                      reinterpreted_ast?: 1,
                       ignore_call_edge?: 1
 
   @known_plugins [
@@ -148,6 +155,7 @@ defmodule Reach.Plugin do
     {Poison, Reach.Plugins.Poison},
     {Zoi, Reach.Plugins.Zoi},
     {NimbleOptions, Reach.Plugins.NimbleOptions},
+    {Nx, Reach.Plugins.Nx},
     {QuickBEAM, Reach.Plugins.QuickBEAM}
   ]
 
@@ -193,6 +201,13 @@ defmodule Reach.Plugin do
   def classify_effect(plugins, node) do
     Enum.find_value(plugins, fn plugin ->
       if exports?(plugin, :classify_effect, 1), do: plugin.classify_effect(node)
+    end)
+  end
+
+  @doc "Returns whether any configured plugin owns reinterpreted semantics for an AST node."
+  def reinterpreted_ast?(plugins, ast) do
+    Enum.any?(plugins, fn plugin ->
+      exports?(plugin, :reinterpreted_ast?, 1) and plugin.reinterpreted_ast?(ast)
     end)
   end
 
