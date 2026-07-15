@@ -87,6 +87,29 @@ defmodule Reach.Smell.DSLGuardTest do
     assert {_file, 3} = Suppressions.location(finding)
   end
 
+  test "same-line findings outside a nested DSL call remain active" do
+    project =
+      project_from_source(
+        """
+        defmodule QueryExample do
+          def run(atomic_results) do
+            atomic_results
+            |> Enum.reject(&match?({:error, _}, &1))
+            |> Enum.reduce({[], true}, fn
+              {:atomic, new_fields, new_condition, _error_expr}, {fields, condition} ->
+                {Enum.uniq(fields ++ new_fields), Ash.Expr.expr(^new_condition and ^condition)}
+            end)
+          end
+        end
+        """,
+        [Reach.Plugins.Ash]
+      )
+
+    assert Enum.any?(Smells.run(project), fn finding ->
+             finding.kind == :suboptimal and finding.message =~ "growing accumulator"
+           end)
+  end
+
   test "plugin-specific findings remain active inside guarded DSL ranges" do
     project =
       project_from_source(

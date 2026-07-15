@@ -26,7 +26,12 @@ defmodule Reach.Smell.Check do
       end
 
       defp finding(kind, message, node) do
-        Finding.new(kind: kind, message: message, location: Helpers.location(node))
+        Finding.new(
+          kind: kind,
+          message: message,
+          location: Helpers.location(node),
+          source_range: node.source_span
+        )
       end
 
       defoverridable run: 1
