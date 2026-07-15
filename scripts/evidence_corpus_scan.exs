@@ -43,14 +43,15 @@ defmodule Reach.EvidenceCorpusScan do
 
   defp scan_file(path, providers, plugin_provider_set, plugins) do
     with {:ok, source} <- File.read(path),
-         {:ok, ast} <- parse_source(source) do
+         {:ok, ast} <- parse_source(source),
+         {:ok, guard_ast} <- Sourceror.parse_string(source) do
       {plugin_providers, generic_providers} =
         Enum.split_with(providers, &MapSet.member?(plugin_provider_set, &1))
 
       generic_evidence =
         generic_providers
         |> Enum.flat_map(&provider_evidence_silently(&1, ast, plugins))
-        |> Reach.Evidence.DSLGuard.filter(ast, plugins)
+        |> Reach.Evidence.DSLGuard.filter(guard_ast, plugins)
 
       plugin_evidence =
         Enum.flat_map(plugin_providers, &provider_evidence_silently(&1, ast, plugins))
@@ -66,7 +67,7 @@ defmodule Reach.EvidenceCorpusScan do
     capture_stderr(fn ->
       {result, _diagnostics} =
         Code.with_diagnostics(fn ->
-          Code.string_to_quoted(source, emit_warnings: false)
+          Code.string_to_quoted(source, emit_warnings: false, columns: true)
         end)
 
       result

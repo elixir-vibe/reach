@@ -55,7 +55,13 @@ defmodule Reach.Smell.PatternRunner do
       |> Enum.map(fn match ->
         {kind, message} = Map.fetch!(meta, match.pattern)
         line = (match.range && match.range.start[:line]) || 0
-        Finding.new(kind: kind, message: message, location: "#{file}:#{line}")
+
+        Finding.new(
+          kind: kind,
+          message: message,
+          location: "#{file}:#{line}",
+          source_range: match.range
+        )
       end)
     end
   end
@@ -105,7 +111,13 @@ defmodule Reach.Smell.PatternRunner do
     |> Patcher.find_all(apply(module, fun_name, []))
     |> Enum.map(fn match ->
       line = (match.range && match.range.start[:line]) || 0
-      Finding.new(kind: kind, message: message, location: "#{file}:#{line}")
+
+      Finding.new(
+        kind: kind,
+        message: message,
+        location: "#{file}:#{line}",
+        source_range: match.range
+      )
     end)
   end
 end

@@ -19,6 +19,17 @@ defmodule Reach.Evidence.DSLGuardTest do
     assert [%{kind: :outside}] = DSLGuard.filter(evidence, ast, [Reach.Plugins.Ecto])
   end
 
+  test "uses columns to preserve same-line evidence outside a nested DSL call" do
+    ast = Sourceror.parse_string!("pair(Enum.at(items, 0), Ash.Expr.expr(left <> right))")
+
+    evidence = [
+      %{kind: :outside, meta: [line: 1, column: 6]},
+      %{kind: :inside, meta: [line: 1, column: 45]}
+    ]
+
+    assert [%{kind: :outside}] = DSLGuard.filter(evidence, ast, [Reach.Plugins.Ash])
+  end
+
   test "filters generic evidence inside configured source ranges" do
     ast = Sourceror.parse_string!("MyDSL.expr(value)")
     evidence = [%{kind: :inside, location: %{line: 1}}]

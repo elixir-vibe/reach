@@ -18,18 +18,23 @@ defmodule Reach.Evidence.DSLGuard do
   end
 
   defp guarded?(evidence, ranges) do
-    case evidence_line(evidence) do
-      line when is_integer(line) -> SourceGuard.guarded_line?(ranges, line)
-      _line -> false
+    case evidence_position(evidence) do
+      {line, column} when is_integer(line) ->
+        SourceGuard.guarded_position?(ranges, line, column)
+
+      _position ->
+        false
     end
   end
 
-  defp evidence_line(%{meta: meta}), do: position_line(meta)
-  defp evidence_line(%{location: location}), do: position_line(location)
-  defp evidence_line(_evidence), do: nil
+  defp evidence_position(%{meta: meta}), do: position(meta)
+  defp evidence_position(%{location: location}), do: position(location)
+  defp evidence_position(_evidence), do: nil
 
-  defp position_line(position) when is_list(position), do: position[:line]
-  defp position_line(%{line: line}), do: line
-  defp position_line(%{start_line: line}), do: line
-  defp position_line(_position), do: nil
+  defp position(position) when is_list(position),
+    do: {position[:line], position[:column]}
+
+  defp position(%{line: line} = position), do: {line, Map.get(position, :column)}
+  defp position(%{start_line: line} = position), do: {line, Map.get(position, :start_column)}
+  defp position(_position), do: nil
 end

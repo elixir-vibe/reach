@@ -58,10 +58,17 @@ defmodule Reach.Smell.DSLGuard do
       {file, line} when is_binary(file) and is_integer(line) ->
         ranges
         |> Map.get(Path.expand(file), [])
-        |> SourceGuard.guarded_line?(line)
+        |> SourceGuard.guarded_position?(line, finding_column(finding))
 
       _location ->
         false
     end
   end
+
+  defp finding_column(%{source_range: %{start: start_position}}) when is_list(start_position),
+    do: start_position[:column]
+
+  defp finding_column(%{source_range: %{start_column: column}}), do: column
+  defp finding_column(%{source_range: %{start_col: column}}), do: column
+  defp finding_column(_finding), do: nil
 end
