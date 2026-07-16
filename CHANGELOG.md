@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `mix reach.trace --pattern regex-on-structured` traces structured file contents into regex and regex-based string parsing, including a conservative fallback for structure-shaped regex literals.
+
 ### Fixed
 
 - Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.

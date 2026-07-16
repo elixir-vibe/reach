@@ -37,9 +37,12 @@ Data-flow and slicing workflows.
 ```bash
 mix reach.trace --from conn.params --to Repo
 mix reach.trace --from conn.params --to System.cmd --all
+mix reach.trace --pattern regex-on-structured
 mix reach.trace --variable token --in MyApp.Auth.login/2
 mix reach.trace lib/my_app/auth.ex:42 --forward
 ```
+
+`regex-on-structured` traces structured file contents into regex APIs, regex `=~`, and regex-based `String.split/2`. It uses static structured file extensions when available and a conservative structure-shaped regex fallback for dynamic paths.
 
 ## `mix reach.check`
 

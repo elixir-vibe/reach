@@ -6,11 +6,13 @@ defmodule Reach.CLI.Commands.Trace.Flow do
       mix reach.trace --from params --to write!
       mix reach.trace --variable user --in UserService.register/2
       mix reach.trace --from input --to System.cmd --format json
+      mix reach.trace --pattern regex-on-structured
 
   ## Options
 
     * `--from` — taint source pattern (e.g. `params`, `input`)
     * `--to` — sink pattern (e.g. `write!`, `System.cmd`)
+    * `--pattern` — run a named source-to-sink trace preset
     * `--variable` — trace a specific variable name
     * `--in` — restrict to a specific function
     * `--format` — output format: `text` (default), `json`, `oneline`
@@ -23,6 +25,7 @@ defmodule Reach.CLI.Commands.Trace.Flow do
     format: :string,
     from: :string,
     to: :string,
+    pattern: :string,
     variable: :string,
     in: :string,
     limit: :integer,
@@ -59,6 +62,15 @@ defmodule Reach.CLI.Commands.Trace.Flow do
     sink = opts[:to]
 
     cond do
+      opts[:pattern] ->
+        case Flow.analyze_preset(project, opts[:pattern], path_limit(opts)) do
+          {:ok, result} ->
+            result
+
+          {:error, :unknown_preset} ->
+            Mix.raise("Unknown trace pattern #{inspect(opts[:pattern])}")
+        end
+
       source && sink ->
         Flow.analyze_taint(project, source, sink, path_limit(opts))
 
@@ -66,7 +78,7 @@ defmodule Reach.CLI.Commands.Trace.Flow do
         Flow.analyze_variable(project, opts[:variable], opts[:in])
 
       true ->
-        Mix.raise("Provide --from/--to for taint analysis or --variable for data tracing")
+        Mix.raise("Provide --pattern, --from/--to, or --variable for data tracing")
     end
   end
 

@@ -5,6 +5,28 @@ defmodule Reach.PluginsTest do
   alias Reach.Plugin
   alias Reach.Plugins
   alias Reach.Trace.Pattern
+  alias Reach.Trace.Pattern.Preset
+
+  defmodule TracePresetPlugin do
+    @behaviour Reach.Plugin
+
+    @impl true
+    def analyze(_nodes, _opts), do: []
+
+    @impl true
+    def trace_preset("custom") do
+      matcher = fn node -> node.type == :literal end
+
+      %Preset{
+        name: "custom",
+        from: "custom source",
+        to: "custom sink",
+        routes: [%{source: matcher, sink: matcher}]
+      }
+    end
+
+    def trace_preset(_pattern), do: nil
+  end
 
   describe "plugin trace patterns" do
     test "Phoenix owns conn params pattern" do
@@ -17,6 +39,11 @@ defmodule Reach.PluginsTest do
                id: 2,
                meta: %{name: :params}
              })
+    end
+
+    test "plugins can own named trace presets" do
+      assert {:ok, %Preset{name: "custom"}} = Pattern.preset("custom", [TracePresetPlugin])
+      assert :error = Pattern.preset("custom", [])
     end
 
     test "Ecto owns repo sink pattern" do

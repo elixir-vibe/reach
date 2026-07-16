@@ -115,6 +115,7 @@ defmodule Reach.Plugin do
   @callback refine_macro_fact(fact :: Reach.MacroFact.t(), context :: map()) ::
               Reach.MacroFact.t() | map() | :unchanged
   @callback trace_pattern(pattern :: String.t()) :: (Node.t() -> boolean()) | nil
+  @callback trace_preset(pattern :: String.t()) :: Reach.Trace.Pattern.Preset.t() | nil
   @callback behaviour_label(callbacks :: [atom()]) :: String.t() | nil
   @callback expected_effect_boundary?(module(), atom(), non_neg_integer()) :: boolean() | nil
   @doc "Returns whether an AST node introduces a DSL that reinterprets ordinary Elixir semantics."
@@ -136,6 +137,7 @@ defmodule Reach.Plugin do
                       refine_evidence: 2,
                       refine_macro_fact: 2,
                       trace_pattern: 1,
+                      trace_preset: 1,
                       behaviour_label: 1,
                       expected_effect_boundary?: 3,
                       reinterpreted_ast?: 1,
@@ -345,6 +347,13 @@ defmodule Reach.Plugin do
   def trace_pattern(plugins, pattern) do
     Enum.find_value(plugins, fn plugin ->
       if exports?(plugin, :trace_pattern, 1), do: plugin.trace_pattern(pattern)
+    end)
+  end
+
+  @doc "Returns the first plugin-provided named trace preset."
+  def trace_preset(plugins, pattern) do
+    Enum.find_value(plugins, fn plugin ->
+      if exports?(plugin, :trace_preset, 1), do: plugin.trace_preset(pattern)
     end)
   end
 

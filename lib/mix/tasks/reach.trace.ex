@@ -4,6 +4,7 @@ defmodule Mix.Tasks.Reach.Trace do
 
       mix reach.trace --from params --to write!
       mix reach.trace --from input --to System.cmd
+      mix reach.trace --pattern regex-on-structured
       mix reach.trace --variable user --in MyApp.Accounts.create/1
       mix reach.trace --backward lib/my_app/accounts.ex:45
       mix reach.trace --forward lib/my_app/accounts.ex:45
@@ -12,6 +13,7 @@ defmodule Mix.Tasks.Reach.Trace do
 
     * `--from` — taint source pattern
     * `--to` — sink pattern
+    * `--pattern` — run a named source-to-sink trace preset
     * `--variable` — trace a variable name
     * `--in` — restrict variable tracing to a function
     * `--backward` — compute a backward slice from a target
@@ -35,6 +37,7 @@ defmodule Mix.Tasks.Reach.Trace do
     format: :string,
     from: :string,
     to: :string,
+    pattern: :string,
     variable: :string,
     in: :string,
     backward: :string,

@@ -17,6 +17,24 @@ defmodule Reach.Trace.Flow do
     Result.new(type: :taint, from: from_pattern, to: to_pattern, paths: paths)
   end
 
+  @doc "Analyzes all source-to-sink routes in a named trace preset."
+  def analyze_preset(project, pattern, max_paths) do
+    case Pattern.preset(pattern, project.plugins) do
+      {:ok, preset} ->
+        paths =
+          preset.routes
+          |> Enum.flat_map(&preset_route_paths(project, &1, max_paths))
+          |> Enum.uniq_by(&{&1.source.id, &1.sink.id})
+          |> Enum.sort_by(&path_location_key/1)
+          |> take_paths(max_paths)
+
+        {:ok, Result.new(type: :taint, from: preset.from, to: preset.to, paths: paths)}
+
+      :error ->
+        {:error, :unknown_preset}
+    end
+  end
+
   def analyze_variable(project, var_name, scope) do
     scope_nodes = resolve_scope_nodes(project, scope)
 
@@ -62,6 +80,17 @@ defmodule Reach.Trace.Flow do
   defp find_nodes(project, filter) do
     for {_id, node} <- project.nodes, filter.(node), do: node
   end
+
+  defp preset_route_paths(project, route, max_paths) do
+    sources = find_nodes(project, route.source)
+    sinks = find_nodes(project, route.sink)
+    find_taint_paths(project, sources, sinks, max_paths)
+  end
+
+  defp take_paths(paths, :all), do: paths
+  defp take_paths(paths, max_paths), do: Enum.take(paths, max_paths)
+
+  defp path_location_key(path), do: {location_key(path.source), location_key(path.sink)}
 
   defp find_taint_paths(project, sources, sinks, max_paths) do
     graph = project.graph

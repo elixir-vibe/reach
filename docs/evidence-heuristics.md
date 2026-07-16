@@ -62,6 +62,17 @@ Calibration notes:
 - Type-II/Type-III or lower-similarity matches remain evidence-only pending broader calibration.
 - Candidates require review of the dependency's supported public API; Reach must not recommend calling copied internal functions solely because source matches.
 
+## Regex parsing of structured formats
+
+`mix reach.trace --pattern regex-on-structured` uses the project data-flow graph rather than source proximity. Its primary route starts at `File.read/1`, `File.read!/1`, or `File.stream!/1,3` with a static `.xml`, `.html`, `.htm`, `.heex`, `.eex`, `.ex`, `.exs`, or `.rs` path and ends at Regex APIs, regex `=~`, or regex-based `String.split`. A fallback accepts dynamic paths only when the sink contains a structure-shaped regex literal such as an XML/HTML tag, `defmodule`, `defstruct`, or `fn\\s`.
+
+Calibration notes:
+
+- A source-only pass over fifteen local projects produced no paths, avoiding nearby-but-unconnected File/Regex false positives.
+- A targeted pass over NimbleHQ's Elixir Templates found one intended path: `File.read!("mix.exs")` flowing into `~r/defmodule (.*) do/ |> Regex.run(...)`.
+- GitHub structural samples found additional direct regex reads/rewrites of `mix.exs`, validating that the behavior exists in real packages.
+- The preset remains a trace workflow rather than a smell. Promotion requires broader path review and explicit suppression policy for intentional release/build scripts.
+
 ## Map contracts
 
 Implemented evidence:

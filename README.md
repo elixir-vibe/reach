@@ -78,6 +78,7 @@ Trace data:
 
 ```bash
 mix reach.trace --from conn.params --to Repo
+mix reach.trace --pattern regex-on-structured
 mix reach.trace --variable changeset --in MyApp.Accounts.create_user/1
 ```
 

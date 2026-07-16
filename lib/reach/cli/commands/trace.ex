@@ -4,6 +4,7 @@ defmodule Reach.CLI.Commands.Trace do
 
       mix reach.trace --from params --to write!
       mix reach.trace --from input --to System.cmd
+      mix reach.trace --pattern regex-on-structured
       mix reach.trace --variable user --in MyApp.Accounts.create/1
       mix reach.trace --backward lib/my_app/accounts.ex:45
       mix reach.trace --forward lib/my_app/accounts.ex:45
@@ -12,6 +13,7 @@ defmodule Reach.CLI.Commands.Trace do
 
     * `--from` — taint source pattern
     * `--to` — sink pattern
+    * `--pattern` — run a named source-to-sink trace preset
     * `--variable` — trace a variable name
     * `--in` — restrict variable tracing to a function
     * `--backward` — compute a backward slice from a target
@@ -35,7 +37,9 @@ defmodule Reach.CLI.Commands.Trace do
         Slice.run_target(target, opts, command: "reach.trace")
 
       :error ->
-        Mix.raise("Provide --from/--to, --variable, --backward TARGET, or --forward TARGET")
+        Mix.raise(
+          "Provide --pattern, --from/--to, --variable, --backward TARGET, or --forward TARGET"
+        )
     end
   end
 
@@ -55,7 +59,7 @@ defmodule Reach.CLI.Commands.Trace do
 
   defp flow_trace?(opts, positional) do
     not slice_mode?(opts) and
-      (opts[:from] || opts[:to] || (opts[:variable] && opts[:in]) ||
+      (opts[:pattern] || opts[:from] || opts[:to] || (opts[:variable] && opts[:in]) ||
          (opts[:variable] && positional == []))
   end
 
