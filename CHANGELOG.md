@@ -9,9 +9,11 @@
 - Exact project Type-I clone families now produce advisory `consolidate_clone` candidates with a deterministic canonical implementation and explicit behavior-preservation proof steps.
 - Smell analysis now detects private multi-clause domain parsers that silently coerce unsupported input to an accepted constant, while excluding serializers and presentation mappings.
 - Changed-code analysis now reports strict field, fetch, and map-pattern access replaced by lenient `Map.get`, including malformed map-literal callers when available.
+- Changed-code analysis now classifies moved dual-key/default-drift evidence and exact whole-function clones as displaced when occurrence counts do not improve.
 
 ### Fixed
 
+- Clone analysis cache keys now distinguish projects with identical node-id ranges, preventing evidence from leaking between parse snapshots.
 - Root `mix ci` now fetches the isolated calibration project's dependencies before running its checks.
 - Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.
 - Effect and risk values now remain typed atoms through domain and text-rendering layers; only JSON serialization converts them to strings.

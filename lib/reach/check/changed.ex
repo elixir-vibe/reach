@@ -4,6 +4,7 @@ defmodule Reach.Check.Changed do
   alias Reach.Check.Architecture
   alias Reach.Check.Changed.AccessStrictness
   alias Reach.Check.Changed.Coverage
+  alias Reach.Check.Changed.Displacement
   alias Reach.Check.Changed.Function, as: ChangedFunction
   alias Reach.Check.Changed.Range
   alias Reach.Check.Changed.Result
@@ -28,21 +29,40 @@ defmodule Reach.Check.Changed do
 
     coverage = Coverage.analyze(files, changed_ranges, function_nodes)
     strictness_downgrades = AccessStrictness.analyze(project, base, changed_ranges, opts)
-    result(base, files, functions, coverage, strictness_downgrades, normalized_config)
+    displaced_facts = Displacement.analyze(project, base, changed_ranges, normalized_config, opts)
+
+    result(
+      base,
+      files,
+      functions,
+      coverage,
+      strictness_downgrades,
+      displaced_facts,
+      normalized_config
+    )
   end
 
   def empty_result(base, config, files \\ []) do
     coverage = Coverage.analyze(files, %{}, [])
-    result(base, files, [], coverage, [], Config.normalize(config))
+    result(base, files, [], coverage, [], [], Config.normalize(config))
   end
 
-  defp result(base, files, functions, coverage, strictness_downgrades, config) do
+  defp result(
+         base,
+         files,
+         functions,
+         coverage,
+         strictness_downgrades,
+         displaced_facts,
+         config
+       ) do
     tests = suggested_tests(files, functions, config.tests.hints)
 
     {risk, risk_reasons} =
       functions
       |> aggregate_change_risk()
       |> add_strictness_downgrade_risk(strictness_downgrades)
+      |> add_displacement_risk(displaced_facts)
 
     Result.new(
       base: base,
@@ -54,6 +74,7 @@ defmodule Reach.Check.Changed do
       changed_functions: functions,
       public_api_changes: Enum.filter(functions, & &1.public_api),
       strictness_downgrades: strictness_downgrades,
+      displaced_facts: displaced_facts,
       suggested_tests: tests
     )
   end
@@ -185,6 +206,14 @@ defmodule Reach.Check.Changed do
   defp add_strictness_downgrade_risk({risk, reasons}, downgrades) do
     risk = if risk == :high, do: :high, else: :medium
     reason = "access strictness downgraded (#{length(downgrades)})"
+    {risk, reasons ++ [reason]}
+  end
+
+  defp add_displacement_risk(result, []), do: result
+
+  defp add_displacement_risk({risk, reasons}, displaced_facts) do
+    risk = if risk == :high, do: :high, else: :medium
+    reason = "evidence displaced rather than resolved (#{length(displaced_facts)})"
     {risk, reasons ++ [reason]}
   end
 

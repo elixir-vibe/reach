@@ -2,6 +2,7 @@ defmodule Reach.Check.Changed.AccessStrictness do
   @moduledoc "Detects changed hunks that replace strict map contracts with lenient reads."
 
   alias Reach.Check.Changed.Range
+  alias Reach.Check.Changed.SourceSnapshot
   alias Reach.Check.Changed.StrictnessDowngrade
   alias Reach.IR.Helpers, as: IRHelpers
   alias Reach.Project.Query
@@ -11,7 +12,7 @@ defmodule Reach.Check.Changed.AccessStrictness do
 
   @spec analyze(Reach.Project.t(), String.t(), map(), keyword()) :: [StrictnessDowngrade.t()]
   def analyze(project, base, changed_ranges, opts \\ []) do
-    revision = Keyword.get_lazy(opts, :old_revision, fn -> merge_base(base) end)
+    revision = SourceSnapshot.revision(base, opts)
 
     changed_ranges
     |> Enum.flat_map(fn {file, ranges} ->
@@ -22,8 +23,8 @@ defmodule Reach.Check.Changed.AccessStrictness do
 
   defp analyze_file(project, file, ranges, revision, opts) do
     with true <- elixir_file?(file),
-         {:ok, old_source} <- source(:old, file, revision, opts),
-         {:ok, new_source} <- source(:new, file, revision, opts),
+         {:ok, old_source} <- SourceSnapshot.source(:old, file, revision, opts),
+         {:ok, new_source} <- SourceSnapshot.source(:new, file, revision, opts),
          {:ok, old_accesses} <- accesses(old_source),
          {:ok, new_accesses} <- accesses(new_source) do
       ranges = Enum.map(ranges, &Range.normalize/1)
@@ -431,38 +432,6 @@ defmodule Reach.Check.Changed.AccessStrictness do
 
   defp line_in_new?(line, %Range{} = range),
     do: line in range.new_start..(range.new_start + range.new_count - 1)
-
-  defp source(:old, file, revision, opts) do
-    source_override(:old_sources, file, opts, fn -> git_source(revision, file) end)
-  end
-
-  defp source(:new, file, _revision, opts) do
-    source_override(:new_sources, file, opts, fn -> File.read(file) end)
-  end
-
-  defp source_override(key, file, opts, fallback) do
-    if Keyword.has_key?(opts, key) do
-      opts |> Keyword.fetch!(key) |> Map.fetch(file)
-    else
-      fallback.()
-    end
-  end
-
-  defp merge_base(base) do
-    case System.cmd("git", ["merge-base", base, "HEAD"], stderr_to_stdout: true) do
-      {revision, 0} -> String.trim(revision)
-      _error -> base
-    end
-  end
-
-  defp git_source(nil, _file), do: {:error, :missing_revision}
-
-  defp git_source(revision, file) do
-    case System.cmd("git", ["show", "#{revision}:#{file}"], stderr_to_stdout: true) do
-      {source, 0} -> {:ok, source}
-      _error -> {:error, :missing_old_source}
-    end
-  end
 
   defp elixir_file?(file), do: Path.extname(file) in [".ex", ".exs"]
 end

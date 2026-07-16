@@ -154,6 +154,13 @@ defmodule Reach.CLI.Render.Check do
     )
     |> add_omitted(
       render_limited_section(
+        "Displaced evidence",
+        result.displaced_facts,
+        &render_displaced_fact/1
+      )
+    )
+    |> add_omitted(
+      render_limited_section(
         "Access strictness downgrades",
         result.strictness_downgrades,
         &render_strictness_downgrade/1
@@ -167,6 +174,23 @@ defmodule Reach.CLI.Render.Check do
       )
     )
     |> render_omitted_summary()
+  end
+
+  defp render_displaced_fact(fact) do
+    IO.puts(
+      "  #{Format.humanize(fact.family)} status=#{fact.status} occurrences=#{fact.occurrences_before}->#{fact.occurrences_after}"
+    )
+
+    Enum.each(fact.old_locations, fn location ->
+      IO.puts("    old: #{Format.loc(location.file, location.line)} #{location.function}")
+    end)
+
+    Enum.each(fact.new_locations, fn location ->
+      IO.puts("    new: #{Format.loc(location.file, location.line)} #{location.function}")
+    end)
+
+    IO.puts("    #{fact.message}")
+    IO.puts("    suggestion=#{fact.suggestion}")
   end
 
   defp render_strictness_downgrade(downgrade) do

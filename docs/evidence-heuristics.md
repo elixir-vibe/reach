@@ -107,6 +107,19 @@ Calibration notes:
 - A source-only pass over thirteen local projects initially found four intentional display/log-level defaults. Requiring every constrained clause to preserve the logical domain removed all four while retaining the LLM Proxy specimen.
 - The eight checksum-pinned Hex corpus packages produce no findings.
 
+## Fact displacement in changed code
+
+`Reach.Check.Changed.Displacement` builds parse-only old and new snapshots for changed Elixir files and compares location-independent evidence fingerprints. The initial families are atom/string dual-key contracts, conflicting literal-default sets, and ExDNA exact Type-I whole-function clones. Clone fingerprints are encoded as stable hexadecimal hashes at the evidence boundary.
+
+A fact is `:displaced` only when the same fingerprint exists before and after, an old occurrence lies on an old-side changed line, a different new occurrence lies on a new-side changed line, and the total occurrence count did not decrease. Unchanged evidence shifted by an insertion is therefore ignored. Resolved facts and partially reduced facts are not classified as displacement.
+
+Calibration notes:
+
+- Synthetic burial fixtures move dual-key access and conflicting defaults into private helpers while preserving occurrence counts; both remain visible as displaced evidence.
+- Exact-clone fixtures retain two whole-function copies while relocating one implementation; expression-level clone fragments remain excluded.
+- A scan over 199 Incant commits and 174 recent commits across Exograph, HostKit, LLM Proxy, Plausible, Hologram, and Volt produced no displacement findings.
+- Snapshot projects exposed a clone-cache collision when different projects reused identical node-id ranges. Clone caching now keys on the project's unique cache key, with a content-sensitive fallback for manually constructed projects.
+
 ## Access-strictness downgrades
 
 `mix reach.check --changed` compares old and new Sourceror ASTs within corresponding diff hunks. `Reach.Check.Changed.AccessStrictness` reports contract erosion when `value.field`, `Map.fetch!/2`, or a required map pattern becomes `Map.get/2,3` for the same function parameter/local variable and literal key. Detection requires strict-access counts to decrease and lenient-access counts to increase, preventing an added optional read from being mistaken for a replacement.

@@ -26,6 +26,24 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNATest do
     assert [] = ExDNA.analyze(project, %Reach.Config.CloneAnalysis{min_mass: 3})
   end
 
+  test "does not reuse clones across projects with identical node id ranges" do
+    root = Path.join(System.tmp_dir!(), "reach-clone-cache-#{System.unique_integer([:positive])}")
+    first_file = Path.join(root, "first.ex")
+    second_file = Path.join(root, "second.ex")
+    File.mkdir_p!(root)
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    File.write!(first_file, duplicate_modules_source(true))
+    File.write!(second_file, duplicate_modules_source(false))
+
+    first = %{Project.from_sources([first_file]) | cache_key: nil}
+    second = %{Project.from_sources([second_file]) | cache_key: nil}
+    config = Config.normalize(clone_analysis: [min_mass: 3, min_occurrences: 2, max_clones: 10])
+
+    assert Reach.Evidence.CloneAnalysis.analyze(first, config) != []
+    assert [] = Reach.Evidence.CloneAnalysis.analyze(second, config)
+  end
+
   test "keeps only clone families spanning project and direct-dependency source" do
     root =
       Path.join(System.tmp_dir!(), "reach-dependency-clone-#{System.unique_integer([:positive])}")
@@ -54,6 +72,7 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNATest do
     assert [clone | _] =
              ExDNA.dependency_clones(project, config, %{sample_dep: dependency_root})
 
+    assert clone.fingerprint =~ ~r/\A[0-9a-f]+\z/
     assert Enum.any?(clone.fragments, &(&1.origin == :project))
     assert Enum.any?(clone.fragments, &(&1.origin == :dependency))
     assert Enum.all?(clone.fragments, &(&1.origin in [:project, :dependency]))
@@ -67,6 +86,20 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNATest do
     assert fact.data.provider == :sample_dep
     assert fact.data.origin == :dependency_clone
     assert Bypass.fact?(fact)
+  end
+
+  defp duplicate_modules_source(duplicate?) do
+    second_body = if duplicate?, do: "value + 1", else: "value * 2"
+
+    """
+    defmodule FirstCacheSample do
+      def calculate(value), do: value + 1
+    end
+
+    defmodule SecondCacheSample do
+      def calculate(value), do: #{second_body}
+    end
+    """
   end
 
   defp duplicate_source(module) do

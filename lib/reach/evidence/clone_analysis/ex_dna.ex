@@ -139,12 +139,16 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNA do
   defp to_clone(ex_dna_clone, project, origins) do
     Clone.new(
       type: Map.get(ex_dna_clone, :type),
+      fingerprint: clone_fingerprint(Map.get(ex_dna_clone, :hash)),
       mass: Map.get(ex_dna_clone, :mass),
       similarity: Map.get(ex_dna_clone, :similarity),
       fragments: Enum.map(Map.get(ex_dna_clone, :fragments, []), &fragment(&1, project, origins)),
       suggestion: Map.get(ex_dna_clone, :suggestion)
     )
   end
+
+  defp clone_fingerprint(hash) when is_binary(hash), do: Base.encode16(hash, case: :lower)
+  defp clone_fingerprint(_hash), do: nil
 
   defp fragment(ex_dna_fragment, project, origins) do
     file = Map.get(ex_dna_fragment, :file)

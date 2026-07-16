@@ -50,9 +50,9 @@ defmodule Reach.Evidence.CloneAnalysis do
 
   defp do_dependency_bypass(_project, _config), do: []
 
+  defp project_fingerprint(%{cache_key: cache_key}) when not is_nil(cache_key), do: cache_key
+
   defp project_fingerprint(project) do
-    project.nodes
-    |> Map.keys()
-    |> :erlang.phash2()
+    :erlang.phash2({project.nodes, Map.get(project, :call_graph)})
   end
 end

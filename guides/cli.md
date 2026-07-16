@@ -71,6 +71,8 @@ A low-risk result with partial or no confidence is not a claim that the whole ch
 
 Changed analysis also compares old and new ASTs inside each hunk. Replacing required field access, `Map.fetch!/2`, or a required map pattern with `Map.get/2,3` appears under **Access strictness downgrades** and raises aggregate change risk to at least medium. When the current call graph contains map-literal callers missing the key, Reach names those producers so they can be normalized instead of weakening the consumer.
 
+**Displaced evidence** means a stable dual-key contract, conflicting-default set, or exact whole-function clone disappeared from its old changed location but reappeared at a new changed location with the same or a greater occurrence count. Reach reports it as displaced rather than resolved and raises aggregate risk to at least medium.
+
 Use `--baseline PATH` to suppress known `reach.check` findings while still failing on new findings. Use `--write-baseline PATH` to write the current findings for the selected check modes. JSON output supports one check mode at a time.
 
 ## `mix reach.otp`

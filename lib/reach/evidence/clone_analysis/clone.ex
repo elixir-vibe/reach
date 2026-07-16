@@ -4,12 +4,13 @@ defmodule Reach.Evidence.CloneAnalysis.Clone do
   @derive JSON.Encoder
   @type t :: %__MODULE__{
           type: atom() | nil,
+          fingerprint: String.t() | nil,
           mass: number() | nil,
           similarity: number() | nil,
           fragments: [Reach.Evidence.CloneAnalysis.Fragment.t()],
           suggestion: term()
         }
-  defstruct [:type, :mass, :similarity, :fragments, :suggestion]
+  defstruct [:type, :fingerprint, :mass, :similarity, :fragments, :suggestion]
 
   def new(attrs), do: struct!(__MODULE__, attrs)
 end

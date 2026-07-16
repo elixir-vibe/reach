@@ -12,7 +12,8 @@ defmodule Reach.Check.Changed.Result do
     :changed_functions,
     :public_api_changes,
     :suggested_tests,
-    strictness_downgrades: []
+    strictness_downgrades: [],
+    displaced_facts: []
   ]
 
   @type t :: %__MODULE__{
@@ -25,6 +26,7 @@ defmodule Reach.Check.Changed.Result do
           changed_functions: [Reach.Check.Changed.Function.t()],
           public_api_changes: [Reach.Check.Changed.Function.t()],
           strictness_downgrades: [Reach.Check.Changed.StrictnessDowngrade.t()],
+          displaced_facts: [Reach.Check.Changed.DisplacedFact.t()],
           suggested_tests: [Path.t()]
         }
 

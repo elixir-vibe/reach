@@ -21,6 +21,18 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
   "command": "reach.check",
   "risk": "low",
   "confidence": "partial",
+  "displaced_facts": [
+    {
+      "family": "dual_key_contract",
+      "status": "displaced",
+      "fingerprint": "sha256:...",
+      "key": "name",
+      "old_locations": [{"file": "lib/model.ex", "line": 20}],
+      "new_locations": [{"file": "lib/model.ex", "line": 35}],
+      "occurrences_before": 2,
+      "occurrences_after": 2
+    }
+  ],
   "strictness_downgrades": [
     {
       "kind": "field_to_get",
@@ -47,4 +59,4 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
 }
 ```
 
-Risk summarizes assessed functions and high-confidence changed-code erosion events. `strictness_downgrades` reports required field access, `Map.fetch!/2`, or required map patterns replaced by lenient `Map.get/2,3`. Check `confidence`, `coverage_percent`, and `unassessed_files` before using risk in automation.
+Risk summarizes assessed functions and high-confidence changed-code erosion events. `strictness_downgrades` reports required field access, `Map.fetch!/2`, or required map patterns replaced by lenient `Map.get/2,3`. `displaced_facts` reports stable evidence identities that moved without reducing their occurrence count. Check `confidence`, `coverage_percent`, and `unassessed_files` before using risk in automation.
