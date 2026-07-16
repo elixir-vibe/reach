@@ -217,6 +217,7 @@ defmodule Reach.Evidence.MapContractTest do
     assert [fallback] = MapContract.collect_fallbacks(project)
     assert fallback.operator == :or
     assert fallback.default?
+    assert fallback.boolean_evidence == []
 
     assert Enum.map(fallback.accesses, & &1.representation) |> Enum.sort() == [
              :derived_string,

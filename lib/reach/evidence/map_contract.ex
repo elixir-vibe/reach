@@ -31,6 +31,7 @@ defmodule Reach.Evidence.MapContract do
       :accesses,
       :location,
       :operator,
+      :boolean_evidence,
       default?: false,
       returned?: false
     ]
@@ -105,6 +106,7 @@ defmodule Reach.Evidence.MapContract do
   @accumulator_names [:acc, :cat, :count, :counts, :stats]
   @external_payload_names [:body, :json, :metadata, :payload, :request, :response]
   @options_names [:config, :opts, :options]
+  @boolean_key_terms ~w(active allow allowed disabled enabled flag hidden valid visible)
   @non_call_forms [:., :%, :{}, :__aliases__, :__block__, :=, :->, :def, :defp, :fn, :|>]
 
   @impl true
@@ -582,7 +584,8 @@ defmodule Reach.Evidence.MapContract do
         accesses,
         :or,
         default?,
-        returned_expression?(node, parent_index)
+        returned_expression?(node, parent_index),
+        boolean_evidence(accesses, operands)
       )
     end
   end
@@ -604,7 +607,8 @@ defmodule Reach.Evidence.MapContract do
           accesses,
           :default,
           false,
-          returned_expression?(node, parent_index)
+          returned_expression?(node, parent_index),
+          []
         )
 
       _children ->
@@ -644,7 +648,50 @@ defmodule Reach.Evidence.MapContract do
 
   defp flatten_or_operands(node), do: [node]
 
-  defp fallback_groups(node, accesses, operator, default?, returned?) do
+  defp boolean_evidence(accesses, operands) do
+    access_ids = MapSet.new(accesses, & &1.node.id)
+
+    key_evidence =
+      accesses
+      |> Enum.filter(&boolean_key_label?(&1.key_label))
+      |> Enum.map(&{:boolean_key, &1.key_label})
+
+    function_evidence =
+      accesses
+      |> Enum.map(& &1.function)
+      |> Enum.uniq()
+      |> Enum.filter(&predicate_function?/1)
+      |> Enum.map(&{:predicate_function, &1})
+
+    default_evidence =
+      operands
+      |> Enum.reject(&MapSet.member?(access_ids, &1.id))
+      |> Enum.flat_map(fn
+        %{type: :literal, meta: %{value: value}} = node when is_boolean(value) ->
+          [{:boolean_default, value, node_location(node)}]
+
+        _node ->
+          []
+      end)
+
+    Enum.uniq(key_evidence ++ function_evidence ++ default_evidence)
+  end
+
+  defp boolean_key_label?(label) when is_binary(label) do
+    label
+    |> String.downcase()
+    |> String.split(["_", "-", "?"], trim: true)
+    |> Enum.any?(&(&1 in @boolean_key_terms))
+  end
+
+  defp boolean_key_label?(_label), do: false
+
+  defp predicate_function?({_module, name, _arity}) when is_atom(name),
+    do: name |> Atom.to_string() |> String.ends_with?("?")
+
+  defp predicate_function?(_function), do: false
+
+  defp fallback_groups(node, accesses, operator, default?, returned?, boolean_evidence) do
     accesses
     |> Enum.group_by(&{&1.function, &1.map_origins, &1.logical_key})
     |> Enum.map(fn {_identity, grouped_accesses} ->
@@ -654,6 +701,7 @@ defmodule Reach.Evidence.MapContract do
         accesses: grouped_accesses,
         location: node_location(node),
         operator: operator,
+        boolean_evidence: boolean_evidence,
         default?: default?,
         returned?: returned?
       }

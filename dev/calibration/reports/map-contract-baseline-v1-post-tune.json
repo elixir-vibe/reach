@@ -1,0 +1,1012 @@
+{
+  "generated_at": "2026-07-16T14:31:10.669505Z",
+  "packages": [
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "cabbage",
+      "snapshot_fingerprint": "864e34edb468ad13fe6c61a9a2f58774573364a6a87e6690c0854c214b5a9336",
+      "version": "0.4.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "llm",
+      "snapshot_fingerprint": "249ac7d6ace8ef488706df5dc77ce06a0418a489d9a2bc7401832a793dd321fc",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "beethoven",
+      "snapshot_fingerprint": "d8e7364079bc4912480e92664fcbe37514457e50ea5124136f1017257e1538fb",
+      "version": "0.3.9"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_lua",
+      "snapshot_fingerprint": "6407bae89e7f61b3d8ada8d0d5a96940893056c1eb576c1bb00006a43287e8cb",
+      "version": "0.1.6"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_saml",
+      "snapshot_fingerprint": "15b4dc01da605b8b60a476a717b91b3dadcf83c13e1e0cfbd2ca6dba5fbef726",
+      "version": "1.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bumblebee_quantized",
+      "snapshot_fingerprint": "aaa4fa8b462931db70e4151d56b3037bbf94a3e0d5698a0a02438d98a24919c8",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "eth",
+      "snapshot_fingerprint": "ea28fd7feb6c8a3f1809584fbd6aa8c499412ba3f23cfc057e232aff6189dd5a",
+      "version": "0.6.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_ice",
+      "snapshot_fingerprint": "21cd20b1e856229665f6619faea7dbd2966e9927e1133a89daa14059f7a8071d",
+      "version": "0.16.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "iso639_elixir",
+      "snapshot_fingerprint": "c209c0da42ac23c06297d71c7b2c6747955aa4d34a40cc761fc30b4b31e37e79",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "fictitious",
+      "snapshot_fingerprint": "f8b236b610d356ac9187907a20317ee65d6507c2b602c238fe0546b9bbf62989",
+      "version": "0.2.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_mp4",
+      "snapshot_fingerprint": "009a669c5175d6defcac966b0b52541a2f240303b23dd9ae743f0ee77cf4d740",
+      "version": "0.14.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "exe_qute",
+      "snapshot_fingerprint": "e2ff9acb8c24b86705f716b3336d5cb177edec480ee37132ae3a1436a7a60a9f",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ground_plane_persistence_policy",
+      "snapshot_fingerprint": "7ce78cdbca870f4ef2a3d0baf77f5d6cae1676fbab59fb403fa77c76b1e5acf1",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ancestry",
+      "snapshot_fingerprint": "bd90e94bf93115392a6eefd4967c98993f6bf86a5618de4026a327ef0116e96b",
+      "version": "0.1.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_oauth2_provider",
+      "snapshot_fingerprint": "7b8becc9083526f26e7916b7a87a4c5617778d2eebd19d055e6497f77197a8a1",
+      "version": "0.5.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "beamlens",
+      "snapshot_fingerprint": "47f9739ebba4aaad48da9ccad4dc463fb6fd6d70d0f0ba2bee6a5f9aa2c817bf",
+      "version": "0.3.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "mqttx",
+      "snapshot_fingerprint": "3bb844057d357321ce202e7140f21a2aa026d8a2423dc1d8bff230b0af2a3030",
+      "version": "0.10.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_cldr_messages",
+      "snapshot_fingerprint": "2f711eac68a8742b9782af9cc417774075262dd87aafb326e6a099aa5be3069a",
+      "version": "2.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "plymio_enum",
+      "snapshot_fingerprint": "92cb4b67a199886b323cb8a01c6d574330a0383e9019ec002c46395081eec243",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "atecc508a",
+      "snapshot_fingerprint": "a841bef60660896c40967b1979c83a12f9bff31b48ea311ca69bf364ef9bcbca",
+      "version": "1.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "exgenius",
+      "snapshot_fingerprint": "cd8feeaf3a9446043ca3260d5c4cff5e39d4d7078fe475beb59f00f45508d5c5",
+      "version": "0.0.5"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ex_oapi",
+      "snapshot_fingerprint": "e6aa3309f814f3716f3ff06b55c449b2d4704737add57c40e427fa5c7fc96732",
+      "version": "0.1.5"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ex_sift",
+      "snapshot_fingerprint": "7e89a6de8cc1db909db58836cf6a7b39330e9d3bae6612caecfe680ce222379d",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "activity_streams",
+      "snapshot_fingerprint": "ac2279a775e4c2f965e0e654c29dc532836732bed27516f9c44dd17a9140fe04",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "flower_power",
+      "snapshot_fingerprint": "df3c5e3c36444e79c0c3ec6db863a4d94a862cbd83259e18250c2c10ee9905d0",
+      "version": "0.3.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "dynamo_datamapper",
+      "snapshot_fingerprint": "3abae2adf8805ff58dbb6ee71439465dc6c1556050b408affbba4a707ce9c140",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "elrondex",
+      "snapshot_fingerprint": "8b42a00edf969a369853fb00e0838c376ade2a0df602cc00d4233b890cdd91c9",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_pix",
+      "snapshot_fingerprint": "8722eb3ba7ab10836c76f770d87aa81de86b9a2c6310cbcdd84e8d3aa2386c1f",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/agent_world/networks.ex:149"
+          ],
+          "id": "5ba48d4fb0bcde6d1666f888a3cfa859e0571ef88d3acdd2b01359b0b32c248b",
+          "kind": "dual_key_fallback",
+          "location": "lib/agent_world/networks.ex:149",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "agent_world",
+      "snapshot_fingerprint": "c436438ceaca5cc9d2ca478278e4c468fec9850ac84c034fbc6ce0f4d1f76d28",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_crawlzy",
+      "snapshot_fingerprint": "dd742e10375432ed4be5af71a44fad37e971fa2818229d8408708e1f8fbf56b2",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_debug_toolbar",
+      "snapshot_fingerprint": "84f857982620b50ab737465bc2d3fc370a6fcee392e2840994d78efa3f3b6d67",
+      "version": "0.5.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "fixpoint",
+      "snapshot_fingerprint": "2f1040c1a409dc5898fe90577d511051643d1c996cd519597bfc2511da594928",
+      "version": "0.21.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bot_framework",
+      "snapshot_fingerprint": "4d0fcbddd4e3177e8ed66b0cef2c776ff6d6c3aa356c3fde866933252accf45c",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "hedwig_messenger",
+      "snapshot_fingerprint": "eff4e73b63b4eb7999e51d27ef211db9acbf39681a4d30adde5dac6d3bbb0249",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 5,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/foundry/manifest/validations.ex:57"
+          ],
+          "id": "7caf159bd48d9e171f3a6151d086a9c961391537f0e9e4cdb50b6ef7cad2c9fe",
+          "kind": "dual_key_fallback",
+          "location": "lib/foundry/manifest/validations.ex:57",
+          "message": "map key \"k\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "foundry_stack",
+      "snapshot_fingerprint": "b6ec38669de0d99463173644f83c155377563ab0238ad6addba8d4365374d326",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "godfist",
+      "snapshot_fingerprint": "e52610cda6499af142b5b589f29f27a38552b367bf992f00b36633dcf7e0dba6",
+      "version": "0.5.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "brook",
+      "snapshot_fingerprint": "ae3bfeaaaaae739f8c9e6e0d5c739ca691668541186a460b71d286f7c8d95a73",
+      "version": "0.6.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "exeex",
+      "snapshot_fingerprint": "6e9eef6fa90e8a862d730683dd2a2029dcb192adc9aa48b125036b6939f872fd",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "pathfinding",
+      "snapshot_fingerprint": "57e40a73c21a2920751c764f9d488b0f004130aff3bf632a820f29c340d16097",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 8,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/arcana_web/live/ask_live.ex:560"
+          ],
+          "id": "62e3e40832c9c3a123f5f647bcdf9b295328d3c5bf0d68143100a6a25b159a54",
+          "kind": "dual_key_fallback",
+          "location": "lib/arcana_web/live/ask_live.ex:560",
+          "message": "map key \"title\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "arcana",
+      "snapshot_fingerprint": "3ecdbcbb1b5b11f177d9ec38acefacbb06c94571889a0fa2653beda30d73bb73",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "end_point_blank_elixir",
+      "snapshot_fingerprint": "87ac793e6faa766990a8febff8085ecff6bd90b69468e0eb1a9cf18e6349068b",
+      "version": "0.3.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_acme",
+      "snapshot_fingerprint": "2ae9b03195a1394a4ff45e36f9f9de0e839bcb9c7e2f3ff9c943e8cc375cc3d6",
+      "version": "0.7.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "mishka_gervaz",
+      "snapshot_fingerprint": "3b150025591ec914247b716d564921b6b06c645ba8baf5e47d4782e8798c2b08",
+      "version": "0.0.1-alpha.5"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "jido_chat",
+      "snapshot_fingerprint": "48adffdbe68f50028f6f5ec08bbd6b23e62d7ba195f6e017bc5140f7b84d9421",
+      "version": "1.0.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "absinthe",
+      "snapshot_fingerprint": "7e9ea0d5b86cdca1ddd6a6dd401870b5bc9f7228a0007aa66c7a2d1ec30f2263",
+      "version": "1.11.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_dicom",
+      "snapshot_fingerprint": "7875fca99e9b02e0872545ee6a4fe42dd7d727cc73715a24a683574c93863dd6",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ecto_tenancy_enforcer",
+      "snapshot_fingerprint": "d99a12ecedbaf094f14d267141bd621b78d1b7a1e2b6a6591971ab59658dc591",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_phoenix_translations",
+      "snapshot_fingerprint": "5549da6a445b75f2f394914c388cae599d3eb0f879441496f5c79ec3387c57c3",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 6,
+      "findings": [],
+      "package": "hl7v2",
+      "snapshot_fingerprint": "af305066b030f77f21b1113dca40911504a55a4f80f0a7f784a53fc31ad62c30",
+      "version": "3.10.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_nlp",
+      "snapshot_fingerprint": "aa78e6fdeb3d228d9fe6049b27979940b860a8d58670206598f83672e2bbc445",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "beacon_live_admin",
+      "snapshot_fingerprint": "99e583d69f979cee1743d92f527374aa9132d41639a41cfd78abb09baa4cfb06",
+      "version": "0.4.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "candle_clock",
+      "snapshot_fingerprint": "f5b135169033ca6029c7162edfef7ce7b06169fcc51cad7599024837349f443c",
+      "version": "1.6.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "materia_utils",
+      "snapshot_fingerprint": "af77a97153836b1bfc09de6af7ba798dfbb1eea415f6dfe39dbd313a90000210",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 7,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/gemini.ex:629"
+          ],
+          "id": "cec55743bf3df3c3bb011f2e30907b0a20e172962848d8b4e8717d783237c74d",
+          "kind": "dual_key_fallback",
+          "location": "lib/gemini.ex:629",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "gemini_ex",
+      "snapshot_fingerprint": "9e55402104e1b3431611da98f49bc7afc92e56a269be617d82e7e2fd4bac41c7",
+      "version": "0.14.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bubble_lib",
+      "snapshot_fingerprint": "e0293e237d963fa4879a8ac04c95ce86b02b1fc941c0c58399bf760e03db1fa8",
+      "version": "1.6.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "stellar_sdk",
+      "snapshot_fingerprint": "0aa823080bd7b5aee970e04f96be1eeca4a7e859a60fd5284ae279f2a380763f",
+      "version": "0.23.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "dark_testing",
+      "snapshot_fingerprint": "21f5d29c9c987459ffda08f796a62697e14e76f7738ade544a92ff95b76c3abc",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/duck_feeder/duck_lake/sql.ex:2002"
+          ],
+          "id": "37c005323e8ce90a5eb53e9374d32a9fba5040c99369764ac1a8fe0f38ad4ed5",
+          "kind": "dual_key_fallback",
+          "location": "lib/duck_feeder/duck_lake/sql.ex:2002",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "duck_feeder",
+      "snapshot_fingerprint": "788f4869e45a90cdeefb3af88693a60aedc45315709e80facd684b2846220579",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bazaar",
+      "snapshot_fingerprint": "2869b76a4ed77fd848abeb93fd3a3478b55b4c4687f1179f8725ca5748906397",
+      "version": "0.2.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ash_credo",
+      "snapshot_fingerprint": "62afe649259d533d4d076ad44468b3ffd2c4e7b089e8bc3877a1d95b15ef51fb",
+      "version": "0.16.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 6,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/cmdc_gateway/working_dir_policy.ex:48"
+          ],
+          "id": "48c5e7a4293079228db0bf7bb64c29c1634d6785cd70062c7c4db53ed4324f8e",
+          "kind": "dual_key_fallback",
+          "location": "lib/cmdc_gateway/working_dir_policy.ex:48",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        },
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/cmdc_gateway/working_dir_policy.ex:58"
+          ],
+          "id": "8cefeb28dfe76089437c247bcacdc680256528b8d549377232f88d12c424b857",
+          "kind": "dual_key_fallback",
+          "location": "lib/cmdc_gateway/working_dir_policy.ex:58",
+          "message": "map key \"default\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        },
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/cmdc_gateway/workflow_replay.ex:119"
+          ],
+          "id": "4111335c84a7986f441d415752a67e16edb3c93e9752e74ea12e09e55bcf7c08",
+          "kind": "dual_key_fallback",
+          "location": "lib/cmdc_gateway/workflow_replay.ex:119",
+          "message": "map key \"snake\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        },
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/cmdc_gateway/event_translator.ex:795"
+          ],
+          "id": "f7974d94fcccca825a0d238c5e2f46982a7cbb1db460a6d69c363949e9d94881",
+          "kind": "dual_key_fallback",
+          "location": "lib/cmdc_gateway/event_translator.ex:795",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "cmdc_gateway",
+      "snapshot_fingerprint": "08adf562fabb4ba125d328a24498ef4c3574a7935d2847951cd3dd72356fd36f",
+      "version": "0.6.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_slp",
+      "snapshot_fingerprint": "06d3d4901d109561889201201992bcf46899e8a1b07907a2fb2da65fddfca789",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "elixush",
+      "snapshot_fingerprint": "a1fc5ff5e5b8601b97177e88b986ed9f1946b18daf631a7c4d8194d4f3ce7086",
+      "version": "0.0.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ninjaproxies",
+      "snapshot_fingerprint": "bd95dc523bc7ded6b353c1056795a649d50384e27550cfd040813e0a44e7fae8",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_jsonschema",
+      "snapshot_fingerprint": "345884c355e64e6a7fed613532333944d8b6040e1026066419be89f11c10ddec",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/factorial_hr.ex:704"
+          ],
+          "id": "c3c0d777dd7e58998b30f21a4dd63e3da258360b7615d4db94433b5f372f7a63",
+          "kind": "dual_key_fallback",
+          "location": "lib/factorial_hr.ex:704",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "factorial_hr",
+      "snapshot_fingerprint": "17a42fc69c797565677c93376971c427c71684a38d67d5822782348b2fc3ae82",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "apex",
+      "snapshot_fingerprint": "1dc4527d85b067f8dd1b3645802f6d079ec806b50debf7047063afdaac384b56",
+      "version": "1.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 6,
+      "findings": [],
+      "package": "ash_typescript",
+      "snapshot_fingerprint": "9e6b3fb853e7ee29268d3d1d8ea320902d6428281c92269565c22083d47cf08e",
+      "version": "0.17.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "virta",
+      "snapshot_fingerprint": "143db307ff77fa17e96d8106272710aaf6c1a5be194c6aa46802937728bda424",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "nicene",
+      "snapshot_fingerprint": "abe238e4370de49bf21b2f2befe94bbfc138e9fe8cbdcc62320b87b3d3ab3f7f",
+      "version": "0.7.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ash_scenario",
+      "snapshot_fingerprint": "ff688b3c29ef3d5083c3bca46797049a8cd3473484d5e4183875b4d9a4dd2694",
+      "version": "0.6.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "gnat",
+      "snapshot_fingerprint": "fec87297477004c09573c48e27338984fa3ba732337d46e20f94bea70635c352",
+      "version": "1.16.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_tdlib",
+      "snapshot_fingerprint": "85b4632a19ee897bb3f009265f0ed8b8d1ee7b2afe38db6e9e6fba8d1d5a34a5",
+      "version": "0.0.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "scurry",
+      "snapshot_fingerprint": "3ffbd5fc5eac6500c4a79de4f2725beef2583e20a88b463253db8a7c1acfeced",
+      "version": "3.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "indexed",
+      "snapshot_fingerprint": "7a9cfa552490d963b2fb348df9699d5a8f3581ef813d98abbb9c6c7301cbece9",
+      "version": "0.3.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "expublica",
+      "snapshot_fingerprint": "8ef307745e3485da4e0243c4e6b58f3e1b1e6353f676b197db8bcde7f92d330b",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "exy",
+      "snapshot_fingerprint": "3655223cf11beb1878f208b919615c7e2c1f15fbe992bccbb8c4dba2358de54b",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "membrane_rtc_engine",
+      "snapshot_fingerprint": "1e890a7f867b2b2c5f3b38b375da305ca9999f150db9d71dfce09d081308584b",
+      "version": "0.25.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "raxol",
+      "snapshot_fingerprint": "fec0458bc82fb46e420450bb1cae28093bcf619596852804895796751a88dd56",
+      "version": "2.6.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "hologram_devtools",
+      "snapshot_fingerprint": "c4f5aad3dcfc37cdf8cfca795622d22dfe71d78a0cee60c7d5e49c4c832186ed",
+      "version": "0.1.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/rulestead/store/command.ex:42"
+          ],
+          "id": "75bf67c975cfc956741060547a57b939264810baa77d15e09b4391183ade4ff7",
+          "kind": "dual_key_fallback",
+          "location": "lib/rulestead/store/command.ex:42",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "rulestead",
+      "snapshot_fingerprint": "2163b7285095a6c50dd3e626bc44750c1d7298ae1fb368241b0337fec200f28f",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "horizon",
+      "snapshot_fingerprint": "d3e85e5981773fa2e22c717bd92f787bc213c188f9c027b78cebedcdb9f1aca7",
+      "version": "0.3.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "autonoma",
+      "snapshot_fingerprint": "f5f472ff89d78fbac0c425f2da03eb61182db8e45918af2dc8bdc8b11c747091",
+      "version": "0.2.5"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "autogentic",
+      "snapshot_fingerprint": "d5cd0a4da1a48c9b5ac5132fafa76a55d7ac021f5957904f15f9555181294bef",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "good_job",
+      "snapshot_fingerprint": "888be431f363f2fd1c601ac670cf88f3aa13b71088f3668cbe70f8e8940af121",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_nabava",
+      "snapshot_fingerprint": "31201144e31a2349e4bae08f6c5a76ebd29ffe2d7e46e59c9880f642cabcb8f1",
+      "version": "0.3.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 10,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/baileys_ex/feature/app_state.ex:575"
+          ],
+          "id": "87c47926f63208fd316b9137327d86699ee2fe6628ab16f542efd152928558a0",
+          "kind": "dual_key_fallback",
+          "location": "lib/baileys_ex/feature/app_state.ex:575",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        },
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/baileys_ex/feature/app_state.ex:579"
+          ],
+          "id": "bd1a0e4d0c1772b84d3a94ab84a61facd2e76c62dc0df20b2a5d41be7c4a010e",
+          "kind": "dual_key_fallback",
+          "location": "lib/baileys_ex/feature/app_state.ex:579",
+          "message": "map key \"field\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        },
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/baileys_ex/feature/app_state.ex:624"
+          ],
+          "id": "603752fd5f92f9a0a2be7bc8af09f5c7dc42b43497e9847fa9322e9693784bcb",
+          "kind": "dual_key_fallback",
+          "location": "lib/baileys_ex/feature/app_state.ex:624",
+          "message": "map key \"key\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "baileys_ex",
+      "snapshot_fingerprint": "8fdb8bbb5e7fffffb57c72a9d5d0e1b7c26543b9ff3e482dc42c6fc0ef8c0bbf",
+      "version": "0.1.0-alpha.11"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "firebreak",
+      "snapshot_fingerprint": "ba5b9a07e84a13409c0a104b9ac5a6672ac30a660678d86537c9cdcec237145d",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "censor",
+      "snapshot_fingerprint": "58797135fe4cfab48b477f73469615b7bba048bc17d6e87ba776401417be9121",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "lmstudio",
+      "snapshot_fingerprint": "dfa53bced1d0eb1a2a784e52f387099bea565bd28bca156e35a5f5a08f7abe32",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "causalontology",
+      "snapshot_fingerprint": "481bcd0aacca5d6ed24b91ab71524a27125a81d5939b0696602ec73868e337ba",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "arangodb_ecto",
+      "snapshot_fingerprint": "5becfbe6211e0840f96cd97dde9d70e9005516b2a1ea9b101feab382d9c3bce1",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ecto_sharding",
+      "snapshot_fingerprint": "a2f17e48c3da83aa9c66105253fb4be220f9e1dd0561be54d0914ea5b4a74489",
+      "version": "0.0.8"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_clickhouse",
+      "snapshot_fingerprint": "28ced8c3dffff3ca6740154b9796726d87dc0089df8b4cdb4169240105a35844",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "green_ash",
+      "snapshot_fingerprint": "6582ae5bf444b2c2d400a345f548a21339cc65e3db43be1beff63e71601a7549",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_zarr",
+      "snapshot_fingerprint": "917ea1a668198b8d7986ce5a65a8b951e946b609447f88684527982eede6a7a7",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_aircall",
+      "snapshot_fingerprint": "b717e07708b96e898bddce321440482071cf379568f6122b055b7dfabc151ca8",
+      "version": "0.3.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [
+        {
+          "confidence": "high",
+          "evidence": [
+            "lib/ex_mcp/acp/adapter_events.ex:128"
+          ],
+          "id": "6b3a8df090683bcf77f27ff5b45c11433a382be23e1375895c057a7790662609",
+          "kind": "dual_key_fallback",
+          "location": "lib/ex_mcp/acp/adapter_events.ex:128",
+          "message": "map key \"messageId\" is read through atom/string fallback representations; normalize the map once at its boundary",
+          "verdict": "true_positive"
+        }
+      ],
+      "package": "ex_mcp",
+      "snapshot_fingerprint": "9b852f8105f995f09319d5f772b8698ca9bb9ae3b97c3d4450e037b6b3129186",
+      "version": "1.0.0-rc.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "cinder",
+      "snapshot_fingerprint": "7813e56bc6423be14af8ef2e8a8b4b717546bdb80c697e2d88d3c62c88358d3d",
+      "version": "0.16.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "arpeggiate",
+      "snapshot_fingerprint": "41398eea1db4a0354a320238925d90465264022232a4f3483c88b3d5ce50c30b",
+      "version": "1.2.0"
+    }
+  ],
+  "selection": {
+    "candidate_pool_limit": 5000,
+    "candidate_pool_size": 734,
+    "hydration_scope": "candidate_paths_or_lib",
+    "kinds": [
+      "dual_key_fallback",
+      "false_collapsing_lookup"
+    ],
+    "limit": 100,
+    "paths": null,
+    "patterns": [
+      "Map.get(_, _)"
+    ],
+    "seed": "map-contract-baseline-v1",
+    "strategy": "stratified"
+  },
+  "summary": {
+    "by_kind": {
+      "dual_key_fallback": {
+        "false_positives": 0,
+        "precision": 1.0,
+        "reviewed": 15,
+        "total": 15,
+        "true_positives": 15,
+        "unreviewed": 0
+      }
+    },
+    "errors": 0,
+    "findings": 15,
+    "packages": 100
+  },
+  "version": 1
+}

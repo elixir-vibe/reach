@@ -8,8 +8,8 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
     findings =
       """
       defmodule LooseContract do
-        def get(map, key, default) do
-          Map.get(map, key) || Map.get(map, Atom.to_string(key)) || default
+        def get(map, key) do
+          Map.get(map, key) || Map.get(map, Atom.to_string(key)) || true
         end
       end
       """
@@ -17,6 +17,21 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       |> Smells.run()
 
     assert Enum.any?(findings, &(&1.kind == :dual_key_fallback))
+    assert Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
+  end
+
+  test "flags false collapse for boolean-shaped map keys" do
+    findings =
+      """
+      defmodule FeatureFlags do
+        def enabled(map, default) do
+          Map.get(map, :enabled) || Map.get(map, "enabled") || default
+        end
+      end
+      """
+      |> project_from_string()
+      |> Smells.run()
+
     assert Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
   end
 
@@ -41,9 +56,9 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
     findings =
       """
       defmodule LooseContract do
-        def get(map, default) do
+        def get(map) do
           Map.get(map, :id) || Map.get(map, "id") ||
-            Map.get(map, :call_id) || Map.get(map, "call_id") || default
+            Map.get(map, :call_id) || Map.get(map, "call_id") || true
         end
       end
       """
@@ -52,6 +67,22 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
 
     assert Enum.count(findings, &(&1.kind == :dual_key_fallback)) == 2
     assert Enum.count(findings, &(&1.kind == :false_collapsing_lookup)) == 1
+  end
+
+  test "requires boolean-domain evidence for false collapse" do
+    findings =
+      """
+      defmodule RequiredField do
+        def get(map, key, default) do
+          Map.get(map, key) || Map.get(map, Atom.to_string(key)) || default
+        end
+      end
+      """
+      |> project_from_string()
+      |> Smells.run()
+
+    assert Enum.any?(findings, &(&1.kind == :dual_key_fallback))
+    refute Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
   end
 
   test "recognizes nested defaults without reporting false collapse" do

@@ -34,7 +34,10 @@ defmodule Reach.Smell.Checks.DualKeyFallback do
   end
 
   defp false_collapse_findings(fallbacks) do
-    case Enum.find(fallbacks, &(&1.operator == :or and &1.default?)) do
+    case Enum.find(
+           fallbacks,
+           &(&1.operator == :or and &1.default? and &1.boolean_evidence != [])
+         ) do
       nil ->
         []
 
