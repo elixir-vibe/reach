@@ -56,7 +56,7 @@ Collect project-level dependency bypass facts with:
 Reach.Evidence.dependency_bypass(project, config)
 ```
 
-This API is separate from per-file AST providers because clone evidence needs the whole project and dependency source roots.
+This API is separate from per-file AST providers because clone evidence needs the whole project and dependency source roots. Exact Type-I dependency clones are also surfaced as advisory `:reuse_dependency` results from `mix reach.check --candidates`; weaker clone types remain evidence-only.
 
 ## Boundaries
 

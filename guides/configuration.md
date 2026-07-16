@@ -455,7 +455,7 @@ smells: [
 
 Reach runs ExDNA when the package is available; package consumers can disable clone evidence with `provider: false` or tune clone mass/similarity when needed. ExDNA options are forwarded so clone evidence can use occurrence budgets, Type-II literal abstraction, Type-III similarity, pipe normalization, macro/attribute exclusions, path ignores, and parser timeouts. ExDNA's source suppression comments are also honored by the provider.
 
-Set `include_deps: true` to collect project-to-dependency reimplementation evidence from direct Mix dependencies. Reach parses dependency `lib/` sources without compiling or loading them, limits the number of dependency roots with `dep_paths_limit`, and discards dep-to-dep and project-only clone families. This evidence remains advisory and does not become a smell automatically.
+Set `include_deps: true` to collect project-to-dependency reimplementation evidence from direct Mix dependencies. Reach parses dependency `lib/` sources without compiling or loading them, limits the number of dependency roots with `dep_paths_limit`, and discards dep-to-dep and project-only clone families. This evidence never becomes a smell automatically. Exact Type-I project-to-dependency clones appear as advisory `reuse_dependency` candidates; weaker matches remain evidence-only.
 
 ### `checks[:baseline]`
 

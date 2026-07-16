@@ -48,6 +48,7 @@ defmodule Reach.Config do
 
   defmodule Candidates do
     @moduledoc false
+    @type t :: %__MODULE__{}
     defstruct thresholds: nil, limits: nil
   end
 

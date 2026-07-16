@@ -61,6 +61,7 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNATest do
     assert [fact | _] = Bypass.from_dependency_clones([clone])
     assert fact.family == :dependency_bypass
     assert fact.kind == :structural_reimplementation
+    assert fact.confidence == :high
     assert fact.data.provider == :sample_dep
     assert fact.data.origin == :dependency_clone
     assert Bypass.fact?(fact)

@@ -90,6 +90,7 @@ defmodule Reach.Evidence.Bypass do
     )
   end
 
+  defp clone_confidence(%{type: :type_i}), do: :high
   defp clone_confidence(%{similarity: 1.0}), do: :high
   defp clone_confidence(_clone), do: :medium
 

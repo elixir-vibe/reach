@@ -2,8 +2,9 @@ defmodule Reach.Check.Candidates do
   @moduledoc "Generates graph-backed refactoring candidates from cycles, effects, and pure regions."
 
   alias Reach.Analysis
-  alias Reach.Check.{Architecture, Candidate, Changed}
+  alias Reach.Check.{Architecture, Candidate, Changed, DependencyBypassCandidates}
   alias Reach.Config
+  alias Reach.Evidence
   alias Reach.Evidence.MapContract
   alias Reach.IR.Helpers, as: IRHelpers
   alias Reach.Project.Query
@@ -22,7 +23,8 @@ defmodule Reach.Check.Candidates do
          extract_region_candidates(project, config.candidates) ++
          boundary_candidates(project, config) ++
          cycle_candidates(project, config.candidates) ++
-         map_contract_candidates(project, config.candidates))
+         map_contract_candidates(project, config.candidates) ++
+         dependency_bypass_candidates(project, config))
       |> Enum.uniq_by(& &1.id)
       |> Enum.sort_by(&candidate_rank/1)
       |> Enum.take(top)
@@ -37,8 +39,9 @@ defmodule Reach.Check.Candidates do
       introduce_struct_contract: 2,
       introduce_boundary_contract: 3,
       introduce_typed_map_contract: 4,
-      extract_pure_region: 5,
-      break_cycle: 6
+      reuse_dependency: 5,
+      extract_pure_region: 6,
+      break_cycle: 7
     }
 
     risk_rank = %{high: 0, medium: 1, low: 2}
@@ -440,6 +443,12 @@ defmodule Reach.Check.Candidates do
       end)
 
     source_labels ++ variant_labels ++ examples
+  end
+
+  defp dependency_bypass_candidates(project, config) do
+    project
+    |> Evidence.dependency_bypass(config)
+    |> DependencyBypassCandidates.build(config.candidates)
   end
 
   defp boundary_candidates(_project, %{layers: []}), do: []

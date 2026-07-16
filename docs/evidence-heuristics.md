@@ -50,6 +50,18 @@ Promising mined families that need stronger constraints before implementation:
 - `URI.parse/1` for authority parsing such as `String.split(str, ":", parts: 2)`, but only for URI/host/endpoint variable names or surrounding URI semantics.
 - `Path.basename/1` / `Path.extname/1` for filename construction, but avoid generic labels/slugs.
 
+## Dependency capability bypass
+
+`Reach.Evidence.Bypass` normalizes standard-library, plugin-pattern, and project-to-dependency clone facts. With `clone_analysis[:include_deps]` enabled, ExDNA reads direct dependency `lib/` sources and retains only clone families spanning project and dependency origins.
+
+Calibration notes:
+
+- An exact-clone pass over Incant, LLM Proxy, Exograph, Phoenix Replay, Host Kit, Gatehouse, JsonCodec, and RustQ produced two facts across eight projects with analyzable local dependencies.
+- Both facts identified Exograph copies of `ExAST.Ident` functionality while ExAST was already a direct dependency; manual review confirmed the shared implementation shape.
+- Exact ExDNA Type-I clones are promoted to advisory `:reuse_dependency` candidates.
+- Type-II/Type-III or lower-similarity matches remain evidence-only pending broader calibration.
+- Candidates require review of the dependency's supported public API; Reach must not recommend calling copied internal functions solely because source matches.
+
 ## Map contracts
 
 Implemented evidence:

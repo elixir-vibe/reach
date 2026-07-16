@@ -11,6 +11,7 @@
 - Smell checks now run against deterministic snapshots of eight pinned Hex packages in CI, catching new false-positive drift on idiomatic real-world code.
 - Generic smells now ignore source ranges whose syntax is reinterpreted by Ecto, Ash, Nx, plugin-defined, or configured project DSL macros, while column-aware matching preserves same-line findings outside nested DSL calls.
 - Evidence providers now share an explicit provider behaviour and normalized capability-bypass metadata; optional ExDNA dependency scanning emits project-to-dependency reimplementation evidence without compiling dependency code.
+- Exact project-to-dependency Type-I clones can now surface as advisory `reuse_dependency` refactoring candidates, while weaker clone matches remain evidence-only.
 
 ## 2.7.5 - 2026-06-12
 
