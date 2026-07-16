@@ -51,7 +51,8 @@ defmodule Reach.ConfigTest do
                    high_risk_direct_callers: 5,
                    facade_ratio: 0.9,
                    facade_min_functions: 4,
-                   facade_max_targets: 1
+                   facade_max_targets: 1,
+                   clone_consolidation_min_fragments: 3
                  ],
                  limits: [
                    per_kind: 30,
@@ -128,6 +129,7 @@ defmodule Reach.ConfigTest do
     assert config.candidates.thresholds.facade_ratio == 0.9
     assert config.candidates.thresholds.facade_min_functions == 4
     assert config.candidates.thresholds.facade_max_targets == 1
+    assert config.candidates.thresholds.clone_consolidation_min_fragments == 3
     assert config.candidates.limits.per_kind == 30
     assert config.candidates.limits.representative_calls == 12
     assert config.candidates.limits.representative_calls_per_edge == 2
@@ -168,7 +170,8 @@ defmodule Reach.ConfigTest do
                  thresholds: [
                    facade_ratio: 2.0,
                    facade_min_functions: 0,
-                   facade_max_targets: 0
+                   facade_max_targets: 0,
+                   clone_consolidation_min_fragments: 1
                  ]
                ]
              )
@@ -176,6 +179,11 @@ defmodule Reach.ConfigTest do
     assert Enum.any?(errors, &(&1.path == [:candidates, :thresholds, :facade_ratio]))
     assert Enum.any?(errors, &(&1.path == [:candidates, :thresholds, :facade_min_functions]))
     assert Enum.any?(errors, &(&1.path == [:candidates, :thresholds, :facade_max_targets]))
+
+    assert Enum.any?(
+             errors,
+             &(&1.path == [:candidates, :thresholds, :clone_consolidation_min_fragments])
+           )
   end
 
   test "rejects malformed dependency clone limits" do

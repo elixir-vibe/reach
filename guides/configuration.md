@@ -62,7 +62,8 @@ The file must evaluate to a keyword list. Start from [`examples/reach.exs`](../e
       high_risk_direct_callers: 4,
       facade_ratio: 0.8,
       facade_min_functions: 3,
-      facade_max_targets: 2
+      facade_max_targets: 2,
+      clone_consolidation_min_fragments: 2
     ],
     limits: [
       per_kind: 20,
@@ -396,7 +397,8 @@ candidates: [
     high_risk_direct_callers: 4,
     facade_ratio: 0.8,
     facade_min_functions: 3,
-    facade_max_targets: 2
+    facade_max_targets: 2,
+    clone_consolidation_min_fragments: 2
   ],
   limits: [
     per_kind: 20,
@@ -406,7 +408,7 @@ candidates: [
 ]
 ```
 
-Thresholds decide when Reach reports mixed-effect, branch-heavy, and module-level facade candidates. `facade_ratio` is the minimum forwarded share of public functions; `facade_min_functions` avoids tiny wrappers; `facade_max_targets` requires forwarding to remain concentrated. Modules configured in `boundaries[:public]`, behaviour/use implementations, and deprecated compatibility shims are excluded. Limits bound candidate evidence and per-kind generation while preserving exact cycle-component detection.
+Thresholds decide when Reach reports mixed-effect, branch-heavy, module-level facade, and exact-clone consolidation candidates. `facade_ratio` is the minimum forwarded share of public functions; `facade_min_functions` avoids tiny wrappers; `facade_max_targets` requires forwarding to remain concentrated. `clone_consolidation_min_fragments` is the minimum number of distinct project functions in an exact Type-I clone family before Reach recommends a canonical implementation. Modules configured in `boundaries[:public]`, behaviour/use implementations, and deprecated compatibility shims are excluded from facade analysis. Limits bound candidate evidence and per-kind generation while preserving exact cycle-component detection.
 
 ### `clone_analysis`
 

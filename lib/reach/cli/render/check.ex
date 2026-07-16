@@ -43,6 +43,7 @@ defmodule Reach.CLI.Render.Check do
       IO.puts("    evidence=#{Format.humanized_join(candidate.evidence)}")
 
       render_representative_calls(candidate)
+      render_clone_siblings(candidate.clone_siblings)
 
       IO.puts("    suggestion=#{candidate.suggestion}")
       IO.puts("")

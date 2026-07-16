@@ -59,7 +59,8 @@ defmodule Reach.Config do
               high_risk_direct_callers: 4,
               facade_ratio: 0.8,
               facade_min_functions: 3,
-              facade_max_targets: 2
+              facade_max_targets: 2,
+              clone_consolidation_min_fragments: 2
   end
 
   defmodule Candidates.Limits do
@@ -279,7 +280,14 @@ defmodule Reach.Config do
           facade_min_functions:
             nested(config, [:candidates, :thresholds, :facade_min_functions], nil, 3),
           facade_max_targets:
-            nested(config, [:candidates, :thresholds, :facade_max_targets], nil, 2)
+            nested(config, [:candidates, :thresholds, :facade_max_targets], nil, 2),
+          clone_consolidation_min_fragments:
+            nested(
+              config,
+              [:candidates, :thresholds, :clone_consolidation_min_fragments],
+              nil,
+              2
+            )
         },
         limits: %Candidates.Limits{
           per_kind: nested(config, [:candidates, :limits, :per_kind], nil, 20),
@@ -703,6 +711,12 @@ defmodule Reach.Config do
       &valid_positive_integer?/1,
       "expected positive integer"
     )
+    |> check(
+      config,
+      [:candidates, :thresholds, :clone_consolidation_min_fragments],
+      &valid_integer_at_least_two?/1,
+      "expected integer >= 2"
+    )
     |> check(config, [:candidates, :limits], &valid_group?/1, "expected keyword list")
     |> check(
       config,
@@ -825,7 +839,8 @@ defmodule Reach.Config do
       :high_risk_direct_callers,
       :facade_ratio,
       :facade_min_functions,
-      :facade_max_targets
+      :facade_max_targets,
+      :clone_consolidation_min_fragments
     ])
     |> unknown_nested_key_errors(config, [:candidates, :limits], [
       :per_kind,

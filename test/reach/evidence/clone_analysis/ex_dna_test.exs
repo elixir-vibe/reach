@@ -57,6 +57,8 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNATest do
     assert Enum.any?(clone.fragments, &(&1.origin == :project))
     assert Enum.any?(clone.fragments, &(&1.origin == :dependency))
     assert Enum.all?(clone.fragments, &(&1.origin in [:project, :dependency]))
+    assert Enum.any?(clone.fragments, &(&1.origin == :project and &1.whole_function))
+    assert Enum.all?(clone.fragments, &(&1.origin != :dependency or not &1.whole_function))
 
     assert [fact | _] = Bypass.from_dependency_clones([clone])
     assert fact.family == :dependency_bypass

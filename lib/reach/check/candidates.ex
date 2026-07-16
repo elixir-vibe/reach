@@ -7,13 +7,14 @@ defmodule Reach.Check.Candidates do
     Architecture,
     Candidate,
     Changed,
+    CloneConsolidationCandidates,
     DependencyBypassCandidates,
     FacadeCandidates
   }
 
   alias Reach.Config
   alias Reach.Evidence
-  alias Reach.Evidence.{Facade, MapContract}
+  alias Reach.Evidence.{CloneAnalysis, Facade, MapContract}
   alias Reach.IR.Helpers, as: IRHelpers
   alias Reach.Project.Query
 
@@ -25,6 +26,7 @@ defmodule Reach.Check.Candidates do
   def run(project, config, opts \\ []) do
     config = Config.normalize(config)
     top = Keyword.get(opts, :top, 40)
+    facade_modules = Facade.collect_project(project)
 
     candidates =
       (mixed_effect_candidates(project, config.candidates) ++
@@ -33,7 +35,8 @@ defmodule Reach.Check.Candidates do
          cycle_candidates(project, config.candidates) ++
          map_contract_candidates(project, config.candidates) ++
          dependency_bypass_candidates(project, config) ++
-         facade_candidates(project, config))
+         facade_candidates(facade_modules, config) ++
+         clone_consolidation_candidates(project, config, facade_modules))
       |> Enum.uniq_by(& &1.id)
       |> Enum.sort_by(&candidate_rank/1)
       |> Enum.take(top)
@@ -50,8 +53,9 @@ defmodule Reach.Check.Candidates do
       introduce_typed_map_contract: 4,
       reuse_dependency: 5,
       review_facade: 6,
-      extract_pure_region: 7,
-      break_cycle: 8
+      consolidate_clone: 7,
+      extract_pure_region: 8,
+      break_cycle: 9
     }
 
     risk_rank = %{high: 0, medium: 1, low: 2}
@@ -461,10 +465,14 @@ defmodule Reach.Check.Candidates do
     |> DependencyBypassCandidates.build(config.candidates)
   end
 
-  defp facade_candidates(project, config) do
+  defp facade_candidates(facade_modules, config) do
+    FacadeCandidates.build(facade_modules, config)
+  end
+
+  defp clone_consolidation_candidates(project, config, facade_modules) do
     project
-    |> Facade.collect_project()
-    |> FacadeCandidates.build(config)
+    |> CloneAnalysis.analyze(config)
+    |> CloneConsolidationCandidates.build(project, config, facade_modules)
   end
 
   defp boundary_candidates(_project, %{layers: []}), do: []

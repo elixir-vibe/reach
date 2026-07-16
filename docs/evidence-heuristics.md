@@ -62,6 +62,14 @@ Calibration notes:
 - Type-II/Type-III or lower-similarity matches remain evidence-only pending broader calibration.
 - Candidates require review of the dependency's supported public API; Reach must not recommend calling copied internal functions solely because source matches.
 
+## Project clone consolidation
+
+Exact ExDNA Type-I families containing at least two distinct whole project functions can produce advisory `:consolidate_clone` candidates. Reach requires the matched ExDNA fragment to be a complete `def`/`defp`, rather than an identical expression embedded in otherwise different functions. It also excludes behaviour- and `use`-owned modules, where matching callbacks commonly represent intentional parallel implementations.
+
+Reach ranks each function deterministically by module stability and efferent coupling, then by evidence completeness, direct callers, and source location. The selected function is a review target, not a behavioral-equivalence claim. Type-II/Type-III families remain evidence-only. Candidates list every sibling implementation and require maintainers to compare return contracts, errors, effects, and tests before moving callers. Public entrypoints may remain as thin adapters when they preserve an intentional API boundary.
+
+Calibration across thirteen local projects reduced forty-four initial Type-I candidates to one after requiring whole functions and excluding framework/behaviour ownership. The retained candidate was a duplicated private integer-configuration helper in Plausible's analytics and Oban DuckDB modules. The rejected set was dominated by matching expressions inside unrelated functions and intentional callback implementations in Ecto and Oban. A separate pass over the eight checksum-pinned Hex corpus packages produced no candidates.
+
 ## Regex parsing of structured formats
 
 `mix reach.trace --pattern regex-on-structured` uses the project data-flow graph rather than source proximity. Its primary route starts at `File.read/1`, `File.read!/1`, or `File.stream!/1,3` with a static `.xml`, `.html`, `.htm`, `.heex`, `.eex`, `.ex`, `.exs`, or `.rs` path and ends at Regex APIs, regex `=~`, or regex-based `String.split`. A fallback accepts dynamic paths only when the sink contains a structure-shaped regex literal such as an XML/HTML tag, `defmodule`, `defstruct`, or `fn\\s`.

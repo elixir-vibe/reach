@@ -6,6 +6,7 @@
 
 - `mix reach.trace --pattern regex-on-structured` traces structured file contents into regex and regex-based string parsing, including a conservative fallback for structure-shaped regex literals.
 - `mix reach.check --candidates` now reports concentrated module-level forwarding as advisory `review_facade` candidates, with boundary, behaviour, macro-use, compatibility, and documentation guards.
+- Exact project Type-I clone families now produce advisory `consolidate_clone` candidates with a deterministic canonical implementation and explicit behavior-preservation proof steps.
 
 ### Fixed
 
@@ -17,6 +18,7 @@
 - Generic smells now ignore source ranges whose syntax is reinterpreted by Ecto, Ash, Nx, plugin-defined, or configured project DSL macros, while column-aware matching preserves same-line findings outside nested DSL calls.
 - Evidence providers now share an explicit provider behaviour and normalized capability-bypass metadata; optional ExDNA dependency scanning emits project-to-dependency reimplementation evidence without compiling dependency code.
 - Exact project-to-dependency Type-I clones can now surface as advisory `reuse_dependency` refactoring candidates, while weaker clone matches remain evidence-only.
+- Module coupling now attributes dependencies to the owning module when multiple modules share one source file.
 
 ## 2.7.5 - 2026-06-12
 

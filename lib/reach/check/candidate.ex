@@ -23,13 +23,15 @@ defmodule Reach.Check.Candidate do
     :direct_caller_count,
     :keys,
     :occurrences,
-    :sources
+    :sources,
+    clone_siblings: []
   ]
 
   @type t :: %__MODULE__{
           risk: :high | :medium | :low,
           confidence: :high | :medium | :low,
-          effects: [Reach.Effects.effect()] | nil
+          effects: [Reach.Effects.effect()] | nil,
+          clone_siblings: [map()]
         }
 
   def new(attrs) when is_list(attrs) or is_map(attrs), do: struct!(__MODULE__, attrs)

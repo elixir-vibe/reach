@@ -150,6 +150,14 @@ defmodule Reach.Map.Analysis do
 
   def section_data(project, :xref, opts, path), do: section_data(project, :data, opts, path)
 
+  @doc "Returns coupling metrics for every project module."
+  @spec module_coupling(Reach.Project.t()) :: [Reach.Map.ModuleCoupling.t()]
+  def module_coupling(project) do
+    project
+    |> coupling_metrics(nil)
+    |> Map.fetch!(:modules)
+  end
+
   defp function_defs(project, path) do
     for {_id, node} <- project.nodes,
         node.type == :function_def and Query.file_matches?(span_file(node), path),
@@ -289,22 +297,19 @@ defmodule Reach.Map.Analysis do
   end
 
   defp module_dependency_map(module_nodes, internal) do
-    module_by_file = Map.new(module_nodes, &{span_file(&1), &1.meta[:name]})
+    seed = Map.new(module_nodes, &{&1.meta[:name], []})
 
     module_nodes
-    |> Enum.map(fn module -> {module.meta[:name], []} end)
-    |> Map.new()
-    |> then(fn seed ->
-      module_nodes
-      |> Enum.flat_map(&IR.all_nodes/1)
+    |> Enum.reduce(seed, fn module, dependencies ->
+      module
+      |> IR.all_nodes()
       |> Enum.filter(&(&1.type == :call and &1.meta[:kind] == :remote and &1.meta[:module]))
-      |> Enum.reduce(seed, &add_module_dependency(&1, &2, module_by_file, internal))
+      |> Enum.reduce(dependencies, &add_module_dependency(&1, &2, module.meta[:name], internal))
     end)
     |> Map.new(fn {module, deps} -> {module, deps |> Enum.uniq() |> Enum.sort()} end)
   end
 
-  defp add_module_dependency(call, acc, module_by_file, internal) do
-    caller = call.source_span && Map.get(module_by_file, call.source_span.file)
+  defp add_module_dependency(call, acc, caller, internal) do
     callee = call.meta[:module]
 
     if caller && callee && caller != callee && MapSet.member?(internal, callee) do

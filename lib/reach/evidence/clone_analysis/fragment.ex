@@ -17,7 +17,8 @@ defmodule Reach.Evidence.CloneAnalysis.Fragment do
     :return_shapes,
     :map_accesses,
     :validation_calls,
-    :mass
+    :mass,
+    :whole_function
   ]
 
   def new(attrs), do: struct!(__MODULE__, attrs)

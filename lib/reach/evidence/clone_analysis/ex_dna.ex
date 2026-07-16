@@ -173,8 +173,34 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNA do
       return_shapes: return_shapes(function),
       map_accesses: map_accesses(function),
       validation_calls: validation_calls(function),
-      mass: Map.get(ex_dna_fragment, :mass)
+      mass: Map.get(ex_dna_fragment, :mass),
+      whole_function: whole_function_fragment?(Map.get(ex_dna_fragment, :ast), function)
     )
+  end
+
+  defp whole_function_fragment?({kind, _meta, [head | _body]}, function)
+       when kind in [:def, :defp] and not is_nil(function) do
+    case definition_signature(head) do
+      {name, arity} ->
+        name == function.meta[:name] and arity == function.meta[:arity] and
+          single_clause?(function)
+
+      nil ->
+        false
+    end
+  end
+
+  defp whole_function_fragment?(_ast, _function), do: false
+
+  defp definition_signature({:when, _meta, [head | _guards]}), do: definition_signature(head)
+
+  defp definition_signature({name, _meta, args}) when is_atom(name) and is_list(args),
+    do: {name, length(args)}
+
+  defp definition_signature(_head), do: nil
+
+  defp single_clause?(function) do
+    Enum.count(function.children, &(&1.type == :clause)) <= 1
   end
 
   defp module_at_location(_project, nil, _line), do: nil
