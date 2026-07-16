@@ -66,13 +66,19 @@ defmodule Reach.MixProject do
   end
 
   defp run_calibration_ci(_args) do
-    {_, 0} =
-      System.cmd("mix", ["ci"],
-        cd: Path.expand("dev/calibration", __DIR__),
-        into: IO.stream()
-      )
+    calibration_dir = Path.expand("dev/calibration", __DIR__)
+    run_calibration_mix(["deps.get"], calibration_dir)
+    run_calibration_mix(["ci"], calibration_dir)
+  end
 
-    :ok
+  defp run_calibration_mix(args, calibration_dir) do
+    case System.cmd("mix", args, cd: calibration_dir, into: IO.stream()) do
+      {_stream, 0} ->
+        :ok
+
+      {_stream, status} ->
+        Mix.raise("Calibration command mix #{Enum.join(args, " ")} failed (#{status})")
+    end
   end
 
   defp deps do

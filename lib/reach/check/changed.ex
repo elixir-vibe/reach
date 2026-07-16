@@ -2,6 +2,7 @@ defmodule Reach.Check.Changed do
   @moduledoc "Analyzes changed functions for risk, impact, and clone siblings."
 
   alias Reach.Check.Architecture
+  alias Reach.Check.Changed.AccessStrictness
   alias Reach.Check.Changed.Coverage
   alias Reach.Check.Changed.Function, as: ChangedFunction
   alias Reach.Check.Changed.Range
@@ -26,17 +27,22 @@ defmodule Reach.Check.Changed do
       |> add_clone_siblings(project, normalized_config)
 
     coverage = Coverage.analyze(files, changed_ranges, function_nodes)
-    result(base, files, functions, coverage, normalized_config)
+    strictness_downgrades = AccessStrictness.analyze(project, base, changed_ranges, opts)
+    result(base, files, functions, coverage, strictness_downgrades, normalized_config)
   end
 
   def empty_result(base, config, files \\ []) do
     coverage = Coverage.analyze(files, %{}, [])
-    result(base, files, [], coverage, Config.normalize(config))
+    result(base, files, [], coverage, [], Config.normalize(config))
   end
 
-  defp result(base, files, functions, coverage, config) do
+  defp result(base, files, functions, coverage, strictness_downgrades, config) do
     tests = suggested_tests(files, functions, config.tests.hints)
-    {risk, risk_reasons} = aggregate_change_risk(functions)
+
+    {risk, risk_reasons} =
+      functions
+      |> aggregate_change_risk()
+      |> add_strictness_downgrade_risk(strictness_downgrades)
 
     Result.new(
       base: base,
@@ -47,6 +53,7 @@ defmodule Reach.Check.Changed do
       changed_files: files,
       changed_functions: functions,
       public_api_changes: Enum.filter(functions, & &1.public_api),
+      strictness_downgrades: strictness_downgrades,
       suggested_tests: tests
     )
   end
@@ -171,6 +178,14 @@ defmodule Reach.Check.Changed do
 
   defp fragment_id(fragment) do
     IRHelpers.func_id_to_string({fragment.module, fragment.function, fragment.arity})
+  end
+
+  defp add_strictness_downgrade_risk(result, []), do: result
+
+  defp add_strictness_downgrade_risk({risk, reasons}, downgrades) do
+    risk = if risk == :high, do: :high, else: :medium
+    reason = "access strictness downgraded (#{length(downgrades)})"
+    {risk, reasons ++ [reason]}
   end
 
   def aggregate_change_risk([]), do: {:low, []}

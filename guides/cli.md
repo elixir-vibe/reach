@@ -61,13 +61,15 @@ mix reach.check --candidates
 
 `--arch` is a failing gate by default. It validates layer dependency rules, optional layer coverage, source bans, call bans, boundary policy, effect policy, and layer cycles. Layer cycle output includes concrete call edges so policy failures can be traced back to source locations. `--smells` is advisory by default; add `--strict` or set `smells: [strict: true]` in `.reach.exs` to fail when non-baseline smell findings are present.
 
-Changed-code output reports **risk** and **assessment confidence** separately. Risk is derived from the functions Reach could analyze; confidence describes how much of the diff mapped to current function definitions:
+Changed-code output reports **risk** and **assessment confidence** separately. Risk is derived from the functions Reach could analyze plus high-confidence contract-erosion events; confidence describes how much of the diff mapped to current function definitions:
 
 - `high` — every changed line unit was assessed;
 - `partial` — some, but not all, changed line units were assessed;
 - `none` — no changed line units were assessed.
 
 A low-risk result with partial or no confidence is not a claim that the whole change is safe. Deleted-only hunks, non-source files, binary changes, and lines before the first function are reported as unassessed. For replacement hunks, Reach uses the larger of the old-side and new-side line counts as the changed line-unit count, so paired replacement lines are not double-counted. An empty diff has high confidence because there is nothing to assess.
+
+Changed analysis also compares old and new ASTs inside each hunk. Replacing required field access, `Map.fetch!/2`, or a required map pattern with `Map.get/2,3` appears under **Access strictness downgrades** and raises aggregate change risk to at least medium. When the current call graph contains map-literal callers missing the key, Reach names those producers so they can be normalized instead of weakening the consumer.
 
 Use `--baseline PATH` to suppress known `reach.check` findings while still failing on new findings. Use `--write-baseline PATH` to write the current findings for the selected check modes. JSON output supports one check mode at a time.
 

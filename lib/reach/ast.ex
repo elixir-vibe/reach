@@ -42,6 +42,27 @@ defmodule Reach.AST do
 
   def keyword?(_entries, _key), do: false
 
+  @doc "Fetches a value from ordinary or Sourceror-wrapped keyword AST."
+  @spec keyword_fetch(Macro.t(), atom()) :: {:ok, Macro.t()} | :error
+  def keyword_fetch(entries, key) when is_list(entries) do
+    Enum.find_value(entries, :error, fn
+      {{:__block__, _meta, [^key]}, value} -> {:ok, value}
+      {^key, value} -> {:ok, value}
+      _entry -> false
+    end)
+  end
+
+  def keyword_fetch(_entries, _key), do: :error
+
+  @doc "Returns a value from ordinary or Sourceror-wrapped keyword AST."
+  @spec keyword_value(Macro.t(), atom()) :: Macro.t() | nil
+  def keyword_value(entries, key) do
+    case keyword_fetch(entries, key) do
+      {:ok, value} -> value
+      :error -> nil
+    end
+  end
+
   defp ast_module({:__aliases__, _meta, parts}) when is_list(parts) do
     if Enum.all?(parts, &is_atom/1) do
       Module.safe_concat(parts)

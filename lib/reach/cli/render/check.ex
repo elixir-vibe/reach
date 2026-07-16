@@ -154,12 +154,33 @@ defmodule Reach.CLI.Render.Check do
     )
     |> add_omitted(
       render_limited_section(
+        "Access strictness downgrades",
+        result.strictness_downgrades,
+        &render_strictness_downgrade/1
+      )
+    )
+    |> add_omitted(
+      render_limited_section(
         "Suggested tests",
         result.suggested_tests,
         &IO.puts("  mix test #{&1}")
       )
     )
     |> render_omitted_summary()
+  end
+
+  defp render_strictness_downgrade(downgrade) do
+    IO.puts(
+      "  #{Format.loc(downgrade.file, downgrade.new_line)} #{Format.humanize(downgrade.kind)} #{downgrade.module}.#{downgrade.function}/#{downgrade.arity} key=#{inspect(downgrade.key)}"
+    )
+
+    IO.puts("    #{downgrade.message}")
+
+    Enum.each(downgrade.malformed_callers, fn caller ->
+      IO.puts("    malformed caller: #{caller.id} #{Format.loc(caller.file, caller.line)}")
+    end)
+
+    IO.puts("    suggestion=#{downgrade.suggestion}")
   end
 
   defp closed_cycle([]), do: []

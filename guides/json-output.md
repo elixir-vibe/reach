@@ -21,6 +21,19 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
   "command": "reach.check",
   "risk": "low",
   "confidence": "partial",
+  "strictness_downgrades": [
+    {
+      "kind": "field_to_get",
+      "module": "MyApp.State",
+      "function": "search",
+      "arity": 1,
+      "key": "search",
+      "file": "lib/my_app/state.ex",
+      "old_line": 14,
+      "new_line": 14,
+      "malformed_callers": []
+    }
+  ],
   "coverage": {
     "coverage_percent": 72.5,
     "changed_line_count": 40,
@@ -34,4 +47,4 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
 }
 ```
 
-Risk only summarizes assessed functions. Check `confidence`, `coverage_percent`, and `unassessed_files` before using that risk in automation.
+Risk summarizes assessed functions and high-confidence changed-code erosion events. `strictness_downgrades` reports required field access, `Map.fetch!/2`, or required map patterns replaced by lenient `Map.get/2,3`. Check `confidence`, `coverage_percent`, and `unassessed_files` before using risk in automation.

@@ -8,9 +8,11 @@
 - `mix reach.check --candidates` now reports concentrated module-level forwarding as advisory `review_facade` candidates, with boundary, behaviour, macro-use, compatibility, and documentation guards.
 - Exact project Type-I clone families now produce advisory `consolidate_clone` candidates with a deterministic canonical implementation and explicit behavior-preservation proof steps.
 - Smell analysis now detects private multi-clause domain parsers that silently coerce unsupported input to an accepted constant, while excluding serializers and presentation mappings.
+- Changed-code analysis now reports strict field, fetch, and map-pattern access replaced by lenient `Map.get`, including malformed map-literal callers when available.
 
 ### Fixed
 
+- Root `mix ci` now fetches the isolated calibration project's dependencies before running its checks.
 - Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.
 - Effect and risk values now remain typed atoms through domain and text-rendering layers; only JSON serialization converts them to strings.
 - Changed-code output now reports assessment confidence and line/file coverage separately from function risk, including deleted-only and otherwise unassessed changes.

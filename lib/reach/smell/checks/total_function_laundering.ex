@@ -19,7 +19,7 @@ defmodule Reach.Smell.Checks.TotalFunctionLaundering do
   end
 
   defp module_nodes({:defmodule, _meta, [_name, body]} = module) do
-    [module | nested_modules(keyword_value(body, :do))]
+    [module | nested_modules(Reach.AST.keyword_value(body, :do))]
   end
 
   defp module_nodes(_ast), do: []
@@ -31,7 +31,7 @@ defmodule Reach.Smell.Checks.TotalFunctionLaundering do
   end
 
   defp module_findings({:defmodule, _meta, [_name, body]}, file) do
-    statements = block_statements(keyword_value(body, :do))
+    statements = block_statements(Reach.AST.keyword_value(body, :do))
     type_domains = type_domains(statements)
 
     statements
@@ -43,7 +43,7 @@ defmodule Reach.Smell.Checks.TotalFunctionLaundering do
   defp private_clause({:defp, meta, [head, body]}) do
     with {call, guards} <- split_guards(head),
          {name, _call_meta, [parameter]} when is_atom(name) <- call,
-         {:ok, expression} <- keyword_fetch(body, :do) do
+         {:ok, expression} <- Reach.AST.keyword_fetch(body, :do) do
       [
         %{
           name: name,
@@ -237,25 +237,6 @@ defmodule Reach.Smell.Checks.TotalFunctionLaundering do
   defp block_statements({:__block__, _meta, statements}) when is_list(statements), do: statements
   defp block_statements(nil), do: []
   defp block_statements(statement), do: [statement]
-
-  defp keyword_value(entries, key) when is_list(entries) do
-    case keyword_fetch(entries, key) do
-      {:ok, value} -> value
-      :error -> nil
-    end
-  end
-
-  defp keyword_value(_entries, _key), do: nil
-
-  defp keyword_fetch(entries, key) when is_list(entries) do
-    Enum.find_value(entries, :error, fn
-      {{:__block__, _meta, [^key]}, value} -> {:ok, value}
-      {^key, value} -> {:ok, value}
-      _entry -> false
-    end)
-  end
-
-  defp keyword_fetch(_entries, _key), do: :error
 
   defp finding(file, catch_all, inputs, fallback, clauses) do
     name = catch_all.name

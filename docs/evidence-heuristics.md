@@ -107,6 +107,19 @@ Calibration notes:
 - A source-only pass over thirteen local projects initially found four intentional display/log-level defaults. Requiring every constrained clause to preserve the logical domain removed all four while retaining the LLM Proxy specimen.
 - The eight checksum-pinned Hex corpus packages produce no findings.
 
+## Access-strictness downgrades
+
+`mix reach.check --changed` compares old and new Sourceror ASTs within corresponding diff hunks. `Reach.Check.Changed.AccessStrictness` reports contract erosion when `value.field`, `Map.fetch!/2`, or a required map pattern becomes `Map.get/2,3` for the same function parameter/local variable and literal key. Detection requires strict-access counts to decrease and lenient-access counts to increase, preventing an added optional read from being mistaken for a replacement.
+
+The finding is keyed by module/function/arity, parameter identity (or local variable), and key. This lets parameter renames survive pairing while unrelated functions and keys remain separate. If a changed parameter has current call sites passing map literals without the required key, the result names those callers and recommends normalizing the producer. Per-function risk remains unchanged; an erosion event raises aggregate changed-code risk to at least medium.
+
+Calibration notes:
+
+- Incant commit `c0cf146` is the positive specimen: three `table_state.field` reads became `Map.get` calls after a caller passed `%{}`. Reach reports all three at lines 72–74.
+- Scanning 199 Incant commits found only those three intended events in that commit.
+- Scanning 174 recent commits across Exograph, HostKit, LLM Proxy, Plausible, Hologram, and Volt produced no findings.
+- Analysis is diff-only and parse-only: old source comes from the merge-base revision, current source from the working tree, and neither revision is compiled or loaded.
+
 ## Map contracts
 
 Implemented evidence:
