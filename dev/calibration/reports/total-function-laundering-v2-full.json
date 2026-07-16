@@ -1,0 +1,1708 @@
+{
+  "generated_at": "2026-07-16T16:58:05.609479Z",
+  "packages": [
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "orion",
+      "snapshot_fingerprint": "eb8fbaa722528f4171122de701038f95544bd4ecb7155ad373215e4f8c31f149",
+      "version": "1.0.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "base1",
+      "snapshot_fingerprint": "ae9780f4ffd29017cf888dd9fbef69d64e067bc8c4b162ca8e28a2851529cc74",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "musiccast",
+      "snapshot_fingerprint": "232b6f2c85767f2a5aaa7d75860d0965201014926d9e619cef453f5d4e12b4c0",
+      "version": "0.2.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "arcana",
+      "snapshot_fingerprint": "f042a172e89d28b94bdf54e8091be49e617adca334922c9bc82594f21f9aa5c4",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "eda",
+      "snapshot_fingerprint": "199f2de42718f375e8563e48c8b515e172de8f32d6f0a569ae07bed875dea4c6",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 5,
+      "findings": [],
+      "package": "absinthe",
+      "snapshot_fingerprint": "399895fd32f9b3480f6cc16d2af665dd0c2f150ec6223b6481b3a833fb8f7daf",
+      "version": "1.11.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "mjolnir",
+      "snapshot_fingerprint": "0ab08477fed7a7533885cafc0da155df0dad576ae16dcac527f594134dc24d54",
+      "version": "0.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "amp_sdk",
+      "snapshot_fingerprint": "829a71f7f0bc35d784226146e875674e80020ef803ab4bf1b1fe760a640a1cd7",
+      "version": "0.6.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ex_mcp",
+      "snapshot_fingerprint": "e6f415ce2303fe23771b08f51c472ce3065ccf0c317f158013e40e745e4c8c44",
+      "version": "1.0.0-rc.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "aurora_uix",
+      "snapshot_fingerprint": "342e1119c59e51ae236520a0c5fe4dead24116a961d899ebe88d51e4ef318d1b",
+      "version": "0.1.5-rc.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ash_uuid",
+      "snapshot_fingerprint": "01e76f1ce1e61bb18d0bb5c62faeb1ba37b96a32b9b88908ccaeabb1c545ed7f",
+      "version": "1.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ash_phoenix_translations",
+      "snapshot_fingerprint": "ce30ab6f156ba63f2e19f44355f235d740e156f3d58777ef2902c38bc354543f",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "html_builder",
+      "snapshot_fingerprint": "b78358633dafb1201bb3a5bf250dbf93f1247c6fb629de66f5804f814fe11680",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_onvif",
+      "snapshot_fingerprint": "65d5a7b208ba11e05bdb07900409b65d047857c45db6b6f9ca80ac97ec48e9f0",
+      "version": "0.9.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 6,
+      "findings": [],
+      "package": "amarula",
+      "snapshot_fingerprint": "dd8f0c772fa98caa1845d19cebec7d94293fb225048fef02a6f290c029f13425",
+      "version": "0.5.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "zoonk",
+      "snapshot_fingerprint": "0e31a6b3bf31d91ae7aa9fa1d1d6f9c632cd8926425b5933dff45dd65da7327e",
+      "version": "0.3.0-alpha"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "agent_map",
+      "snapshot_fingerprint": "e97c4e99ac0d2c06d42585f311ca7f263aba2d9390a3aa27d4cfcb3b8bd29e6b",
+      "version": "1.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "accrue_admin",
+      "snapshot_fingerprint": "e67fa1ebf1128d4ee17bc1162f6f4edd6c212b694dfb507d8d7295ec146519e0",
+      "version": "1.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "exsql",
+      "snapshot_fingerprint": "d0dfb4b3375e663a0422deaeabcca7368a74916d6aa0b28e16c96cb05ecd09e8",
+      "version": "0.2.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "serv",
+      "snapshot_fingerprint": "d9a2a3ec48f2314a17f4dbd6ac6f36ddf23854a803c07c95d9f04097bd95351e",
+      "version": "0.1.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "calecto",
+      "snapshot_fingerprint": "199620024027c744d678a24ee5d9bf72945214c4707b2d5a709fa0fd35b90417",
+      "version": "0.17.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_rpc",
+      "snapshot_fingerprint": "c796fe07dea056fde82b5816edc0bb2823a0b77a64cc113f23f7570c43a077a6",
+      "version": "0.1.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_dyan",
+      "snapshot_fingerprint": "6136359ec6a6360cc6960a9117779bfe179a654b9238878b0eb1a02d8e9bedd7",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "lift",
+      "snapshot_fingerprint": "60ce45cac99f7f92bf5d24cf0868def1af80dcb08d071c896a943319dee30704",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "dimse",
+      "snapshot_fingerprint": "d788c05238108ef807670d3ae061609136e45acb3146dcf6f561842474afe88b",
+      "version": "0.8.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_agent_tools",
+      "snapshot_fingerprint": "37456dde4507f910d0da5a26046c353ecbb60c66bb2f1ca934ffc84a3bf1578e",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "porkbun",
+      "snapshot_fingerprint": "ff11cd41811c4233548138891cdf3507d8d359d48bbdeaec2e4e9f984e6c9073",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "aerospike_driver",
+      "snapshot_fingerprint": "25706cc2677571e4beacf4b99d78925b32d63a1295a308563fd15eece2338e6a",
+      "version": "0.3.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_ecc",
+      "snapshot_fingerprint": "8c545a7f3fa87ab9402e726f7a61838e0d5ce24332f1f5872dcbe0968b09ad90",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "apollo18",
+      "snapshot_fingerprint": "8506cec1aa9101577e1cc237069fe052ac033fe40e3d7473d73d3a2dd289e3a3",
+      "version": "1.1.13"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "mpeg_ts",
+      "snapshot_fingerprint": "a77902925eda79028d845f857e1263f1c38d0f1357477fca379b50a0f52b6707",
+      "version": "3.3.19"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bacstack",
+      "snapshot_fingerprint": "76987accdf01e5991d8442ed270a0b04ae2eb62b6eda18887960fd43b3c88437",
+      "version": "0.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "qr_nbu_ex",
+      "snapshot_fingerprint": "1b1b2d881649c7cc3b9ea2069722d71d316baebe90613e248c997be753d4c048",
+      "version": "0.3.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ens_elixir",
+      "snapshot_fingerprint": "bfc7e1a6c411e19ac89f015ef06f0298a4011955bc4d1d63166fcb42199e60d0",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 17,
+      "findings": [],
+      "package": "beam_weaver",
+      "snapshot_fingerprint": "3caaa7167a6dc111558b7390d1c3c9ace25690b3e5a81503c1c115afaf62d655",
+      "version": "0.1.11"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "app_store_server_library",
+      "snapshot_fingerprint": "42c146ab1243579cdc74416dab28447bb3e45c537600586ec447ea4dd577c1e3",
+      "version": "2.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ecs_elixir_core",
+      "snapshot_fingerprint": "1d73c874f96836514b6427956d30c66b78e953ed95dd35db38afff47da42d906",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "arcanum",
+      "snapshot_fingerprint": "d56a425545550dbbbda6b7b33ee21210d63cb86dd2580f08266c0429be75ad56",
+      "version": "0.1.10"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "boxart",
+      "snapshot_fingerprint": "b3401f2785e103ad2925138cd59b9e7ab3a08e352886e68c16d0ac70ee8b6e8e",
+      "version": "0.3.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bb_tui",
+      "snapshot_fingerprint": "a72bf3ed998adf1c2536338c6f58f8c632b3568d16e40b5a3453f34ac79e8a67",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "resourceful",
+      "snapshot_fingerprint": "d4fcf379a21c3221f7c05af5a6ec9b155879a247c9c47b66e6dc724289eddc79",
+      "version": "0.1.6"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "auth_manager",
+      "snapshot_fingerprint": "9851cb3fe5307627872ab0bb71e355efdc15bc97e4160a79af973f65c38bb6af",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "scales_cms",
+      "snapshot_fingerprint": "c1c77c44a812aebcc32fae9dbd4610db8249692768683124b913313b0da6c2de",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bb_kino",
+      "snapshot_fingerprint": "73936f291969cea64298358a28344fccedd8aaa4c2b48eebfeacaad49b9d3ec5",
+      "version": "0.3.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "is_x",
+      "snapshot_fingerprint": "12b892b9d7ab87176614c0cd74a0d6a14b2cb277bd7b4747dc09a625f8284095",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "aws_encryption_sdk",
+      "snapshot_fingerprint": "3e076b3ce101b48b6a75676a113624bb2f6613c0aeb5c1ce540f3bfa25b492cb",
+      "version": "0.7.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "phx_admin",
+      "snapshot_fingerprint": "a36adb8a3490f28a03d6c1de92cde1197c96de89abb39abee47cc3c775b8d13d",
+      "version": "0.9.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_sanity",
+      "snapshot_fingerprint": "ee8a36c307122babdca62d5cd094956e861694280386034a577cb888fb76fa62",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "phoenix_kit_comments",
+      "snapshot_fingerprint": "2e444076dc8e91cb886c4bebf658a13885b081451f4df197bf35f1f0e510a0c4",
+      "version": "0.2.14"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "annex",
+      "snapshot_fingerprint": "47a010b23f0f8b73695717ff3d7f929cde75de85f76d66cf286f0c5ac7605e61",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "volt",
+      "snapshot_fingerprint": "519119da6986cb8578bfef3014c679c599aad836385eb8afd9438a7ffadc8a7d",
+      "version": "0.17.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "elixir_sense",
+      "snapshot_fingerprint": "1239538dc5d533f5b6856a8f5d12e09e63078607654dae2e75528fe384c5a729",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "cairnloop",
+      "snapshot_fingerprint": "2c75f35a49aaa1e88e2454cb62a1b4dfffdf70a4370dd3b1d4979df77dd2bf9d",
+      "version": "0.5.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "atomemo_plugin_sdk",
+      "snapshot_fingerprint": "d7e8f278d799d0634dbb455a716d788b6423e44f88270d11b01ba108f5d7d5c4",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "dev_todo",
+      "snapshot_fingerprint": "02c5822545d7c3f9d7c8ee9f406492c1258bfaf780279eda1b911dda9992ba58",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "elixir_elastic",
+      "snapshot_fingerprint": "8cba44390ea8e16589f9dfe6ed34830d410aa19b4edd86b5ce4ffee3aad6535f",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "jido_runic",
+      "snapshot_fingerprint": "9db12a68eead5c56f1c26c0b36b11f5cd780298289e5943b7e9b1d77516e0bcc",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "adaptive_backfill",
+      "snapshot_fingerprint": "ad61db14d3118c79bf276f55800f44aae0d44f6f7b0b53a4c1fa82f67421852d",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "ex_admin",
+      "snapshot_fingerprint": "3e119f510fb5e356fa56c20ec4b8ae6bc1399e08f0bd60bd9c16818d2d714a52",
+      "version": "0.8.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "baby",
+      "snapshot_fingerprint": "e5870e293ceafa5eb31c09126b4db1663394f0489836bd8500d978f4f048344c",
+      "version": "0.35.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ethereum_signatures",
+      "snapshot_fingerprint": "743c733cb8b71b23f150e7998c46f94ba103d28000409b485c65441cc462cf41",
+      "version": "0.6.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "api_management_console",
+      "snapshot_fingerprint": "da59bcd91b9ae4e5b46bbf4538e85f3b6723a3922b094f87e4fef50406924bc3",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "aoc_helpers",
+      "snapshot_fingerprint": "a7e1f5607699206ed2fe6b7095052ac889557535461f736ada90bd9cf769b840",
+      "version": "0.5.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "beamlens",
+      "snapshot_fingerprint": "fd92b03f26c6f115f11b964772bd0c9036120ee272cc75b30cf42b3a0ebfd4b6",
+      "version": "0.3.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "egglog_elixir",
+      "snapshot_fingerprint": "1567f9899443b1f8d053231ac13f03d7cbd9db927d0772d282be5cef9fea5092",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "abi",
+      "snapshot_fingerprint": "719a4a2f7b4b0daaeeee09d039a352823ea284e76b7e83a2d99b940e520aef5c",
+      "version": "1.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_gecko",
+      "snapshot_fingerprint": "31306e8de24d60344fa7e6a9c78d72fb1dbbc62e555abf610446b947eae6840a",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bb_liveview",
+      "snapshot_fingerprint": "6350ce6e6676670b9923c8d3cb54bc6a5b44fa3df64b4f3737733caf13360fb9",
+      "version": "0.2.9"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_tracer",
+      "snapshot_fingerprint": "986930040853ed2170507292406ab5f263413e422c120801b7dafb0561e458de",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ash_grant",
+      "snapshot_fingerprint": "2bb6cff76be42853a3718be87a949f051d43d565f168ec98e25a8a0c92fcf984",
+      "version": "0.17.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_sdui",
+      "snapshot_fingerprint": "87962b39331eb2b9c5a87871d074b13a55df3a48b03bb6f58e666fbca5a61131",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "address_input",
+      "snapshot_fingerprint": "9a8256b22abcaead9c2ae6c7be32162fd2caea30f97984228c8bab10cbcc664d",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "quenya_parser",
+      "snapshot_fingerprint": "880036a8c86db01c4035d06fcd075613a63ce3e09b7e65ebaec352d7b45a905d",
+      "version": "0.3.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "attached_dashboard",
+      "snapshot_fingerprint": "37f5a734e07927d79e1adfbcb25066401f798b0420c8a89ebe277a1f77fb2614",
+      "version": "0.2.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "beacon_live_admin",
+      "snapshot_fingerprint": "32aaf832179711dd45256203a26e789fcf937f7dc556bce172f030cc50df61db",
+      "version": "0.4.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "protobuf",
+      "snapshot_fingerprint": "797365e9b9a8f4b3716ef6644bb46e4a2bd8720cb37f8471731ac6f9d1b3af8e",
+      "version": "0.17.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_meilisearch",
+      "snapshot_fingerprint": "e286a1f4b7e218150e93ec70fbf28636197ad264e7237e71106bde9873177c9d",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "moar",
+      "snapshot_fingerprint": "7612980658ed9fecb3228d45505a41476d1eefab65300f63b8de8e1d5921d93d",
+      "version": "5.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "agentix",
+      "snapshot_fingerprint": "6f9fb3c830b76d436802a83e23ffeee7f3023310d80fbbf1b5afd35ec105b947",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "protobuf_fresha",
+      "snapshot_fingerprint": "12b24e4ff3fc9cf165773a3c8498d22fdd6f8406404cf1c177a0829d1757b0a9",
+      "version": "0.12.0-git-d5a0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "amqp_channel_pool",
+      "snapshot_fingerprint": "e7a988840acb863bd8b940dbfbbd62de210a343c4b0f1426572940253206d14f",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "finitomata",
+      "snapshot_fingerprint": "e2fce2dece6da6a56892fbcb3ffff068ccf5069df770435967a55d1e29fc448d",
+      "version": "0.41.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "analytics",
+      "snapshot_fingerprint": "af5716af96003b76c3d9cf9a2e6b2230e1512ba6c5e5867733061ba936eb7d6a",
+      "version": "0.6.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "tapper",
+      "snapshot_fingerprint": "6323f8505a30f1b05844e2c0ba438260eb73a0f4007b6544c289aa833eb4416b",
+      "version": "0.6.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "temple",
+      "snapshot_fingerprint": "c6f5947fcc6cad0729a8b1c8dbf5257cc5e2b2a7e342afb42b584fc489976569",
+      "version": "0.14.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "async_with",
+      "snapshot_fingerprint": "c56ad153f995e1a406ce5729f8a3e024eb942f5b5741e9980d1a323938ca2262",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "grpc_server",
+      "snapshot_fingerprint": "82281079c2878f3b353b7252000b7b716253d22bbfa756eed3a920b4ac1fbd0d",
+      "version": "1.0.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "athanor",
+      "snapshot_fingerprint": "b3e4eff9e8e8adefa5a88db54e26e59ba9bcf2499eb07bdf892dbe652aa92652",
+      "version": "0.1.0-beta.8"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "ex_admin_runtime",
+      "snapshot_fingerprint": "43303ae9bda8788842a06d35bb65b0a400c481dd833709b521835dd0651dbaab",
+      "version": "0.8.3-dev"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "astro",
+      "snapshot_fingerprint": "6ce320c0991ec0f307188886823b6a3fe204d6a37b64c09e70bfecd962d2621b",
+      "version": "2.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "butteraugli",
+      "snapshot_fingerprint": "5e2b2dcdcbb12bab4c8ca56c47e29a37da75047a43c10728a815227f7d70cde8",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_ast",
+      "snapshot_fingerprint": "b5da55e14e4c453c1fe4a2260d4371e481425e8706578fd76926b1d1ddbd1135",
+      "version": "0.12.10"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_clickhouse",
+      "snapshot_fingerprint": "162f16a134712b8dd4f161417e8d6f473529ded0a8c6f9a09972de78b3c4d6d8",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_web3_ec_recover",
+      "snapshot_fingerprint": "f6c79a7888e3f87fd40fcb92276c9f1bb98b8ece05e9c801de910218e9f121a4",
+      "version": "0.6.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "appsignal",
+      "snapshot_fingerprint": "d498dc40612d3c3a069f9f6b82ad38c1e04485376e2a248e6b6f783f95bcefce",
+      "version": "2.17.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "aquila",
+      "snapshot_fingerprint": "ceebec9bebc31f8f0f202d3d2b1fb4bc870211ef0a104d81d5a0d1bf3d8fa2b8",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "arangox",
+      "snapshot_fingerprint": "44d72a69027df78cd41e3272f21f9844de9085286decc9572beb6e5d5a86c2e7",
+      "version": "0.7.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "dantzig",
+      "snapshot_fingerprint": "2e80c8ecf6d0c7d15c6e9890b288b4d8bbdce00fc6df4519d928374034bf69c6",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "adk_ex",
+      "snapshot_fingerprint": "991de7f534b6ab5a7761e79f5bcc756d11a91f9d8eea23321c85869a0ac44368",
+      "version": "1.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "claude_wrapper",
+      "snapshot_fingerprint": "fb72602dd8e761a0df15d510e3551023e3446c5ed29b065207d0289deb1c7b13",
+      "version": "0.14.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "baileys_ex",
+      "snapshot_fingerprint": "3309dbc68ea9cb94b4c149de525e023e14aaf08576453e05c6f7ec5feafc0e86",
+      "version": "0.1.0-alpha.11"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "css_parser",
+      "snapshot_fingerprint": "d9dab8ca813b6daf83fb1f38c100a30f2801d3ba53bf5acb013af5139ff81874",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "scrapped_twitch_api",
+      "snapshot_fingerprint": "b7396bfe2bcc062d2d8ca65e902e53e7d20c754cb07c1842de810154fd46ebbd",
+      "version": "0.1.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "fryse",
+      "snapshot_fingerprint": "f03f7bef31395e582635520f33e7100f15e490ee4e2876b8e003a2252063b2a9",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "axon",
+      "snapshot_fingerprint": "579ace3815cddd786e378542e8674734d44e86a9519587250655b09c1cb6e2b3",
+      "version": "0.8.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "redlock",
+      "snapshot_fingerprint": "80b7d3c1f37edf9e181abbe541d347f72f0d71b13945af947d9568d573422aca",
+      "version": "1.0.21"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "poolder",
+      "snapshot_fingerprint": "2e0e937427c790d0ae04612fc63749756542e7b584fdaf43ce118fe6f4d5cb5a",
+      "version": "0.1.16"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "live_capture",
+      "snapshot_fingerprint": "381920b7a1fe03f23678c1eb7ffe53e6d72fddeb43b05aa105575c63c414bdfd",
+      "version": "0.2.9"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "arangox_ecto",
+      "snapshot_fingerprint": "242122d545b954f88b591aac829d0e20cd7637e4d496cac5186835242cdb9635",
+      "version": "2.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "phoenix_params",
+      "snapshot_fingerprint": "fbf8cd4f9644bed84b4dfdf184fd791f7091b5b9dfee52890ea03b228239e5c1",
+      "version": "1.2.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "accrue",
+      "snapshot_fingerprint": "1738d47038581a184b569b601b61fbc4a26cea2cc16e6a1c11b8b8b9ab52e4fd",
+      "version": "1.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_twilio",
+      "snapshot_fingerprint": "f9aee20c02242defc2e90660d3046df9caa8e5fbbd853bc23cdcbb6c454a47b5",
+      "version": "0.10.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 9,
+      "findings": [],
+      "package": "agentic",
+      "snapshot_fingerprint": "fc3e30ff14c70332605d6db08800417d1a6fedef01617b65c21044d669a7bdfe",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "commanded",
+      "snapshot_fingerprint": "47f4d6fdf9a274ac9b706ac210755a94a68f0b9e48f23844a2e146e62044292c",
+      "version": "1.4.10"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "fnord",
+      "snapshot_fingerprint": "fb956c6988a0bbfa19763b54272216cae5f889d1d4ab81a3e6f612f1f81a0979",
+      "version": "0.9.40"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "echecs",
+      "snapshot_fingerprint": "0f32c7ee251641b42429d7f7887345c27c9e99082962e9f464e78c40c736d1b2",
+      "version": "0.1.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "aprs_utils",
+      "snapshot_fingerprint": "2d2995506d2c92ed72f8ec3f17c892eb2bbd7530d5262d5faea3762be22b614d",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "plymio_enum",
+      "snapshot_fingerprint": "0b8c648c0e688650a1214aa1f6b613c88b48284b5805add230f943517d27bcbb",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "warp_engine",
+      "snapshot_fingerprint": "f79e3b9f5f61ffe765f89e6bce1f098137ff56757557c29eeae3b92b41858fad",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "add_to_calendar",
+      "snapshot_fingerprint": "c099b881f410c9044355dd0c8f460196e642ad6ba64dcd2d9e406b0dfbb12820",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_uuid_v7",
+      "snapshot_fingerprint": "7090e4e813fa5d5ea318f42987b45acb51f6ba0a0d6be0dccfbf90a012eda0b7",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "breeze",
+      "snapshot_fingerprint": "e12b69d50ada9a691b4f2593b9be8f2ac5e54befe597b97bc0eea75c82daa0de",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_pyro_components",
+      "snapshot_fingerprint": "3f80178b29f2d22b12bd53c5ce194cc1583d5eed0e44ee658c41d664aaf0dd83",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_grib",
+      "snapshot_fingerprint": "c6062c6c500a8e1ee3e6a169a136c103d1544c670e7002682e72c29190b23e7d",
+      "version": "0.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "arke",
+      "snapshot_fingerprint": "ff43e773df723802dfc68697ab90bf8fed4f495ae4c668cd32459ddc5c1339d7",
+      "version": "1.1.33"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "lotus_web",
+      "snapshot_fingerprint": "8f10e5262013da8f0a897d4dba07e967c2c9663450a5b30795663c44ce2f35c8",
+      "version": "0.14.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_diagram",
+      "snapshot_fingerprint": "925d5c6e7be2cb785320e442953b41cc75ef0a54dbf98ba756098b453fd1324b",
+      "version": "0.2.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "antigravity_cli_sdk",
+      "snapshot_fingerprint": "1a93bd14a032389740c904a0a072225e3560c5fe7b306f7d7a8015beeb3693e4",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "ash_lua",
+      "snapshot_fingerprint": "df3442a2f524119cc46d4c791077e1e995461b54283ca76b22d5a40f92226d0b",
+      "version": "0.1.6"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "literature",
+      "snapshot_fingerprint": "1e2959cbc3b6293196db3f54657fedfe669f154ccf5d23f6b2ce880dc3e69ef0",
+      "version": "0.5.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_pagify",
+      "snapshot_fingerprint": "907497e8e1982b10862989bd3b407ad58c5222211c47094fd73a3cf83d5f652e",
+      "version": "1.5.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "selecto",
+      "snapshot_fingerprint": "77c7e0ac29b06d40dca0513ac2e41161cec90c2269343c45859f2e656393863f",
+      "version": "0.4.6"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "arcadic",
+      "snapshot_fingerprint": "79be05b341b4d769e30f2be798bfb97c09e76e80b9171723b9a8c65b4bef6e6a",
+      "version": "0.7.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "genai_core",
+      "snapshot_fingerprint": "d789b3b586d39a70ee8509127a4e0e52170c63d09ad6b0727d6096c1da35e1ad",
+      "version": "0.3.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "a2a_ex",
+      "snapshot_fingerprint": "f26d11e893d6ebba378ef0f1c5326fc3bc491fc364a7020374d79aa78f191448",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "rindle",
+      "snapshot_fingerprint": "32daf72937276ce117f33c56f33bd48f9190010debfc9659fb7d9770c32dde65",
+      "version": "0.3.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 5,
+      "findings": [],
+      "package": "phoenix_reactify",
+      "snapshot_fingerprint": "00077e969535444c6f37ca369fc85f7d11ef6bec658889a7b624809568358f43",
+      "version": "0.0.5"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 5,
+      "findings": [],
+      "package": "aludel",
+      "snapshot_fingerprint": "2a01e7025a2a992ba4c0bff3c14283d3e898d9b89b45dc235395f6794c6a4a2f",
+      "version": "0.4.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ouroboros",
+      "snapshot_fingerprint": "dc73ebe7793e479a445212a24aa3ad0d6815638701a0b6e0b89e884c0eb955af",
+      "version": "0.1.4"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "azure_billing_dashboard",
+      "snapshot_fingerprint": "e5f51abc1e02007c6b0204297ec48689b21d24009838e5ef9880bb7688d64032",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "surface",
+      "snapshot_fingerprint": "56228c5e721739cb6b9493741656ee393bf0aecda958b086e3f59a3248699274",
+      "version": "0.12.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "absinthe_error_payload",
+      "snapshot_fingerprint": "49ca9032e900ee74632d251f963532b89b18b771ccb6d53ac9476e10f2282790",
+      "version": "1.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "localize",
+      "snapshot_fingerprint": "87c3ae0967c8db70a02069d29f5cbd65b36ece785c08a30018dbf8a0013f412e",
+      "version": "0.50.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ag_ui_ex",
+      "snapshot_fingerprint": "e9aab7e90c7e0a68a0b6c594051996cc8366895cc59e5bc2a5d84caa2e4f70d3",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "mudbrick",
+      "snapshot_fingerprint": "48bfe3b000c7a458a76538994e1507e7fc32f2d70b6ed1cb1e38055996c4c230",
+      "version": "0.9.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_reports",
+      "snapshot_fingerprint": "4696e5d3e16c0fe4efd7fed352b2e45407d94bcb058a6776d937b87e709d576e",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "indieweb",
+      "snapshot_fingerprint": "0cd29ca2c05d3f3b1722c95244cd8b9d0cddfbb019233975dcab4bf72c7a4338",
+      "version": "0.0.66"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "backpex",
+      "snapshot_fingerprint": "b96cc0a1083cdb392c5b38fad8f1df6e586c8a3b9329dccbded4296d18b18a36",
+      "version": "0.19.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "agent_session_manager",
+      "snapshot_fingerprint": "1a4bb809a4a4d306d968e376e7695c4b271ca2288b8cc526d109f8e3c0d4f364",
+      "version": "0.10.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "alaja",
+      "snapshot_fingerprint": "55fb925da893395b2a421c5854d63be86fb51939d0e0df82a08df880a723eef2",
+      "version": "2.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "deli",
+      "snapshot_fingerprint": "7ba2cc5503920bc48ab7d1d90f1e64ecbc0688bcfcf373d6cb8d7b6ab89e1a08",
+      "version": "0.2.0-rc.6"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "arrow",
+      "snapshot_fingerprint": "28146ba095b8a40a99d201284bc7add3207de5bd4db7918d8b95439ae4edf4b8",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "ash_agent",
+      "snapshot_fingerprint": "c2e84d509bafe0bfd11753138171a767bc4fc979f0c1cd8b66650b55b206d70a",
+      "version": "0.3.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "lantern",
+      "snapshot_fingerprint": "272aabaddb26873393be41483a33910cbecc5e686056bc9c96f77b2a5bf6bb39",
+      "version": "0.6.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "avrogen",
+      "snapshot_fingerprint": "9e168d9c43319a4fd3e7aca4303a9ca47e9c97ee4bd626d941bd58247802e766",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "cartouche",
+      "snapshot_fingerprint": "db4835d232bb31ca8cb642c9763565cd7c539afdf8ba462641799cf2b429a4a6",
+      "version": "0.5.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bamboo_gmail",
+      "snapshot_fingerprint": "6ab30ee80354b5ad09b417d942ac1abeff1171d470371e5fa373fd7de20b4dad",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "kino_ethercat",
+      "snapshot_fingerprint": "2a939899ca4cd8a22375ecaab85b82db031979500b8904dd9addb4f7319d3ae6",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "aprs",
+      "snapshot_fingerprint": "db54782db51790b9e20398149eeeb3a702a8a47d429f4afcce86f3138e08bc57",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "timex",
+      "snapshot_fingerprint": "e214b5d1876a044517579ef029c4169678981e4c0946637e5e7aeb3961c19331",
+      "version": "3.7.13"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "babel",
+      "snapshot_fingerprint": "6bcb090aafaec63a30081247f5dc5fdaa37f2197cd71b6d2942f8bb065724a3b",
+      "version": "1.4.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "foundry_stack",
+      "snapshot_fingerprint": "d45500ed3f93321cef318a8f0ef319f695658e2ef998a0d3bee1bf3732ae2f4f",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "aurora_ui",
+      "snapshot_fingerprint": "417984e8cdd903fca51c9030463f548eefecb4ae4a19d67ff208f5299b74b1df",
+      "version": "0.1.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "glific",
+      "snapshot_fingerprint": "aa096865845fc7f0c362a80abb8abf14544b22a0ef01ec3c81458a1b0a23d388",
+      "version": "5.1.6"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "archive",
+      "snapshot_fingerprint": "69f3f382a030b17a88bf0988d345fbb6fe250ad29dcc79bda393b5d69b811c46",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ethers",
+      "snapshot_fingerprint": "1f515741ee49b58a738f0ccc4f3ad9a481e87aa45126f700e7315b5e8170d83e",
+      "version": "0.6.12"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "absinthe_sdl",
+      "snapshot_fingerprint": "a52e367d00616b1d06c3224efc658dd3cb0104cd2b2f4b9f2061bd205788d360",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "gust_web",
+      "snapshot_fingerprint": "b468c7bae508f3193ba52966ccd40837a2a542e2f91aac74017f70d0fa5a9e02",
+      "version": "0.1.35"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "a2a_elixir_sdk",
+      "snapshot_fingerprint": "bcb2b6689c6a92210c1c4babf50d04f896cf28b06b5d02f4dbe1f0261e56c4f5",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_zarr",
+      "snapshot_fingerprint": "6842dce909aab4cf3c449d2106275c70a748c8723ed8b6c7aafe295cba0c33b3",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "absinthe_extra",
+      "snapshot_fingerprint": "a8db832a73dae09c49f394538fe8a0b05e73635b44f0b8c0ef8d5551603bfdc4",
+      "version": "0.1.15"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "anthropic",
+      "snapshot_fingerprint": "b80a5726ce1c475839b08cc2c6b7c209fedcc9505eb6aeeb7d01a747e1333fcc",
+      "version": "0.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "jido_ecto",
+      "snapshot_fingerprint": "a04029928620fd689c688594d6401513418f3652d6615975f80dfac454f664cf",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bb",
+      "snapshot_fingerprint": "77c437b0813133fee20e3365c1d6e41bb45be779ca926b5969b13cb31d97ca60",
+      "version": "0.22.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ash_core",
+      "snapshot_fingerprint": "b367b2a23a46ad0d05a6ee6a8375136e364f5b1a3fdbda28d4005ad10da76448",
+      "version": "0.11.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bash",
+      "snapshot_fingerprint": "7e17ca72b4b00f95dfa2324e54c8480fecac81e6b93b70e719d7c9c68e764957",
+      "version": "0.5.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "kanta",
+      "snapshot_fingerprint": "951928b7d9a4b6dc412bb679aaf8dcfdae028f3522cc87a9da4f8338d80a3102",
+      "version": "0.5.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "backplane_mcp_protocol",
+      "snapshot_fingerprint": "4d5529e664598118ac63b5aa27c1342477e3f0ebb9e6d2bbf9bd440bcdc7b04b",
+      "version": "1.6.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "dripdrop",
+      "snapshot_fingerprint": "91e05f2b16c73fac7c6ec5334835ecc5aa1ba35ace08bc667393187cb428a00f",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "absinthe_permission",
+      "snapshot_fingerprint": "7ed94663b3f2d7ce43ff967cc1bf01fcd6e9712f6b64f1e3eb6a43a150a82249",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "annotai",
+      "snapshot_fingerprint": "133ead63a4fff177d8350e056a6a294dd621d4f76dd30b346769a1e6728ca054",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "hologram",
+      "snapshot_fingerprint": "3603cf10171a29af28f0f6b3d0911e692831f864f6d3754222a17d7655d8aa74",
+      "version": "0.10.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ab",
+      "snapshot_fingerprint": "6bc4316540f7f69141716c4a87513e61835275071d48902cc19e59be83a9dfd1",
+      "version": "0.2.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "apix",
+      "snapshot_fingerprint": "ec23456cc1d4e65a95e76140db0e4faae11a4db395e64b6ec9ccd924cacd9ee8",
+      "version": "0.2.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "bardo",
+      "snapshot_fingerprint": "c842e4d25ffbe805e121ea0e3c5c930b1eab4b28e392382504d3e6a927ae0357",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "quackdb",
+      "snapshot_fingerprint": "bb9d4f8bee88313e829729c60c80bc4e75831df7051313a431fc9fa71ca4e959",
+      "version": "0.5.17"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ckeditor5",
+      "snapshot_fingerprint": "a18972eeafb357ba8b9239935e834517064e5f5e98f49be79ccddf6a60c3c49d",
+      "version": "1.0.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "solverl",
+      "snapshot_fingerprint": "9b0460f21c6a01d7eec0a76ff6381149e0f14c093531bbae12eae91c4de37f16",
+      "version": "1.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "phoenix_live_dashboard",
+      "snapshot_fingerprint": "652462e3ff6308b1b8660f0e9287ed2457cb6097f2dc3736437b7bfb3ada27c4",
+      "version": "0.8.7"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "a2ui",
+      "snapshot_fingerprint": "218684ee5b443e51a932892960ae97350d8ef79b442700ae9edae0205395b9fe",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "nombaone",
+      "snapshot_fingerprint": "f48d3b00fad98f4cf7d1bff658249322d2636742a55bd5b5338fad2873abc28f",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "adf_sender_connector",
+      "snapshot_fingerprint": "eba3dd57c100e4bb221367be3d6c1c68ab5c8f2cb81ea4a3fde28cd4c8db1dd4",
+      "version": "0.4.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "wonderland",
+      "snapshot_fingerprint": "b985d0fcf1cf42e7158d5198b9aefe4a90550fa8eff5b51a75d84ba426e7a87e",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "adk",
+      "snapshot_fingerprint": "52e7abbe7e0ea25bccbdb9053f8c9f9a6ce38469ac491b230c06934fd92f0d85",
+      "version": "0.0.1-alpha.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 4,
+      "findings": [],
+      "package": "ndim",
+      "snapshot_fingerprint": "f7edb6d0d59a05b3f2f2ec121a447be0129cc043218f7e773bc480f793ade034",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "oscx",
+      "snapshot_fingerprint": "f871de79e9b915fc6f79582e4ee2ead0d6f3c60aa4c38380e1006be42bac20ea",
+      "version": "0.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 3,
+      "findings": [],
+      "package": "assay",
+      "snapshot_fingerprint": "9b9abb15d6d1c627e4e968c7a9566e0752ff78d0d6c0b91d850122304ba7b1fc",
+      "version": "0.6.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "tink",
+      "snapshot_fingerprint": "786c37efecda24c09e536742a718c3b992324a381fc569e7b94c470266325a30",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "allm",
+      "snapshot_fingerprint": "7d87a20ee6ea113b26899edb91a836273c2a5f8ec9de45a5f0f89a7f8bc15a89",
+      "version": "0.4.3"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "clsx",
+      "snapshot_fingerprint": "59901be3bbd03e8af71199fbb6eb941775f07bba6bc0138a4711128f525aca08",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "amqp",
+      "snapshot_fingerprint": "303bdb5d2e79c115bce71b14d065f86b55909403368f8b2adf34b834b178984a",
+      "version": "4.1.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "phx_live_storybook",
+      "snapshot_fingerprint": "dc01c457368fcb7da9a71bc191f80f8b0fbb6773e6edd0eb837c6b26bfc8219c",
+      "version": "0.4.5"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "apicult",
+      "snapshot_fingerprint": "2e5219f78d58728933cda65ae0785d0177f3b58bbb70f60da85524e8e62a1d56",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "corex",
+      "snapshot_fingerprint": "0a1c61646f60dc6b608d87fb1757ea4982bcde76ae7bb45a5ab8aa82f5c5d948",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "baobab",
+      "snapshot_fingerprint": "de461502032c5c7b71ac79c3d2ecd0b7739d3768f5103a7fc7912b6b1bd7875e",
+      "version": "0.35.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 2,
+      "findings": [],
+      "package": "phoenix_storybook",
+      "snapshot_fingerprint": "91177d01c3269c085404a192eb8df2c2f3b8d0396755b1bb498011717f389bbd",
+      "version": "1.3.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ark",
+      "snapshot_fingerprint": "ddd64005a03d35fd0fb6f75b06fc3b3d7f2737d2a7180bffad2e00c2352c240d",
+      "version": "0.13.1"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "selecto_components",
+      "snapshot_fingerprint": "ffca4d5444a2fee52d1158258339146efb024f0fecc5f8e4b00637dc6254f579",
+      "version": "0.4.8"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ecs_logs_elixir",
+      "snapshot_fingerprint": "182ea16f898cd2dc4fb9574c3c9f3a251280c196a4239bfdd61a7c28d1a8f095",
+      "version": "1.2.0"
+    },
+    {
+      "ecosystem": "hex",
+      "files": 1,
+      "findings": [],
+      "package": "ex_bashkit",
+      "snapshot_fingerprint": "3e56a99cf76f61ccb6964ae6a4067ea3bb8afd5866489e1cea451bb58e4497c3",
+      "version": "0.1.7"
+    }
+  ],
+  "selection": {
+    "candidate_pool_limit": 200,
+    "candidate_pool_size": 210,
+    "hydration_scope": "candidate_paths_or_lib",
+    "kinds": [
+      "total_function_laundering"
+    ],
+    "limit": 210,
+    "paths": null,
+    "patterns": [
+      "_ when _ in [_, _]",
+      "defp _(_), do: _"
+    ],
+    "seed": "total-function-laundering-v2-full",
+    "strategy": "stratified"
+  },
+  "summary": {
+    "by_kind": {},
+    "errors": 0,
+    "findings": 0,
+    "packages": 210
+  },
+  "version": 1
+}

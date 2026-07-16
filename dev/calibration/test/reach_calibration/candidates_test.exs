@@ -9,6 +9,13 @@ defmodule ReachCalibration.CandidatesTest do
     assert Candidates.patterns(kinds) == ["Map.get(_, _)", "Map.get(_, _, _)"]
   end
 
+  test "uses the guarded-domain prefilter for total-function laundering" do
+    assert Candidates.patterns(MapSet.new([:total_function_laundering])) == [
+             "_ when _ in [_, _]",
+             "defp _(_), do: _"
+           ]
+  end
+
   test "falls back to package-version selection when any kind lacks a safe prefilter" do
     assert Candidates.patterns(MapSet.new([:dual_key_fallback, :unmapped_kind])) == :all
     assert Candidates.patterns(nil) == :all

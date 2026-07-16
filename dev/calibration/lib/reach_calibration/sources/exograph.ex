@@ -12,6 +12,7 @@ defmodule ReachCalibration.Sources.Exograph do
   @candidate_multiplier 20
   @max_rate_limit_retries 10
   @retry_jitter_ms 25
+  @receive_timeout_ms 300_000
 
   @spec package_versions(keyword()) :: {:ok, [map()]} | {:error, term()}
   def package_versions(opts) do
@@ -221,7 +222,7 @@ defmodule ReachCalibration.Sources.Exograph do
   end
 
   defp http_request(url, body) do
-    Req.post(url, json: body, receive_timeout: 30_000, retry: false)
+    Req.post(url, json: body, receive_timeout: @receive_timeout_ms, retry: false)
   end
 
   defp retry_after_ms(%{"error" => %{"details" => %{"retry_after_ms" => delay}}})
