@@ -72,13 +72,24 @@ defmodule ReachCalibration.Analyzer do
       "location" => relative_location(finding.location, root),
       "message" => finding.message,
       "confidence" => json_value(finding.confidence),
-      "evidence" => json_value(finding.evidence)
+      "evidence" => finding.evidence |> json_value() |> relative_paths(root)
     }
   end
 
   defp relative_location(location, root) do
     String.replace_prefix(location, root <> "/", "")
   end
+
+  defp relative_paths(value, root) when is_binary(value),
+    do: String.replace_prefix(value, root <> "/", "")
+
+  defp relative_paths(values, root) when is_list(values),
+    do: Enum.map(values, &relative_paths(&1, root))
+
+  defp relative_paths(value, root) when is_map(value),
+    do: Map.new(value, fn {key, item} -> {key, relative_paths(item, root)} end)
+
+  defp relative_paths(value, _root), do: value
 
   defp package_result(snapshot, findings) do
     version = snapshot["package_version"] || %{}

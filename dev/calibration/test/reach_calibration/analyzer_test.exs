@@ -19,6 +19,13 @@ defmodule ReachCalibration.AnalyzerTest do
     assert result["package"] == "demo"
     assert result["snapshot_fingerprint"] == "snapshot-1"
     assert Enum.all?(result["findings"], &String.starts_with?(&1["location"], "lib/demo.ex:"))
+
+    assert result["findings"]
+           |> Enum.flat_map(& &1["evidence"])
+           |> Enum.all?(
+             &(String.starts_with?(&1, "lib/demo.ex:") and not String.contains?(&1, "/tmp/"))
+           )
+
     assert Enum.any?(result["findings"], &(&1["kind"] == "dual_key_fallback"))
   end
 

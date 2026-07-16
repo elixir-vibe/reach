@@ -113,6 +113,36 @@ defmodule ReachCalibration.Sources.ExographTest do
              MapSet.new(["alpha", "beta"])
   end
 
+  test "retries rate-limited HTTP requests using the server delay" do
+    parent = self()
+    {:ok, attempts} = Agent.start_link(fn -> 0 end)
+
+    http = fn _url, _body ->
+      Agent.get_and_update(attempts, fn
+        0 ->
+          response =
+            {:ok,
+             %{
+               status: 429,
+               body: %{"error" => %{"details" => %{"retry_after_ms" => 5}}}
+             }}
+
+          {response, 1}
+
+        count ->
+          {{:ok, %{status: 200, body: %{"ok" => true}}}, count + 1}
+      end)
+    end
+
+    sleep = fn delay -> send(parent, {:slept, delay}) end
+
+    assert {:ok, %{"ok" => true}} =
+             ExographClient.request("http://exograph.test", %{}, http: http, sleep: sleep)
+
+    assert_receive {:slept, 30}
+    assert Agent.get(attempts, & &1) == 2
+  end
+
   test "hydrates only indexed candidate paths by default" do
     parent = self()
 

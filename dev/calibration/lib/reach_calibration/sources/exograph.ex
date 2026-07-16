@@ -10,6 +10,8 @@ defmodule ReachCalibration.Sources.Exograph do
   alias ReachCalibration.Selection.Stratified
 
   @candidate_multiplier 20
+  @max_rate_limit_retries 10
+  @retry_jitter_ms 25
 
   @spec package_versions(keyword()) :: {:ok, [map()]} | {:error, term()}
   def package_versions(opts) do
@@ -194,10 +196,21 @@ defmodule ReachCalibration.Sources.Exograph do
     request.(String.trim_trailing(base_url, "/") <> path, body)
   end
 
-  defp request(url, body) do
-    case Req.post(url, json: body, receive_timeout: 30_000, retry: false) do
+  @doc false
+  def request(url, body, opts \\ []) do
+    http = Keyword.get(opts, :http, &http_request/2)
+    sleep = Keyword.get(opts, :sleep, &Process.sleep/1)
+    request(url, body, http, sleep, 0)
+  end
+
+  defp request(url, body, http, sleep, attempts) do
+    case http.(url, body) do
       {:ok, %{status: status, body: response_body}} when status in 200..299 ->
         {:ok, response_body}
+
+      {:ok, %{status: 429, body: response_body}} when attempts < @max_rate_limit_retries ->
+        sleep.(retry_after_ms(response_body) + @retry_jitter_ms)
+        request(url, body, http, sleep, attempts + 1)
 
       {:ok, %{status: status, body: response_body}} ->
         {:error, {:http_error, status, response_body}}
@@ -206,4 +219,14 @@ defmodule ReachCalibration.Sources.Exograph do
         {:error, reason}
     end
   end
+
+  defp http_request(url, body) do
+    Req.post(url, json: body, receive_timeout: 30_000, retry: false)
+  end
+
+  defp retry_after_ms(%{"error" => %{"details" => %{"retry_after_ms" => delay}}})
+       when is_integer(delay) and delay >= 0,
+       do: delay
+
+  defp retry_after_ms(_response), do: 1_000
 end
