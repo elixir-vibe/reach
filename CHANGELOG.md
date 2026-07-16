@@ -7,6 +7,7 @@
 - `mix reach.trace --pattern regex-on-structured` traces structured file contents into regex and regex-based string parsing, including a conservative fallback for structure-shaped regex literals.
 - `mix reach.check --candidates` now reports concentrated module-level forwarding as advisory `review_facade` candidates, with boundary, behaviour, macro-use, compatibility, and documentation guards.
 - Exact project Type-I clone families now produce advisory `consolidate_clone` candidates with a deterministic canonical implementation and explicit behavior-preservation proof steps.
+- Smell analysis now detects private multi-clause domain parsers that silently coerce unsupported input to an accepted constant, while excluding serializers and presentation mappings.
 
 ### Fixed
 

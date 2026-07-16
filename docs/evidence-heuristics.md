@@ -93,6 +93,20 @@ Calibration notes:
 - After adding the semantic guards above, the same pass produced three candidates: one undocumented internal Exograph wrapper at high confidence and two documented HostKit runtime facades at medium confidence.
 - The candidate asks maintainers to declare an intentional public boundary or remove a pass-through layer; it does not claim that forwarding is inherently wrong and is not promoted to a smell.
 
+## Total-function laundering
+
+`Reach.Smell.Checks.TotalFunctionLaundering` detects private unary multi-clause parsers whose constrained clauses preserve a literal domain while a final catch-all silently returns one accepted value. Domain preservation includes identity clauses and equivalent string-to-atom mappings. The fallback must appear in the observed output domain or in a same-named literal `@type`/`@typep` domain.
+
+Precision guards exclude public APIs, one-clause domains, transformations such as `inspect(value)`, presentation mappings, mixed semantic mappings, dynamic fallback bodies, and constants outside the established domain. The finding points at the catch-all and asks callers to supply an explicit default or the parser to raise/return an error for unsupported input.
+
+Calibration notes:
+
+- The historical LLM Proxy `Catalog.Model` burial specimen is detected at `routing_strategy(_strategy) -> :ordered`; `:ordered` is established by the `routing_strategy` type even though the earlier clauses omitted it.
+- Incant's `external_value/1` serializer remains clean because its catch-all transforms the input with `inspect/1`.
+- An initial Exograph structural prefilter (`_ when _ in [_, _]`) returned twenty sampled fragments across five package versions, all from vendored dependency paths; it is useful only as a broad candidate query, not as the rule itself.
+- A source-only pass over thirteen local projects initially found four intentional display/log-level defaults. Requiring every constrained clause to preserve the logical domain removed all four while retaining the LLM Proxy specimen.
+- The eight checksum-pinned Hex corpus packages produce no findings.
+
 ## Map contracts
 
 Implemented evidence:
