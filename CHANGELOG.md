@@ -10,6 +10,7 @@
 - The false-success smell check no longer crashes on calls qualified through `__MODULE__` or other aliases containing non-atom AST segments ([#23](https://github.com/elixir-vibe/reach/issues/23)).
 - Smell checks now run against deterministic snapshots of eight pinned Hex packages in CI, catching new false-positive drift on idiomatic real-world code.
 - Generic smells now ignore source ranges whose syntax is reinterpreted by Ecto, Ash, Nx, plugin-defined, or configured project DSL macros, while column-aware matching preserves same-line findings outside nested DSL calls.
+- Evidence providers now share an explicit provider behaviour and normalized capability-bypass metadata; optional ExDNA dependency scanning emits project-to-dependency reimplementation evidence without compiling dependency code.
 
 ## 2.7.5 - 2026-06-12
 

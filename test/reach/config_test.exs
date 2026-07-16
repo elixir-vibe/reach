@@ -88,7 +88,9 @@ defmodule Reach.ConfigTest do
                  ignored_attributes: [:route],
                  parse_timeout: 2_000,
                  ignore: ["lib/generated/**"],
-                 max_clones: 7
+                 max_clones: 7,
+                 include_deps: true,
+                 dep_paths_limit: 8
                ]
              )
 
@@ -149,6 +151,16 @@ defmodule Reach.ConfigTest do
     assert config.clone_analysis.parse_timeout == 2_000
     assert config.clone_analysis.ignore == ["lib/generated/**"]
     assert config.clone_analysis.max_clones == 7
+    assert config.clone_analysis.include_deps == true
+    assert config.clone_analysis.dep_paths_limit == 8
+  end
+
+  test "rejects malformed dependency clone limits" do
+    assert {:error, errors} =
+             Config.from_terms(clone_analysis: [include_deps: :yes, dep_paths_limit: 0])
+
+    assert Enum.any?(errors, &(&1.path == [:clone_analysis, :include_deps]))
+    assert Enum.any?(errors, &(&1.path == [:clone_analysis, :dep_paths_limit]))
   end
 
   test "rejects malformed DSL macro shapes" do

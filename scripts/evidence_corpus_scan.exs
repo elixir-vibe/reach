@@ -123,7 +123,15 @@ defmodule Reach.EvidenceCorpusScan do
   defp provider_evidence(provider, ast, _plugins) do
     ast
     |> provider.collect_ast()
-    |> Enum.map(&evidence(provider.family(), &1.kind, &1.message, &1.meta, &1.confidence))
+    |> Enum.map(fn fact ->
+      provider.family()
+      |> evidence(fact.kind, fact.message, fact.meta, fact.confidence)
+      |> Map.merge(%{
+        replacement: Map.get(fact, :replacement),
+        source: Map.get(fact, :source),
+        data: Map.get(fact, :data)
+      })
+    end)
   end
 
   defp kind_family("all"), do: :all

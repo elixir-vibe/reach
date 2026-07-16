@@ -79,7 +79,9 @@ defmodule Reach.Config do
               ignored_attributes: nil,
               parse_timeout: 5_000,
               ignore: [],
-              max_clones: 50
+              max_clones: 50,
+              include_deps: false,
+              dep_paths_limit: 20
   end
 
   defmodule Checks do
@@ -296,7 +298,9 @@ defmodule Reach.Config do
         ignored_attributes: nested(config, [:clone_analysis, :ignored_attributes], nil, nil),
         parse_timeout: nested(config, [:clone_analysis, :parse_timeout], nil, 5_000),
         ignore: nested(config, [:clone_analysis, :ignore], nil, []),
-        max_clones: nested(config, [:clone_analysis, :max_clones], nil, 50)
+        max_clones: nested(config, [:clone_analysis, :max_clones], nil, 50),
+        include_deps: nested(config, [:clone_analysis, :include_deps], nil, false),
+        dep_paths_limit: nested(config, [:clone_analysis, :dep_paths_limit], nil, 20)
       },
       smells: %Smells{
         strict: nested(config, [:smells, :strict], nil, false),
@@ -562,6 +566,18 @@ defmodule Reach.Config do
       &valid_positive_integer?/1,
       "expected positive integer"
     )
+    |> check(
+      config,
+      [:clone_analysis, :include_deps],
+      &valid_boolean?/1,
+      "expected boolean"
+    )
+    |> check(
+      config,
+      [:clone_analysis, :dep_paths_limit],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
     |> check(config, [:checks], &valid_group?/1, "expected keyword list")
     |> check(config, [:checks, :baseline], &is_binary/1, "expected string")
     |> check(
@@ -771,7 +787,9 @@ defmodule Reach.Config do
       :ignored_attributes,
       :parse_timeout,
       :ignore,
-      :max_clones
+      :max_clones,
+      :include_deps,
+      :dep_paths_limit
     ])
     |> unknown_nested_key_errors(config, [:candidates], [:thresholds, :limits])
     |> unknown_nested_key_errors(config, [:candidates, :thresholds], [

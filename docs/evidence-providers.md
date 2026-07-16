@@ -4,9 +4,11 @@ Reach keeps reusable analysis facts in evidence providers. Smells, checks, and r
 
 ## Provider shape
 
-An AST evidence provider exposes lightweight metadata:
+An AST evidence provider implements `Reach.Evidence.Provider` and exposes lightweight metadata:
 
 ```elixir
+@behaviour Reach.Evidence.Provider
+
 def family, do: :stdlib
 
 def kinds, do: [:manual_flat_map]
@@ -14,7 +16,7 @@ def kinds, do: [:manual_flat_map]
 def collect_ast(ast), do: [%Reach.Evidence.Fact{}]
 ```
 
-Providers are discovered through `Reach.Evidence.ast_providers/1` and dependency-specific plugin callbacks. Keep the API small until several providers need a stronger behaviour.
+Providers are discovered through `Reach.Evidence.ast_providers/1` and dependency-specific plugin callbacks. The behaviour standardizes discovery while allowing each provider to use the traversal or proof appropriate to its evidence.
 
 Most providers should emit `Reach.Evidence.Fact` values. Domain-specific providers may use richer structs temporarily when downstream checks need specialized fields, but scanner-facing facts should converge on this common shape.
 
@@ -26,6 +28,35 @@ Evidence facts should carry at least:
 - `:replacement` — suggested abstraction or API when one is known;
 - `:meta` — source metadata, usually including `:line` and optionally `:column`;
 - `:confidence` — coarse confidence such as `:high` or `:medium`.
+
+## Capability bypass evidence
+
+`Reach.Evidence.Bypass` normalizes facts showing that code reimplements an available capability. Existing provider families remain stable, while `fact.data` identifies the shared category:
+
+```elixir
+%Reach.Evidence.Fact{
+  family: :jason,
+  kind: :hand_rolled_json_encoder,
+  data: %{
+    category: :capability_bypass,
+    provider: Jason,
+    capability: :json_encoding,
+    origin: :plugin_pattern
+  }
+}
+```
+
+Origins distinguish standard-library patterns, plugin-specific patterns, and project-to-dependency clones. Consumers can therefore aggregate bypass evidence without hardcoding provider families. Plugin activation remains the dependency gate; do not add a second capability-discovery callback.
+
+When `clone_analysis[:include_deps]` is enabled, ExDNA analyzes direct dependency `lib/` sources together with project sources and retains only clone families containing both origins. Those families become `:dependency_bypass` facts with `origin: :dependency_clone`. Dependency code is read as source only; Reach does not compile or load it.
+
+Collect project-level dependency bypass facts with:
+
+```elixir
+Reach.Evidence.dependency_bypass(project, config)
+```
+
+This API is separate from per-file AST providers because clone evidence needs the whole project and dependency source roots.
 
 ## Boundaries
 
@@ -67,6 +98,17 @@ A refinement may return:
 - a replacement evidence struct of the same type.
 
 Refinement must stay evidence-level. Plugins should annotate facts, confidence, roles, or metadata; they must not emit `Reach.Smell.Finding` or decide candidate policy directly. Smells/checks/candidates consume the refined evidence later.
+
+A calibrated AST provider can be promoted without duplicating collection logic:
+
+```elixir
+defmodule MyPlugin.Smells.CapabilityBypass do
+  use Reach.Smell.Check.Evidence,
+    provider: MyPlugin.Evidence.CapabilityBypass
+end
+```
+
+The plugin must still register that smell check explicitly. Normalized bypass evidence is not automatically promoted merely because it exists.
 
 Current example: `Reach.Evidence.MapContract` records generic escape targets such as `Jason.encode!(data)`. `Reach.Plugins.Jason` refines those contracts to `role: :external_payload`, which lets candidate generation suggest a boundary contract instead of a domain struct.
 

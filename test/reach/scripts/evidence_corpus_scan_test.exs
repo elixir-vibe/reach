@@ -21,6 +21,10 @@ defmodule Reach.Scripts.EvidenceCorpusScanTest do
     assert [result] = JSON.decode!(json)
     assert result["kind"] == "manual_flat_map"
     assert result["family"] == "stdlib"
+    assert result["replacement"] == "Enum.flat_map/2"
+    assert result["data"]["category"] == "capability_bypass"
+    assert result["data"]["provider"] == "elixir_standard_library"
+    assert result["data"]["origin"] == "stdlib_pattern"
 
     File.rm_rf(dir)
   end

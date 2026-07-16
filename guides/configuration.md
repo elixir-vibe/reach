@@ -425,7 +425,9 @@ clone_analysis: [
   ignored_attributes: nil,
   parse_timeout: 5_000,
   ignore: [],
-  max_clones: 50
+  max_clones: 50,
+  include_deps: false,
+  dep_paths_limit: 20
 ]
 
 smells: [
@@ -452,6 +454,8 @@ smells: [
 ```
 
 Reach runs ExDNA when the package is available; package consumers can disable clone evidence with `provider: false` or tune clone mass/similarity when needed. ExDNA options are forwarded so clone evidence can use occurrence budgets, Type-II literal abstraction, Type-III similarity, pipe normalization, macro/attribute exclusions, path ignores, and parser timeouts. ExDNA's source suppression comments are also honored by the provider.
+
+Set `include_deps: true` to collect project-to-dependency reimplementation evidence from direct Mix dependencies. Reach parses dependency `lib/` sources without compiling or loading them, limits the number of dependency roots with `dep_paths_limit`, and discards dep-to-dep and project-only clone families. This evidence remains advisory and does not become a smell automatically.
 
 ### `checks[:baseline]`
 

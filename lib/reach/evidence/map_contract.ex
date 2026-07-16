@@ -1,5 +1,6 @@
 defmodule Reach.Evidence.MapContract do
   @moduledoc "Collects evidence for maps that behave like implicit contracts."
+  @behaviour Reach.Evidence.Provider
 
   alias Reach.Evidence.AST
   alias Reach.Project.Query
@@ -106,7 +107,10 @@ defmodule Reach.Evidence.MapContract do
   @options_names [:config, :opts, :options]
   @non_call_forms [:., :%, :{}, :__aliases__, :__block__, :=, :->, :def, :defp, :fn, :|>]
 
+  @impl true
   def family, do: :map_contract
+
+  @impl true
   def kinds, do: [:implicit_map_contract]
 
   def collect_key_accesses(%{nodes: nodes, call_graph: _call_graph} = project)
@@ -158,6 +162,7 @@ defmodule Reach.Evidence.MapContract do
     |> Enum.filter(&dual_representation_fallback?/1)
   end
 
+  @impl true
   def collect_ast(ast, opts \\ []) do
     plugins = Keyword.get(opts, :plugins, [])
     context = Keyword.get(opts, :context, %{})

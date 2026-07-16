@@ -1,14 +1,16 @@
 defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   @moduledoc "Collects evidence of manual JSON encoding that Jason can own."
+  @behaviour Reach.Evidence.Provider
 
-  alias Reach.Evidence.AST
-  alias Reach.Evidence.Fact
+  alias Reach.Evidence.{AST, Bypass}
 
   @json_sanitizer_names [:json_safe, :normalize_json, :json_key, :json_safe_key]
   @json_encoder_names [:encode_json, :do_encode, :encode_scalar, :indent_json, :indent_lines]
 
+  @impl true
   def family, do: :jason
 
+  @impl true
   def kinds do
     [
       :hand_rolled_json_sanitizer,
@@ -17,6 +19,7 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
     ]
   end
 
+  @impl true
   def collect_ast(ast) do
     ast
     |> callback_evidence()
@@ -148,13 +151,16 @@ defmodule Reach.Plugins.Jason.Evidence.HandRolledEncoder do
   defp canonical_line(_line), do: :json_writer
 
   defp evidence(kind, message, replacement, meta, confidence) do
-    %Fact{
+    Bypass.fact(
       family: :jason,
       kind: kind,
       message: message,
       replacement: replacement,
       meta: meta,
-      confidence: confidence
-    }
+      confidence: confidence,
+      provider: Jason,
+      capability: :json_encoding,
+      origin: :plugin_pattern
+    )
   end
 end

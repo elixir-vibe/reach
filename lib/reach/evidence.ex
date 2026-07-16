@@ -6,6 +6,8 @@ defmodule Reach.Evidence do
   something is a user-facing finding; smell and check modules own that policy.
   """
 
+  alias Reach.Evidence.CloneAnalysis
+
   @ast_providers [
     Reach.Evidence.StandardLibraryBypass,
     Reach.Evidence.MapContract
@@ -23,6 +25,11 @@ defmodule Reach.Evidence do
 
   def ast_providers_for(family, plugins) when is_atom(family) do
     Enum.filter(ast_providers(plugins), &(&1.family() == family))
+  end
+
+  @doc "Returns generic project-to-dependency reimplementation evidence."
+  def dependency_bypass(project, config \\ []) do
+    CloneAnalysis.dependency_bypass(project, config)
   end
 
   defp ast_provider?(module) do

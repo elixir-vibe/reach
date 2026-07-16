@@ -2,9 +2,12 @@ defmodule Reach.Evidence.CloneAnalysis.Fragment do
   @moduledoc "Struct for a single code fragment within a clone family."
 
   @derive JSON.Encoder
+  @type t :: %__MODULE__{}
   defstruct [
     :file,
     :line,
+    :origin,
+    :dependency,
     :module,
     :function,
     :arity,

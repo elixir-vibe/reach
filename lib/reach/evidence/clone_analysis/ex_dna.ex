@@ -14,8 +14,28 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNA do
       project
       |> source_paths()
       |> run_ex_dna(config)
-      |> Enum.map(&to_clone(&1, project))
+      |> Enum.map(&to_clone(&1, project, %{}))
       |> Enum.reject(&(&1.fragments == []))
+      |> Enum.take(config.max_clones)
+    else
+      []
+    end
+  end
+
+  @doc "Finds clone families containing both project and direct-dependency fragments."
+  def dependency_clones(project, config) do
+    dependency_clones(project, config, dependency_paths(config.dep_paths_limit))
+  end
+
+  @doc false
+  def dependency_clones(project, config, dependencies) do
+    if available?() and config.include_deps do
+      {paths, origins} = dependency_source_paths(project, dependencies, config.dep_paths_limit)
+
+      paths
+      |> run_ex_dna(config)
+      |> Enum.map(&to_clone(&1, project, origins))
+      |> Enum.filter(&cross_dependency_clone?/1)
       |> Enum.take(config.max_clones)
     else
       []
@@ -38,6 +58,46 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNA do
     |> Enum.uniq()
     |> Enum.filter(&(elixir_file?(&1) and File.regular?(&1)))
   end
+
+  defp dependency_source_paths(project, dependencies, limit) do
+    project_entries = Enum.map(source_paths(project), &{&1, :project})
+
+    dependency_entries =
+      dependencies
+      |> Enum.sort_by(fn {app, _path} -> app end)
+      |> Enum.take(limit)
+      |> Enum.flat_map(fn {app, path} ->
+        path
+        |> Path.join("lib/**/*.{ex,exs}")
+        |> Path.wildcard()
+        |> Enum.sort()
+        |> Enum.map(&{&1, {:dependency, app}})
+      end)
+
+    entries = Enum.uniq_by(project_entries ++ dependency_entries, &Path.expand(elem(&1, 0)))
+    paths = Enum.map(entries, &elem(&1, 0))
+    origins = Map.new(entries, fn {path, origin} -> {Path.expand(path), origin} end)
+    {paths, origins}
+  end
+
+  defp dependency_paths(limit) do
+    direct_apps =
+      Mix.Project.config()
+      |> Keyword.get(:deps, [])
+      |> Enum.flat_map(&dependency_app/1)
+      |> MapSet.new()
+
+    Mix.Project.deps_paths()
+    |> Enum.filter(fn {app, _path} -> MapSet.member?(direct_apps, app) end)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.take(limit)
+  rescue
+    _error in [ArgumentError, Mix.Error] -> []
+  end
+
+  defp dependency_app({app, _requirement}) when is_atom(app), do: [app]
+  defp dependency_app({app, _requirement, _opts}) when is_atom(app), do: [app]
+  defp dependency_app(_dependency), do: []
 
   defp run_ex_dna([], _config), do: []
 
@@ -76,25 +136,34 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNA do
   defp elixir_file?(file) when is_binary(file), do: Path.extname(file) in @elixir_extensions
   defp elixir_file?(_file), do: false
 
-  defp to_clone(ex_dna_clone, project) do
+  defp to_clone(ex_dna_clone, project, origins) do
     Clone.new(
       type: Map.get(ex_dna_clone, :type),
       mass: Map.get(ex_dna_clone, :mass),
       similarity: Map.get(ex_dna_clone, :similarity),
-      fragments: Enum.map(Map.get(ex_dna_clone, :fragments, []), &fragment(&1, project)),
+      fragments: Enum.map(Map.get(ex_dna_clone, :fragments, []), &fragment(&1, project, origins)),
       suggestion: Map.get(ex_dna_clone, :suggestion)
     )
   end
 
-  defp fragment(ex_dna_fragment, project) do
+  defp fragment(ex_dna_fragment, project, origins) do
     file = Map.get(ex_dna_fragment, :file)
     line = Map.get(ex_dna_fragment, :line)
-    function = if file && line, do: Query.find_function_at_location(project, file, line)
-    module = (function && function.meta[:module]) || module_at_location(project, file, line)
+    {origin, dependency} = fragment_origin(file, origins)
+
+    function =
+      if origin == :project and is_binary(file) and is_integer(line),
+        do: Query.find_function_at_location(project, file, line)
+
+    module =
+      if origin == :project,
+        do: (function && function.meta[:module]) || module_at_location(project, file, line)
 
     Fragment.new(
       file: file,
       line: line,
+      origin: origin,
+      dependency: dependency,
       module: module,
       function: function && function.meta[:name],
       arity: function && function.meta[:arity],
@@ -127,6 +196,20 @@ defmodule Reach.Evidence.CloneAnalysis.ExDNA do
 
   defp file_matches?(left, right),
     do: left == right or Path.expand(left || "") == Path.expand(right || "")
+
+  defp fragment_origin(file, origins) when is_binary(file) do
+    case Map.get(origins, Path.expand(file), :project) do
+      {:dependency, dependency} -> {:dependency, dependency}
+      :project -> {:project, nil}
+    end
+  end
+
+  defp fragment_origin(_file, _origins), do: {:project, nil}
+
+  defp cross_dependency_clone?(clone) do
+    Enum.any?(clone.fragments, &(&1.origin == :project)) and
+      Enum.any?(clone.fragments, &(&1.origin == :dependency))
+  end
 
   defp function_effects(nil, _plugins), do: []
 
