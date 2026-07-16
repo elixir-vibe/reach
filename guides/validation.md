@@ -44,6 +44,10 @@ mix run scripts/exograph_corpus_scan.exs -- \
   --output /tmp/reach-calibration.json
 ```
 
+When indexed prefilters are available, Reach hydrates only the candidate files
+returned by Exograph. Pass one or more `--paths` globs to override that scope;
+queries without indexed prefilters fall back to `lib/**`.
+
 Each finding receives a stable review ID. Supply a JSON object mapping those IDs
 to `true_positive` or `false_positive` with `--labels`; the report then includes
 reviewed precision per smell kind. Snapshot fingerprints and package versions

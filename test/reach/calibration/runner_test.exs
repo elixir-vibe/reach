@@ -45,6 +45,8 @@ defmodule Reach.Calibration.RunnerTest do
   test "produces stable review IDs and unreviewed metrics" do
     assert {:ok, report} = Runner.run(@opts)
     assert report["selection"]["kinds"] == ["dual_key_fallback"]
+    assert report["selection"]["paths"] == nil
+    assert report["selection"]["hydration_scope"] == "candidate_paths_or_lib"
     assert report["summary"]["packages"] == 1
     assert report["summary"]["errors"] == 0
 

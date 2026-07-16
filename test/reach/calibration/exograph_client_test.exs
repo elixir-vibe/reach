@@ -33,13 +33,28 @@ defmodule Reach.Calibration.ExographClientTest do
       {:ok,
        %{
          "results" => [
-           %{"package" => "demo", "package_version" => "1.0.0"},
-           %{"package" => "demo", "package_version" => "1.0.0"}
+           %{
+             "package" => "demo",
+             "package_version" => "1.0.0",
+             "file" => "lib/demo/b.ex"
+           },
+           %{
+             "package" => "demo",
+             "package_version" => "1.0.0",
+             "file" => "lib/demo/a.ex"
+           }
          ]
        }}
     end
 
-    assert {:ok, [%{"package_name" => "demo", "version" => "1.0.0"}]} =
+    assert {:ok,
+            [
+              %{
+                "package_name" => "demo",
+                "version" => "1.0.0",
+                "candidate_paths" => ["lib/demo/a.ex", "lib/demo/b.ex"]
+              }
+            ]} =
              ExographClient.package_versions(
                base_url: "http://exograph.test",
                limit: 5,
@@ -85,6 +100,31 @@ defmodule Reach.Calibration.ExographClientTest do
     assert Enum.map(versions, & &1["package_name"]) == ["alpha", "beta"]
   end
 
+  test "hydrates only indexed candidate paths by default" do
+    parent = self()
+
+    request = fn url, body ->
+      send(parent, {:request, url, body})
+      {:ok, %{"fingerprint" => "snapshot"}}
+    end
+
+    version = %{
+      "ecosystem" => "hex",
+      "package_name" => "demo",
+      "version" => "1.0.0",
+      "candidate_paths" => ["lib/demo/a.ex", "lib/demo/b.ex"]
+    }
+
+    assert {:ok, %{"fingerprint" => "snapshot"}} =
+             ExographClient.hydrate(version,
+               base_url: "http://exograph.test",
+               request: request
+             )
+
+    assert_receive {:request, "http://exograph.test/api/hydrate", body}
+    assert body["paths"] == ["lib/demo/a.ex", "lib/demo/b.ex"]
+  end
+
   test "hydrates the selected package version" do
     parent = self()
 
@@ -93,7 +133,12 @@ defmodule Reach.Calibration.ExographClientTest do
       {:ok, %{"fingerprint" => "snapshot"}}
     end
 
-    version = %{"ecosystem" => "hex", "package_name" => "demo", "version" => "1.0.0"}
+    version = %{
+      "ecosystem" => "hex",
+      "package_name" => "demo",
+      "version" => "1.0.0",
+      "candidate_paths" => ["lib/candidate.ex"]
+    }
 
     assert {:ok, %{"fingerprint" => "snapshot"}} =
              ExographClient.hydrate(version,

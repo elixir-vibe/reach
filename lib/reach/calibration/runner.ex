@@ -31,10 +31,13 @@ defmodule Reach.Calibration.Runner do
         kinds -> kinds |> Enum.map(&to_string/1) |> Enum.sort()
       end
 
+    paths = Keyword.get(opts, :paths)
+
     %{
       "limit" => Keyword.get(opts, :limit, 25),
       "kinds" => kinds,
-      "paths" => Keyword.get(opts, :paths, ["lib/**"])
+      "paths" => paths,
+      "hydration_scope" => if(paths, do: "explicit_paths", else: "candidate_paths_or_lib")
     }
   end
 

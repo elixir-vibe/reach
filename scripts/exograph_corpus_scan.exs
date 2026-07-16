@@ -26,13 +26,14 @@ defmodule Reach.Scripts.ExographCorpusScan do
 
     output = opts[:output] || Path.join(File.cwd!(), "exograph-calibration-results.json")
 
-    runner_opts = [
-      base_url: opts[:base_url] || "http://localhost:4200",
-      limit: opts[:limit] || 25,
-      paths: Keyword.get_values(opts, :paths) |> default_paths(),
-      kinds: kinds(opts[:kinds]),
-      labels: opts[:labels]
-    ]
+    runner_opts =
+      [
+        base_url: opts[:base_url] || "http://localhost:4200",
+        limit: opts[:limit] || 25,
+        kinds: kinds(opts[:kinds]),
+        labels: opts[:labels]
+      ]
+      |> put_paths(Keyword.get_values(opts, :paths))
 
     case Runner.run(runner_opts) do
       {:ok, report} ->
@@ -45,8 +46,8 @@ defmodule Reach.Scripts.ExographCorpusScan do
     end
   end
 
-  defp default_paths([]), do: ["lib/**"]
-  defp default_paths(paths), do: paths
+  defp put_paths(opts, []), do: opts
+  defp put_paths(opts, paths), do: Keyword.put(opts, :paths, paths)
 
   defp kinds(nil), do: nil
 
@@ -92,7 +93,7 @@ defmodule Reach.Scripts.ExographCorpusScan do
       --limit, -l N          Maximum package versions selected. Defaults to 25.
       --output, -o PATH      Report path. Defaults to ./exograph-calibration-results.json.
       --labels PATH          JSON object mapping finding IDs to true_positive or false_positive.
-      --paths GLOB           Hydrated path glob. May be repeated. Defaults to lib/**.
+      --paths GLOB           Hydrated path glob. May be repeated. Defaults to indexed candidate files.
       --kinds a,b,c          Restrict analysis and precision metrics to smell kinds.
       --help, -h             Show this help.
     """)

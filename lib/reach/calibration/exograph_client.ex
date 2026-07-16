@@ -8,6 +8,8 @@ defmodule Reach.Calibration.ExographClient do
 
   alias Reach.Calibration.Candidates
 
+  @candidate_multiplier 20
+
   @spec package_versions(keyword()) :: {:ok, [map()]} | {:error, term()}
   def package_versions(opts) do
     if Keyword.get(opts, :limit, 25) > 0 do
@@ -41,7 +43,9 @@ defmodule Reach.Calibration.ExographClient do
 
   defp candidate_package_versions(patterns, opts) do
     limit = Keyword.get(opts, :limit, 25)
-    candidate_limit = Keyword.get(opts, :candidate_limit, max(limit * 20, limit))
+
+    candidate_limit =
+      Keyword.get(opts, :candidate_limit, max(limit * @candidate_multiplier, limit))
 
     patterns
     |> Enum.reduce_while({:ok, []}, fn pattern, {:ok, versions} ->
@@ -56,7 +60,7 @@ defmodule Reach.Calibration.ExographClient do
           version_groups
           |> Enum.reverse()
           |> List.flatten()
-          |> Enum.uniq_by(&version_identity/1)
+          |> merge_candidate_versions()
           |> Enum.take(limit)
 
         {:ok, versions}
@@ -100,12 +104,46 @@ defmodule Reach.Calibration.ExographClient do
     end
   end
 
-  defp candidate_version(%{"package" => package, "package_version" => version})
+  defp candidate_version(%{"package" => package, "package_version" => version} = result)
        when is_binary(package) and is_binary(version) do
-    %{"ecosystem" => "hex", "package_name" => package, "version" => version}
+    candidate = %{"ecosystem" => "hex", "package_name" => package, "version" => version}
+
+    case result["file"] do
+      path when is_binary(path) -> Map.put(candidate, "candidate_paths", [path])
+      _other -> candidate
+    end
   end
 
   defp candidate_version(_result), do: nil
+
+  defp merge_candidate_versions(versions) do
+    {identities, versions_by_identity} =
+      Enum.reduce(versions, {[], %{}}, fn version, {identities, versions_by_identity} ->
+        identity = version_identity(version)
+
+        case Map.fetch(versions_by_identity, identity) do
+          {:ok, existing} ->
+            merged = merge_candidate_paths(existing, version)
+            {identities, Map.put(versions_by_identity, identity, merged)}
+
+          :error ->
+            {[identity | identities], Map.put(versions_by_identity, identity, version)}
+        end
+      end)
+
+    identities
+    |> Enum.reverse()
+    |> Enum.map(&Map.fetch!(versions_by_identity, &1))
+  end
+
+  defp merge_candidate_paths(left, right) do
+    paths =
+      (Map.get(left, "candidate_paths", []) ++ Map.get(right, "candidate_paths", []))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    if paths == [], do: left, else: Map.put(left, "candidate_paths", paths)
+  end
 
   defp version_identity(version) do
     {version["ecosystem"], version["package_name"], version["version"]}
@@ -117,11 +155,19 @@ defmodule Reach.Calibration.ExographClient do
       "ecosystem" => version["ecosystem"] || "hex",
       "packageName" => version["package_name"],
       "version" => version["version"],
-      "paths" => Keyword.get(opts, :paths, ["lib/**"])
+      "paths" => hydration_paths(version, opts)
     }
 
     post(opts, "/api/hydrate", body)
   end
+
+  defp hydration_paths(version, opts) do
+    paths = Keyword.get(opts, :paths) || Map.get(version, "candidate_paths", [])
+    default_paths(paths)
+  end
+
+  defp default_paths([]), do: ["lib/**"]
+  defp default_paths(paths), do: paths
 
   defp post(opts, path, body) do
     base_url = Keyword.fetch!(opts, :base_url)
