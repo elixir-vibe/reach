@@ -48,7 +48,10 @@ defmodule Reach.ConfigTest do
                  thresholds: [
                    mixed_effect_count: 3,
                    branchy_function_branches: 9,
-                   high_risk_direct_callers: 5
+                   high_risk_direct_callers: 5,
+                   facade_ratio: 0.9,
+                   facade_min_functions: 4,
+                   facade_max_targets: 1
                  ],
                  limits: [
                    per_kind: 30,
@@ -122,6 +125,9 @@ defmodule Reach.ConfigTest do
     assert config.candidates.thresholds.mixed_effect_count == 3
     assert config.candidates.thresholds.branchy_function_branches == 9
     assert config.candidates.thresholds.high_risk_direct_callers == 5
+    assert config.candidates.thresholds.facade_ratio == 0.9
+    assert config.candidates.thresholds.facade_min_functions == 4
+    assert config.candidates.thresholds.facade_max_targets == 1
     assert config.candidates.limits.per_kind == 30
     assert config.candidates.limits.representative_calls == 12
     assert config.candidates.limits.representative_calls_per_edge == 2
@@ -153,6 +159,23 @@ defmodule Reach.ConfigTest do
     assert config.clone_analysis.max_clones == 7
     assert config.clone_analysis.include_deps == true
     assert config.clone_analysis.dep_paths_limit == 8
+  end
+
+  test "rejects malformed facade candidate thresholds" do
+    assert {:error, errors} =
+             Config.from_terms(
+               candidates: [
+                 thresholds: [
+                   facade_ratio: 2.0,
+                   facade_min_functions: 0,
+                   facade_max_targets: 0
+                 ]
+               ]
+             )
+
+    assert Enum.any?(errors, &(&1.path == [:candidates, :thresholds, :facade_ratio]))
+    assert Enum.any?(errors, &(&1.path == [:candidates, :thresholds, :facade_min_functions]))
+    assert Enum.any?(errors, &(&1.path == [:candidates, :thresholds, :facade_max_targets]))
   end
 
   test "rejects malformed dependency clone limits" do

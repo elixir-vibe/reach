@@ -5,6 +5,7 @@
 ### Added
 
 - `mix reach.trace --pattern regex-on-structured` traces structured file contents into regex and regex-based string parsing, including a conservative fallback for structure-shaped regex literals.
+- `mix reach.check --candidates` now reports concentrated module-level forwarding as advisory `review_facade` candidates, with boundary, behaviour, macro-use, compatibility, and documentation guards.
 
 ### Fixed
 

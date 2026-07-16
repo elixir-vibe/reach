@@ -56,7 +56,10 @@ defmodule Reach.Config do
     @moduledoc false
     defstruct mixed_effect_count: 2,
               branchy_function_branches: 8,
-              high_risk_direct_callers: 4
+              high_risk_direct_callers: 4,
+              facade_ratio: 0.8,
+              facade_min_functions: 3,
+              facade_max_targets: 2
   end
 
   defmodule Candidates.Limits do
@@ -271,7 +274,12 @@ defmodule Reach.Config do
           branchy_function_branches:
             nested(config, [:candidates, :thresholds, :branchy_function_branches], nil, 8),
           high_risk_direct_callers:
-            nested(config, [:candidates, :thresholds, :high_risk_direct_callers], nil, 4)
+            nested(config, [:candidates, :thresholds, :high_risk_direct_callers], nil, 4),
+          facade_ratio: nested(config, [:candidates, :thresholds, :facade_ratio], nil, 0.8),
+          facade_min_functions:
+            nested(config, [:candidates, :thresholds, :facade_min_functions], nil, 3),
+          facade_max_targets:
+            nested(config, [:candidates, :thresholds, :facade_max_targets], nil, 2)
         },
         limits: %Candidates.Limits{
           per_kind: nested(config, [:candidates, :limits, :per_kind], nil, 20),
@@ -677,6 +685,24 @@ defmodule Reach.Config do
       &valid_positive_integer?/1,
       "expected positive integer"
     )
+    |> check(
+      config,
+      [:candidates, :thresholds, :facade_ratio],
+      &valid_positive_similarity?/1,
+      "expected float greater than 0.0 and at most 1.0"
+    )
+    |> check(
+      config,
+      [:candidates, :thresholds, :facade_min_functions],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:candidates, :thresholds, :facade_max_targets],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
     |> check(config, [:candidates, :limits], &valid_group?/1, "expected keyword list")
     |> check(
       config,
@@ -796,7 +822,10 @@ defmodule Reach.Config do
     |> unknown_nested_key_errors(config, [:candidates, :thresholds], [
       :mixed_effect_count,
       :branchy_function_branches,
-      :high_risk_direct_callers
+      :high_risk_direct_callers,
+      :facade_ratio,
+      :facade_min_functions,
+      :facade_max_targets
     ])
     |> unknown_nested_key_errors(config, [:candidates, :limits], [
       :per_kind,

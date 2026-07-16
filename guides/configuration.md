@@ -59,7 +59,10 @@ The file must evaluate to a keyword list. Start from [`examples/reach.exs`](../e
     thresholds: [
       mixed_effect_count: 2,
       branchy_function_branches: 8,
-      high_risk_direct_callers: 4
+      high_risk_direct_callers: 4,
+      facade_ratio: 0.8,
+      facade_min_functions: 3,
+      facade_max_targets: 2
     ],
     limits: [
       per_kind: 20,
@@ -390,7 +393,10 @@ candidates: [
   thresholds: [
     mixed_effect_count: 2,
     branchy_function_branches: 8,
-    high_risk_direct_callers: 4
+    high_risk_direct_callers: 4,
+    facade_ratio: 0.8,
+    facade_min_functions: 3,
+    facade_max_targets: 2
   ],
   limits: [
     per_kind: 20,
@@ -400,7 +406,7 @@ candidates: [
 ]
 ```
 
-Thresholds decide when Reach reports mixed-effect and branch-heavy extraction candidates. Limits bound candidate evidence and per-kind generation while preserving exact cycle-component detection.
+Thresholds decide when Reach reports mixed-effect, branch-heavy, and module-level facade candidates. `facade_ratio` is the minimum forwarded share of public functions; `facade_min_functions` avoids tiny wrappers; `facade_max_targets` requires forwarding to remain concentrated. Modules configured in `boundaries[:public]`, behaviour/use implementations, and deprecated compatibility shims are excluded. Limits bound candidate evidence and per-kind generation while preserving exact cycle-component detection.
 
 ### `clone_analysis`
 

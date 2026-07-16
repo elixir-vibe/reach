@@ -73,6 +73,18 @@ Calibration notes:
 - GitHub structural samples found additional direct regex reads/rewrites of `mix.exs`, validating that the behavior exists in real packages.
 - The preset remains a trace workflow rather than a smell. Promotion requires broader path review and explicit suppression policy for intentional release/build scripts.
 
+## Module-level facades
+
+`Reach.Evidence.Facade` aggregates public `defdelegate` declarations and exact same-argument public forwarders by module. `mix reach.check --candidates` emits `:review_facade` only when the forwarded share, minimum public-function count, and target concentration pass named candidate thresholds.
+
+Precision guards exclude modules declared in `boundaries[:public]`, behaviour implementations, modules using framework macros, and deprecated compatibility shims. Public macros count toward the module API even though they are never treated as ordinary forwarders. Documented facades remain advisory at medium confidence; an undocumented module that forwards its entire API to one target may reach high confidence.
+
+Calibration notes:
+
+- A source-only pass over fifteen local projects initially found ten candidates, exposing intentional routers, behaviour adapters, compatibility shims, and macro-heavy public APIs as important false-positive classes.
+- After adding the semantic guards above, the same pass produced three candidates: one undocumented internal Exograph wrapper at high confidence and two documented HostKit runtime facades at medium confidence.
+- The candidate asks maintainers to declare an intentional public boundary or remove a pass-through layer; it does not claim that forwarding is inherently wrong and is not promoted to a smell.
+
 ## Map contracts
 
 Implemented evidence:
