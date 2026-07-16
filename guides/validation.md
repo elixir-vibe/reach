@@ -36,8 +36,11 @@ Reach uses ProgramFacts-generated Elixir projects and oracle facts to validate c
 Reach can consume Exograph's versioned query and hydration APIs without making
 Exograph execute Reach analyzers:
 
+Calibration is development tooling isolated from the shipped Reach runtime:
+
 ```bash
-mix run scripts/exograph_corpus_scan.exs -- \
+cd dev/calibration
+mix calibration.run \
   --base-url http://localhost:4200 \
   --limit 25 \
   --kinds dual_key_fallback,false_collapsing_lookup \

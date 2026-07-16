@@ -1,7 +1,7 @@
-defmodule Reach.Calibration.AnalyzerTest do
+defmodule ReachCalibration.AnalyzerTest do
   use ExUnit.Case, async: true
 
-  alias Reach.Calibration.Analyzer
+  alias ReachCalibration.Analyzer
 
   test "runs selected Reach checks against hydrated files" do
     snapshot =

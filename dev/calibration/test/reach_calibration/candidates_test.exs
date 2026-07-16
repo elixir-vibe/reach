@@ -1,7 +1,7 @@
-defmodule Reach.Calibration.CandidatesTest do
+defmodule ReachCalibration.CandidatesTest do
   use ExUnit.Case, async: true
 
-  alias Reach.Calibration.Candidates
+  alias ReachCalibration.Candidates
 
   test "deduplicates indexed prefilters for covered smell kinds" do
     kinds = MapSet.new([:dual_key_fallback, :false_collapsing_lookup, :default_drift])

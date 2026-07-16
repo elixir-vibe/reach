@@ -1,30 +1,30 @@
-defmodule Reach.Calibration.Runner do
+defmodule ReachCalibration.Runner do
   @moduledoc "Coordinates Exograph selection and hydration with local Reach analysis."
 
-  alias Reach.Calibration.{Analyzer, ExographClient}
+  alias ReachCalibration.{Analyzer, Config, Selection, Sources.Exograph}
 
   @verdicts ["true_positive", "false_positive", "unreviewed"]
 
   @spec run(keyword()) :: {:ok, map()} | {:error, term()}
   def run(opts) do
-    client = Keyword.get(opts, :client, ExographClient)
+    client = Keyword.get(opts, :client, Exograph)
     labels = load_labels(Keyword.get(opts, :labels))
 
-    with {:ok, versions} <- client.package_versions(opts) do
-      packages = Enum.map(versions, &analyze_version(client, &1, labels, opts))
+    with {:ok, %Selection{} = source_selection} <- client.package_versions(opts) do
+      packages = Enum.map(source_selection.versions, &analyze_version(client, &1, labels, opts))
 
       {:ok,
        %{
          "version" => 1,
          "generated_at" => DateTime.utc_now() |> DateTime.to_iso8601(),
-         "selection" => selection(opts),
+         "selection" => selection(opts, source_selection),
          "packages" => packages,
          "summary" => summarize(packages)
        }}
     end
   end
 
-  defp selection(opts) do
+  defp selection(opts, source_selection) do
     kinds =
       case Keyword.get(opts, :kinds) do
         nil -> nil
@@ -37,7 +37,12 @@ defmodule Reach.Calibration.Runner do
       "limit" => Keyword.get(opts, :limit, 25),
       "kinds" => kinds,
       "paths" => paths,
-      "hydration_scope" => if(paths, do: "explicit_paths", else: "candidate_paths_or_lib")
+      "hydration_scope" => if(paths, do: "explicit_paths", else: "candidate_paths_or_lib"),
+      "seed" => Keyword.get(opts, :seed, Config.default_seed()),
+      "candidate_pool_limit" => Keyword.get(opts, :candidate_limit),
+      "candidate_pool_size" => source_selection.pool_size,
+      "strategy" => Atom.to_string(source_selection.strategy),
+      "patterns" => source_selection.patterns
     }
   end
 

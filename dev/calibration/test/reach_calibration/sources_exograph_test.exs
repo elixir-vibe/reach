@@ -1,7 +1,8 @@
-defmodule Reach.Calibration.ExographClientTest do
+defmodule ReachCalibration.Sources.ExographTest do
   use ExUnit.Case, async: true
 
-  alias Reach.Calibration.ExographClient
+  alias ReachCalibration.Selection
+  alias ReachCalibration.Sources.Exograph, as: ExographClient
 
   test "selects package versions through the versioned query API" do
     parent = self()
@@ -11,7 +12,12 @@ defmodule Reach.Calibration.ExographClientTest do
       {:ok, %{"results" => [%{"package_name" => "demo", "version" => "1.0.0"}]}}
     end
 
-    assert {:ok, [%{"package_name" => "demo"}]} =
+    assert {:ok,
+            %Selection{
+              versions: [%{"package_name" => "demo"}],
+              strategy: :all,
+              pool_size: 1
+            }} =
              ExographClient.package_versions(
                base_url: "http://exograph.test/",
                limit: 3,
@@ -48,13 +54,19 @@ defmodule Reach.Calibration.ExographClientTest do
     end
 
     assert {:ok,
-            [
-              %{
-                "package_name" => "demo",
-                "version" => "1.0.0",
-                "candidate_paths" => ["lib/demo/a.ex", "lib/demo/b.ex"]
-              }
-            ]} =
+            %Selection{
+              versions: [
+                %{
+                  "package_name" => "demo",
+                  "version" => "1.0.0",
+                  "candidate_paths" => ["lib/demo/a.ex", "lib/demo/b.ex"],
+                  "candidate_patterns" => ["Map.get(_, _)"]
+                }
+              ],
+              strategy: :stratified,
+              pool_size: 1,
+              patterns: ["Map.get(_, _)"]
+            }} =
              ExographClient.package_versions(
                base_url: "http://exograph.test",
                limit: 5,
@@ -88,7 +100,7 @@ defmodule Reach.Calibration.ExographClientTest do
       end
     end
 
-    assert {:ok, versions} =
+    assert {:ok, %Selection{versions: versions, pool_size: 2}} =
              ExographClient.package_versions(
                base_url: "http://exograph.test",
                limit: 2,
@@ -97,7 +109,8 @@ defmodule Reach.Calibration.ExographClientTest do
                request: request
              )
 
-    assert Enum.map(versions, & &1["package_name"]) == ["alpha", "beta"]
+    assert versions |> Enum.map(& &1["package_name"]) |> MapSet.new() ==
+             MapSet.new(["alpha", "beta"])
   end
 
   test "hydrates only indexed candidate paths by default" do

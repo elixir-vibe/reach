@@ -1,12 +1,13 @@
-defmodule Reach.Calibration.ExographClient do
+defmodule ReachCalibration.Sources.Exograph do
   @moduledoc "HTTP consumer for Exograph's versioned query and hydration API."
 
-  @behaviour Reach.Calibration.Source
+  @behaviour ReachCalibration.Source
 
   @type request_fun :: (String.t(), map() -> {:ok, map()} | {:error, term()})
   @type package_version :: %{String.t() => term()}
 
-  alias Reach.Calibration.Candidates
+  alias ReachCalibration.{Candidates, Config, Selection}
+  alias ReachCalibration.Selection.Stratified
 
   @candidate_multiplier 20
 
@@ -34,7 +35,7 @@ defmodule Reach.Calibration.ExographClient do
 
     with {:ok, response} <- post(opts, "/api/query", %{"query" => query}),
          results when is_list(results) <- response["results"] do
-      {:ok, results}
+      {:ok, %Selection{versions: results, strategy: :all, pool_size: length(results)}}
     else
       nil -> {:error, :missing_query_results}
       {:error, _reason} = error -> error
@@ -56,14 +57,21 @@ defmodule Reach.Calibration.ExographClient do
     end)
     |> case do
       {:ok, version_groups} ->
-        versions =
+        pool =
           version_groups
           |> Enum.reverse()
           |> List.flatten()
           |> merge_candidate_versions()
-          |> Enum.take(limit)
 
-        {:ok, versions}
+        versions = Stratified.select(pool, limit, Keyword.get(opts, :seed, Config.default_seed()))
+
+        {:ok,
+         %Selection{
+           versions: versions,
+           strategy: :stratified,
+           pool_size: length(pool),
+           patterns: patterns
+         }}
 
       {:error, _reason} = error ->
         error
@@ -88,7 +96,7 @@ defmodule Reach.Calibration.ExographClient do
 
     with {:ok, response} <- post(opts, "/api/query", body),
          results when is_list(results) <- response["results"] do
-      candidates = results |> Enum.map(&candidate_version/1) |> Enum.reject(&is_nil/1)
+      candidates = results |> Enum.map(&candidate_version(&1, pattern)) |> Enum.reject(&is_nil/1)
       seen = seen + length(results)
       versions = candidates ++ versions
       next_cursor = response["next_cursor"]
@@ -104,9 +112,14 @@ defmodule Reach.Calibration.ExographClient do
     end
   end
 
-  defp candidate_version(%{"package" => package, "package_version" => version} = result)
+  defp candidate_version(%{"package" => package, "package_version" => version} = result, pattern)
        when is_binary(package) and is_binary(version) do
-    candidate = %{"ecosystem" => "hex", "package_name" => package, "version" => version}
+    candidate = %{
+      "ecosystem" => "hex",
+      "package_name" => package,
+      "version" => version,
+      "candidate_patterns" => [pattern]
+    }
 
     case result["file"] do
       path when is_binary(path) -> Map.put(candidate, "candidate_paths", [path])
@@ -114,7 +127,7 @@ defmodule Reach.Calibration.ExographClient do
     end
   end
 
-  defp candidate_version(_result), do: nil
+  defp candidate_version(_result, _pattern), do: nil
 
   defp merge_candidate_versions(versions) do
     {identities, versions_by_identity} =
@@ -123,7 +136,7 @@ defmodule Reach.Calibration.ExographClient do
 
         case Map.fetch(versions_by_identity, identity) do
           {:ok, existing} ->
-            merged = merge_candidate_paths(existing, version)
+            merged = merge_candidate_metadata(existing, version)
             {identities, Map.put(versions_by_identity, identity, merged)}
 
           :error ->
@@ -136,13 +149,19 @@ defmodule Reach.Calibration.ExographClient do
     |> Enum.map(&Map.fetch!(versions_by_identity, &1))
   end
 
-  defp merge_candidate_paths(left, right) do
-    paths =
-      (Map.get(left, "candidate_paths", []) ++ Map.get(right, "candidate_paths", []))
+  defp merge_candidate_metadata(left, right) do
+    left
+    |> merge_list_field(right, "candidate_paths")
+    |> merge_list_field(right, "candidate_patterns")
+  end
+
+  defp merge_list_field(left, right, field) do
+    values =
+      (Map.get(left, field, []) ++ Map.get(right, field, []))
       |> Enum.uniq()
       |> Enum.sort()
 
-    if paths == [], do: left, else: Map.put(left, "candidate_paths", paths)
+    if values == [], do: left, else: Map.put(left, field, values)
   end
 
   defp version_identity(version) do
@@ -176,33 +195,15 @@ defmodule Reach.Calibration.ExographClient do
   end
 
   defp request(url, body) do
-    :inets.start()
-    :ssl.start()
+    case Req.post(url, json: body, receive_timeout: 30_000, retry: false) do
+      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
+        {:ok, response_body}
 
-    request = {
-      String.to_charlist(url),
-      [{~c"content-type", ~c"application/json"}],
-      ~c"application/json",
-      JSON.encode!(body)
-    }
-
-    case :httpc.request(:post, request, [timeout: 30_000], body_format: :binary) do
-      {:ok, {{_http_version, status, _reason}, _headers, response_body}}
-      when status in 200..299 ->
-        JSON.decode(response_body)
-
-      {:ok, {{_http_version, status, _reason}, _headers, response_body}} ->
-        {:error, {:http_error, status, decode_error(response_body)}}
+      {:ok, %{status: status, body: response_body}} ->
+        {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
         {:error, reason}
-    end
-  end
-
-  defp decode_error(body) do
-    case JSON.decode(body) do
-      {:ok, decoded} -> decoded
-      {:error, _reason} -> body
     end
   end
 end

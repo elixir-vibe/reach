@@ -1,4 +1,4 @@
-defmodule Reach.Calibration.Analyzer do
+defmodule ReachCalibration.Analyzer do
   @moduledoc "Runs Reach smell analysis against an explicitly hydrated source snapshot."
 
   alias Reach.Check.Smells

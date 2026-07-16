@@ -55,12 +55,24 @@ defmodule Reach.MixProject do
         "ex_dna",
         "reach.check --arch --smells",
         "dialyzer",
-        "test"
+        "test",
+        "calibration.ci"
       ],
       "assets.build": [
         "volt.build --name reach"
-      ]
+      ],
+      "calibration.ci": &run_calibration_ci/1
     ]
+  end
+
+  defp run_calibration_ci(_args) do
+    {_, 0} =
+      System.cmd("mix", ["ci"],
+        cd: Path.expand("dev/calibration", __DIR__),
+        into: IO.stream()
+      )
+
+    :ok
   end
 
   defp deps do

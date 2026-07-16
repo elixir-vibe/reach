@@ -1,8 +1,14 @@
-defmodule Reach.Calibration.RunnerTest.FakeClient do
-  @behaviour Reach.Calibration.Source
+defmodule ReachCalibration.RunnerTest.FakeSource do
+  @behaviour ReachCalibration.Source
 
   def package_versions(_opts) do
-    {:ok, [%{"ecosystem" => "hex", "package_name" => "demo", "version" => "1.0.0"}]}
+    {:ok,
+     %ReachCalibration.Selection{
+       versions: [%{"ecosystem" => "hex", "package_name" => "demo", "version" => "1.0.0"}],
+       strategy: :stratified,
+       pool_size: 10,
+       patterns: ["Map.get(_, _)"]
+     }}
   end
 
   def hydrate(_version, _opts) do
@@ -30,14 +36,14 @@ defmodule Reach.Calibration.RunnerTest.FakeClient do
   end
 end
 
-defmodule Reach.Calibration.RunnerTest do
+defmodule ReachCalibration.RunnerTest do
   use ExUnit.Case, async: true
 
-  alias Reach.Calibration.Runner
-  alias Reach.Calibration.RunnerTest.FakeClient
+  alias ReachCalibration.Runner
+  alias ReachCalibration.RunnerTest.FakeSource
 
   @opts [
-    client: FakeClient,
+    client: FakeSource,
     plugins: [],
     kinds: MapSet.new([:dual_key_fallback])
   ]
@@ -47,6 +53,9 @@ defmodule Reach.Calibration.RunnerTest do
     assert report["selection"]["kinds"] == ["dual_key_fallback"]
     assert report["selection"]["paths"] == nil
     assert report["selection"]["hydration_scope"] == "candidate_paths_or_lib"
+    assert report["selection"]["strategy"] == "stratified"
+    assert report["selection"]["candidate_pool_size"] == 10
+    assert report["selection"]["patterns"] == ["Map.get(_, _)"]
     assert report["summary"]["packages"] == 1
     assert report["summary"]["errors"] == 0
 

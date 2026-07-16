@@ -1,4 +1,4 @@
-defmodule Reach.Calibration.Candidates do
+defmodule ReachCalibration.Candidates do
   @moduledoc "Indexed Exograph prefilters for high-confidence Reach smell calibration."
 
   @patterns %{
@@ -14,6 +14,9 @@ defmodule Reach.Calibration.Candidates do
     required_schema_key_default: ["Map.get(_, _, _)"],
     default_drift: ["Map.get(_, _, _)"]
   }
+
+  @spec supported_kinds() :: [atom()]
+  def supported_kinds, do: @patterns |> Map.keys() |> Enum.sort()
 
   @spec patterns(MapSet.t(atom()) | nil) :: :all | [String.t()]
   def patterns(nil), do: :all
