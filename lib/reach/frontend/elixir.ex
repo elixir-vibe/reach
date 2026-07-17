@@ -1244,9 +1244,24 @@ defmodule Reach.Frontend.Elixir do
       nil -> resolve_import_except(mod, Keyword.get(opts, :except))
       kind when kind in [:macros, :functions] -> exported_of_kind(mod, kind)
       :sigils -> []
-      only when is_list(only) -> only
+      only when is_list(only) -> resolve_import_only(mod, only)
       _ -> []
     end
+  end
+
+  defp resolve_import_only(mod, only) do
+    exports = exported_functions(mod)
+
+    Enum.flat_map(only, fn
+      {name, arity} when is_atom(name) and is_integer(arity) ->
+        [{name, arity}]
+
+      name when is_atom(name) ->
+        Enum.filter(exports, fn {exported, _arity} -> exported == name end)
+
+      _unsupported ->
+        []
+    end)
   end
 
   defp resolve_import_except(mod, nil), do: exported_functions(mod)

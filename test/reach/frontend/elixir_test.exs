@@ -809,6 +809,26 @@ defmodule Reach.Frontend.ElixirTest do
       assert call.meta[:kind] == :remote
     end
 
+    test "atom-only import entries resolve every exported arity" do
+      nodes =
+        IR.from_string!("""
+        defmodule MyApp do
+          import Enum, only: [:map]
+
+          def test(list), do: map(list, &to_string/1)
+        end
+        """)
+
+      calls =
+        nodes
+        |> IR.all_nodes()
+        |> Enum.filter(
+          &(&1.type == :call and &1.meta[:function] == :map and &1.meta[:arity] == 2)
+        )
+
+      assert [%{meta: %{module: Enum, kind: :remote}}] = calls
+    end
+
     test "non-imported call stays local" do
       nodes =
         IR.from_string!("""

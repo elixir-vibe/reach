@@ -64,6 +64,7 @@ defmodule Reach.Evidence.ParameterShape do
     |> Enum.flat_map(&call_occurrences(&1, project, index, predecessor_index, targets))
     |> Enum.group_by(fn {target, parameter_index, _occurrence} -> {target, parameter_index} end)
     |> Enum.map(&parameter_fact(&1, project))
+    |> Enum.reject(&is_nil/1)
     |> Enum.sort_by(&{&1.file || "", &1.line || 0, &1.target, &1.parameter_index})
   end
 
@@ -178,8 +179,14 @@ defmodule Reach.Evidence.ParameterShape do
   end
 
   defp parameter_fact({{target, parameter_index}, entries}, project) do
+    case find_target_function(project, Query.function_index(project), target) do
+      nil -> nil
+      function -> parameter_fact(function, target, parameter_index, entries)
+    end
+  end
+
+  defp parameter_fact(function, target, parameter_index, entries) do
     occurrences = Enum.map(entries, &elem(&1, 2))
-    function = find_target_function(project, Query.function_index(project), target)
     parameter = parameter_name(function, parameter_index)
     key_sets = Enum.map(occurrences, &MapSet.new(&1.keys))
     core = intersect_sets(key_sets)
