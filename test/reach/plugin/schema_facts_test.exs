@@ -101,6 +101,22 @@ defmodule Reach.Plugin.SchemaFactsTest do
            end)
   end
 
+  test "schema plugins tolerate nested modules qualified through __MODULE__" do
+    source = """
+    defmodule Contract do
+      defmodule __MODULE__.Bits do
+        @schema [count: [type: :integer]]
+        def validate(options), do: NimbleOptions.validate(options, @schema)
+      end
+    end
+    """
+
+    assert {:ok, facts} =
+             MacroFact.collect_source(source, plugins: [Reach.Plugins.NimbleOptions])
+
+    assert Enum.any?(facts, &(&1.framework == :nimble_options))
+  end
+
   test "schema plugins stay inactive when not configured" do
     source = """
     defmodule Contract do

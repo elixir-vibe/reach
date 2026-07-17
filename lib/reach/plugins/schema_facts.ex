@@ -307,7 +307,13 @@ defmodule Reach.Plugins.SchemaFacts do
   defp statements(nil), do: []
   defp statements(statement), do: [statement]
 
-  defp module_name({:__aliases__, _meta, parts}), do: Module.concat(parts)
+  defp module_name({:__aliases__, _meta, _parts} = module_ast) do
+    case Reach.AST.module_name(module_ast) do
+      {:ok, module} -> module
+      :error -> nil
+    end
+  end
+
   defp module_name(module) when is_atom(module), do: module
   defp module_name(_module), do: nil
 
