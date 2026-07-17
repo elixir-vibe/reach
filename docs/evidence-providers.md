@@ -88,13 +88,13 @@ Lineage is deliberately transparent-only: map literals flow through variables an
 Reach.Evidence.representation_overlaps(project)
 ```
 
-The evidence layer keeps all overlaps above its configurable shape threshold. The `same_entity_representation` smell promotes only domain-role maps with entity-bearing names, excluding direct projections from the matching entity, presentation/serialization functions, accumulators, maps passed immediately to the canonical struct module, and structs that declare an explicit outbound map conversion such as `to_map/1`. Framework-generated structs remain plugin territory; the generic provider reads only explicit source declarations.
+The evidence layer keeps all overlaps above its configurable shape threshold. The `same_entity_representation` smell promotes only domain-role maps with entity-bearing names, excluding direct projections from the matching entity, presentation/serialization functions and modules, ambiguous entity names, accumulators, maps passed immediately to the canonical struct module, and structs that declare an explicit outbound map conversion such as `to_map/1`. Framework-generated structs remain plugin territory; the generic provider reads only explicit source declarations.
 
 ## Nil-parameter evidence
 
 `Reach.Evidence.NilParameter` combines call evidence with per-function control flow. A parameter becomes nil-capable only when Reach observes a literal nil argument, a nil default, or a matching nil clause. Nil-clause evidence retains the other parameter patterns, so a clause for `(:with_cte, nil)` does not make the same parameter nullable in an unrelated `(:from, value)` clause.
 
-For each applicable clause, the provider records field/dynamic receiver uses, strict `Map` operations, and calls into project functions whose corresponding parameter rejects nil in every clause. Default-arity wrappers inherit the full function's proven parameter requirement. Reach then builds the existing `Reach.ControlFlow` graph and uses `Reach.Dominator` to verify that a non-nil pattern, guard, branch, or prior exhaustive nil clause dominates each use. Short-circuit boolean guards, source-path feasibility through literal/defaulted companion arguments, and nested callback shadowing are modeled separately to avoid impossible paths or treating a different lexical binding as the parameter.
+For each applicable clause, the provider records field/dynamic receiver uses, strict `Map` operations, and calls into project functions whose corresponding parameter rejects nil in every clause. Default-arity wrappers inherit the full function's proven parameter requirement. Reach then builds the existing `Reach.ControlFlow` graph and uses `Reach.Dominator` to verify that a non-nil pattern, guard, branch, or prior exhaustive nil clause dominates each use. Short-circuit boolean guards, source-path feasibility through literal/defaulted companion arguments, and nested callback shadowing and final wildcard fallbacks are modeled separately to avoid impossible paths or treating a different lexical binding as the parameter.
 
 ```elixir
 Reach.Evidence.nil_parameters(project)
@@ -104,7 +104,7 @@ Facts retain nil source locations, exact use locations, and dominating guard ver
 
 ## Return-contract evidence
 
-`Reach.Evidence.ReturnContract` collects terminal expressions across function clauses and explicit `case`, `cond`, `if`, `with`, `receive`, and `try` branches. Outcomes retain structural classes, exact tagged-tuple arity, source lines, nested identical tags, and whether the function is marked `@impl`.
+`Reach.Evidence.ReturnContract` collects terminal expressions across function clauses and explicit `case`, `cond`, `if`, `with`, `receive`, and `try` branches. Outcomes retain structural classes, exact tagged-tuple arity, source lines, nested identical tags, and whether the function is marked `@impl` or recognized as a source-declared OTP callback.
 
 Unknown calls and implicit `with` fallthrough remain dynamic evidence rather than guessed return types. Function-level `rescue`, `catch`, and `else` are modeled as `try` semantics, so transformed successful values are not incorrectly counted as terminal returns. Collect project-level facts with:
 
@@ -112,7 +112,7 @@ Unknown calls and implicit `with` fallthrough remain dynamic evidence rather tha
 Reach.Evidence.return_contracts(project)
 ```
 
-The smell policy promotes only high-confidence `:ok` contract conflicts: bare `:ok` versus `{:ok, value}`, `:ok` tuples mixed with known raw values, inconsistent `:ok` tuple arity, and nested `{:ok, {:ok, value}}`. Conventional `{:ok, value} | {:error, reason}`, sentinel failures, state-machine tuples, dynamic forwarding, and `@impl` callbacks stay clean.
+The smell policy promotes only high-confidence `:ok` contract conflicts: bare `:ok` versus `{:ok, value}`, `:ok` tuples mixed with known raw values, inconsistent `:ok` tuple arity, and nested `{:ok, {:ok, value}}`. Conventional `{:ok, value} | {:error, reason}`, sentinel failures, state-machine tuples, dynamic forwarding, and explicit or source-declared OTP callbacks stay clean.
 
 ## Boundaries
 

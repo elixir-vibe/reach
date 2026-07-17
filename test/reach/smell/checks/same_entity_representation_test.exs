@@ -56,6 +56,29 @@ defmodule Reach.Smell.Checks.SameEntityRepresentationTest do
     assert by_kind(findings) == []
   end
 
+  test "excludes ambiguous entity names and presentation modules" do
+    findings =
+      smells("""
+      defmodule Domain.Context do
+        defstruct [:actor, :tenant, :authorize]
+      end
+
+      defmodule ContextBuilder do
+        def build_context(actor), do: %{actor: actor, tenant: nil, authorize: true}
+      end
+
+      defmodule Domain.Error do
+        defstruct [:message, :line, :column]
+      end
+
+      defmodule ErrorReporter do
+        def error_payload(message), do: %{message: message, line: 1, column: 2}
+      end
+      """)
+
+    assert by_kind(findings) == []
+  end
+
   test "excludes structs with an explicit outbound map conversion" do
     findings =
       smells("""

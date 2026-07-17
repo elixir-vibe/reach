@@ -113,6 +113,20 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
     assert by_kind(findings, :return_shape_divergence) == []
   end
 
+  test "skips legacy OTP callbacks without explicit @impl annotations" do
+    findings =
+      smells("""
+      defmodule LegacyCallback do
+        @behaviour :gen_event
+        def handle_call(:read, state), do: {:ok, state}
+        def handle_call(:nested, state), do: {:ok, {:ok, state}}
+      end
+      """)
+
+    assert by_kind(findings, :return_shape_divergence) == []
+    assert by_kind(findings, :nested_return_tag) == []
+  end
+
   test "ignores raising paths and with fallthrough" do
     findings =
       smells("""

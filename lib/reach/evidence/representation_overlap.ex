@@ -45,6 +45,7 @@ defmodule Reach.Evidence.RepresentationOverlap do
 
   @default_min_shared_keys 3
   @default_min_similarity 0.8
+  @presentation_module_segments ~w(json presenter renderer reporter serializer view)
 
   @doc "Collects cross-module struct/bare-map shape overlaps."
   @spec collect_project(Reach.Project.t(), keyword()) :: [Fact.t()]
@@ -298,10 +299,11 @@ defmodule Reach.Evidence.RepresentationOverlap do
     end
   end
 
-  defp map_role(variable, {_module, function, _arity}) do
+  defp map_role(variable, {module, function, _arity}) do
     cond do
       accumulator_name?(variable) -> :accumulator
       presentation_function?(function) -> :presentation
+      presentation_module?(module) -> :presentation
       true -> :domain
     end
   end
@@ -318,6 +320,13 @@ defmodule Reach.Evidence.RepresentationOverlap do
     |> to_string()
     |> String.split("_", trim: true)
     |> Enum.any?(&(&1 in ~w(describe encode external json map render safe serialize)))
+  end
+
+  defp presentation_module?(module) do
+    module
+    |> Module.split()
+    |> Enum.flat_map(&(&1 |> Macro.underscore() |> String.split("_", trim: true)))
+    |> Enum.any?(&(&1 in @presentation_module_segments))
   end
 
   defp assigned_variable(node, parents) do

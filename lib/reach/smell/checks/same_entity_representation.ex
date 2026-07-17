@@ -6,6 +6,8 @@ defmodule Reach.Smell.Checks.SameEntityRepresentation do
   alias Reach.Evidence.RepresentationOverlap
   alias Reach.Smell.Finding
 
+  @ambiguous_entity_names ~w(context request response result state)
+
   @impl true
   def kinds, do: [:same_entity_representation]
 
@@ -42,11 +44,13 @@ defmodule Reach.Smell.Checks.SameEntityRepresentation do
   defp promotable?(fact, config) do
     name_matches? = not config.require_name_match or fact.name_match?
 
-    name_matches? and fact.map.role == :domain and
+    name_matches? and distinctive_entity?(fact.struct.module) and fact.map.role == :domain and
       fact.map.normalized_into != fact.struct.module and
       fact.struct.map_conversion_functions == [] and
       not direct_entity_projection?(fact)
   end
+
+  defp distinctive_entity?(module), do: entity_name(module) not in @ambiguous_entity_names
 
   defp direct_entity_projection?(fact) do
     entity = entity_name(fact.struct.module)

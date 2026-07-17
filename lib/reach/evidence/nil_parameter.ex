@@ -132,7 +132,8 @@ defmodule Reach.Evidence.NilParameter do
   defp facts_for_source_parameters(function, source_parameters, requirements, project, index) do
     context = analysis_context(function, requirements, project, index)
 
-    Enum.map(source_parameters, fn {parameter_index, sources} ->
+    source_parameters
+    |> Enum.map(fn {parameter_index, sources} ->
       uses =
         context.clauses
         |> Enum.with_index()
@@ -140,6 +141,7 @@ defmodule Reach.Evidence.NilParameter do
 
       fact(function, context.clauses, parameter_index, sources, uses)
     end)
+    |> Enum.reject(&(&1.parameter == :_))
   end
 
   defp analysis_context(function, requirements, project, index) do
@@ -644,7 +646,10 @@ defmodule Reach.Evidence.NilParameter do
   end
 
   defp required_parameters(functions, call_graph) do
-    requirements = Enum.reduce(functions, MapSet.new(), &add_function_requirements/2)
+    requirements =
+      functions
+      |> Enum.group_by(&function_id/1)
+      |> Enum.reduce(MapSet.new(), &add_function_requirements/2)
 
     requirements =
       Enum.reduce(functions, requirements, fn function, acc ->
@@ -654,17 +659,24 @@ defmodule Reach.Evidence.NilParameter do
     add_virtual_arity_requirements(requirements, functions, call_graph)
   end
 
-  defp add_function_requirements(function, requirements) do
-    clauses = function_clauses(function)
+  defp add_function_requirements({function_id, functions}, requirements) do
+    arity = function_id |> elem(2)
 
-    function.meta.arity
+    arity
     |> parameter_indices()
     |> Enum.reduce(requirements, fn parameter_index, requirements ->
-      if function_parameter_rejects_nil?(function, clauses, parameter_index) do
-        MapSet.put(requirements, {function_id(function), parameter_index})
-      else
-        requirements
-      end
+      rejects_nil? =
+        Enum.all?(functions, fn function ->
+          function_parameter_rejects_nil?(
+            function,
+            function_clauses(function),
+            parameter_index
+          )
+        end)
+
+      if rejects_nil?,
+        do: MapSet.put(requirements, {function_id, parameter_index}),
+        else: requirements
     end)
   end
 
@@ -992,6 +1004,7 @@ defmodule Reach.Evidence.NilParameter do
   end
 
   defp parameter_name(nil), do: nil
+  defp parameter_name(%{type: :var, meta: %{name: :_}}), do: nil
   defp parameter_name(%{type: :var, meta: %{name: name}}), do: name
 
   defp parameter_name(%{type: :call, meta: %{function: :\\}, children: [parameter | _]}) do

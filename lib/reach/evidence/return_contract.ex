@@ -3,6 +3,45 @@ defmodule Reach.Evidence.ReturnContract do
 
   alias Reach.Source
 
+  @gen_server_callbacks MapSet.new([
+                          {:init, 1},
+                          {:handle_call, 3},
+                          {:handle_cast, 2},
+                          {:handle_info, 2},
+                          {:handle_continue, 2},
+                          {:terminate, 2},
+                          {:code_change, 3},
+                          {:format_status, 1},
+                          {:format_status, 2}
+                        ])
+  @gen_event_callbacks MapSet.new([
+                         {:init, 1},
+                         {:handle_event, 2},
+                         {:handle_call, 2},
+                         {:handle_info, 2},
+                         {:terminate, 2},
+                         {:code_change, 3},
+                         {:format_status, 2}
+                       ])
+  @supervisor_callbacks MapSet.new([{:init, 1}])
+  @gen_statem_callbacks MapSet.new([
+                          {:callback_mode, 0},
+                          {:init, 1},
+                          {:terminate, 3},
+                          {:code_change, 4},
+                          {:format_status, 1},
+                          {:format_status, 2}
+                        ])
+
+  @otp_behaviour_callbacks %{
+    GenServer => @gen_server_callbacks,
+    :gen_server => @gen_server_callbacks,
+    :gen_event => @gen_event_callbacks,
+    Supervisor => @supervisor_callbacks,
+    :supervisor => @supervisor_callbacks,
+    :gen_statem => @gen_statem_callbacks
+  }
+
   defmodule Outcome do
     @moduledoc false
     @type t :: %__MODULE__{}
@@ -52,8 +91,10 @@ defmodule Reach.Evidence.ReturnContract do
   defp module_facts({:defmodule, _meta, [module_ast, body]}, file) do
     with {:ok, module} <- Reach.AST.module_name(module_ast),
          {:ok, module_body} <- Reach.AST.keyword_fetch(body, :do) do
-      module_body
-      |> statements()
+      statements = statements(module_body)
+      callback_signatures = otp_callback_signatures(statements)
+
+      statements
       |> clauses()
       |> Enum.group_by(&{&1.function, &1.arity})
       |> Enum.map(fn {{function, arity}, clauses} ->
@@ -66,7 +107,9 @@ defmodule Reach.Evidence.ReturnContract do
           visibility: clauses |> List.first() |> Map.fetch!(:visibility),
           file: file,
           line: clauses |> Enum.map(& &1.meta[:line]) |> Enum.reject(&is_nil/1) |> Enum.min(),
-          impl: Enum.any?(clauses, & &1.impl),
+          impl:
+            Enum.any?(clauses, & &1.impl) or
+              MapSet.member?(callback_signatures, {function, arity}),
           outcomes: outcomes
         }
       end)
@@ -98,6 +141,30 @@ defmodule Reach.Evidence.ReturnContract do
   end
 
   defp collect_clause(_other, state), do: state
+
+  defp otp_callback_signatures(statements) do
+    statements
+    |> Enum.flat_map(&otp_behaviour/1)
+    |> Enum.reduce(MapSet.new(), fn behaviour, callbacks ->
+      MapSet.union(callbacks, Map.get(@otp_behaviour_callbacks, behaviour, MapSet.new()))
+    end)
+  end
+
+  defp otp_behaviour({:use, _meta, [module_ast | _options]}), do: static_module(module_ast)
+
+  defp otp_behaviour({:@, _meta, [{:behaviour, _attribute_meta, [module_ast]}]}),
+    do: static_module(module_ast)
+
+  defp otp_behaviour(_statement), do: []
+
+  defp static_module(module) when is_atom(module), do: [module]
+
+  defp static_module(module_ast) do
+    case Reach.AST.module_name(module_ast) do
+      {:ok, module} -> [module]
+      :error -> []
+    end
+  end
 
   defp function_clause(head, body, visibility, meta, impl) do
     with {:ok, function, arity} <- Reach.AST.function_identity(head),

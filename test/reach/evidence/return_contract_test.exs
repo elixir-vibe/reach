@@ -61,6 +61,20 @@ defmodule Reach.Evidence.ReturnContractTest do
     assert [%{class: :struct, shape: {:struct, "__MODULE__.Result"}}] = fact.outcomes
   end
 
+  test "marks source-declared OTP callbacks for policy filtering" do
+    [fact] =
+      collect("""
+      defmodule LegacyServer do
+        use GenServer
+        def init(:fast), do: {:ok, %{}}
+        def init(:slow), do: {:ok, %{}, 1_000}
+      end
+      """)
+
+    assert fact.function == :init
+    assert fact.impl
+  end
+
   test "marks @impl functions for policy filtering" do
     [fact] =
       collect("""

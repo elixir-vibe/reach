@@ -21,6 +21,19 @@ defmodule Reach.Evidence.NilParameterTest do
     assert operation =~ "token.name"
   end
 
+  test "treats a final wildcard clause as a total nil fallback" do
+    facts =
+      collect("""
+      defmodule WildcardFallback do
+        def caller, do: consume(nil)
+        def consume(%{next: next}), do: consume(next)
+        def consume(_), do: :done
+      end
+      """)
+
+    assert [%{uses: []}] = Enum.filter(facts, &(&1.function == :consume))
+  end
+
   test "uses CFG dominance for positive and reversed nil guards" do
     facts =
       collect("""

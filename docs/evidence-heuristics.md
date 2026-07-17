@@ -116,26 +116,28 @@ Calibration notes:
 
 `Reach.Evidence.RepresentationOverlap` joins explicit `defstruct` declarations with atom-key bare map constructions in other modules. The raw fact requires at least three shared keys and 0.8 Jaccard key similarity by default. It also records entity-bearing names, direct field-projection sources, presentation/accumulator roles, and calls that immediately normalize the map through the struct module.
 
-`same_entity_representation` requires entity-name evidence and excludes direct projections from the matching entity, presentation/serialization functions, accumulators, immediate struct normalization, and structs with an explicit outbound map conversion. Findings are grouped by struct/map module pair and name the existing canonical struct instead of suggesting a second abstraction.
+`same_entity_representation` requires distinctive entity-name evidence and excludes direct projections from the matching entity, presentation/serialization functions and modules, accumulators, immediate struct normalization, structs with an explicit outbound map conversion, and ambiguous entity names such as `Context` or `Request`. Findings are grouped by struct/map module pair and name the existing canonical struct instead of suggesting a second abstraction.
 
 Calibration notes:
 
 - The broad shape join produced twenty-six overlaps across thirteen source corpora. Most were intentional DTO projections, JSON/presentation maps, compiler accumulators, constructor attributes, or generic shapes whose names did not identify the struct entity.
 - Promotion retained two reviewed findings: `Exograph.Hex.Corpus.combine_results/1` converts a `%Exograph.Hex.IndexReport.Result{}` accumulator back into the same-shaped bare map, and three `Incant.Live.Rows` page builders duplicate `Incant.Service.Page` after that struct became canonical.
 - The eight checksum-pinned Hex packages produce no findings.
+- A 2,000-package download-ranked Hex scan produced twenty-nine initial findings. Seventeen were Ash maps matching three generic `Context` structs, while generic request and reporter representations exposed two more weak naming/presentation matches; distinctive entity and presentation-module guards keep those cases evidence-only.
 - Exograph structural prefilter `defstruct _` returned the requested capped twenty-five candidates in 4.8 seconds on 2026-07-13; full overlap validation still requires hydrating each package because the index query alone cannot join arbitrary field sets.
 
 ## Nil-capable parameters without dominating guards
 
 `nil_parameter_without_guard` requires two independent facts: a literal nil reaches a parameter (or the definition explicitly supplies/accepts nil), and a strict use is reachable without a dominating non-nil proof. Strict uses are limited to field/dynamic receiver access, strict platform map operations, and calls into project functions whose parameter patterns reject nil in every clause. The finding points at the unsafe use while retaining the nil-producing call/default/clause as evidence.
 
-Guard proof uses `Reach.ControlFlow` plus `Reach.Dominator`. Clause-head patterns, `when` guards, positive and reversed `if` checks, exhaustive prior nil clauses, matching multi-parameter dispatch, and short-circuit boolean evaluation clear the use. Definition-level nil evidence is scoped to one IR definition, and nil clauses retain their other patterns; these two constraints avoid conditional-compilation and unrelated-dispatch false positives. Anonymous-function and case-clause bindings that shadow the parameter are not attributed to it.
+Guard proof uses `Reach.ControlFlow` plus `Reach.Dominator`. Clause-head patterns, `when` guards, positive and reversed `if` checks, exhaustive prior nil clauses, matching multi-parameter dispatch, and short-circuit boolean evaluation clear the use. Definition-level nil evidence is scoped to one IR definition, and nil clauses retain their other patterns; these two constraints avoid conditional-compilation and unrelated-dispatch false positives. Anonymous-function and case-clause bindings that shadow the parameter are not attributed to it. A final wildcard clause is treated as a total nil fallback instead of lending its `_` label to stricter clauses.
 
 Calibration notes:
 
 - The first broad pass produced twenty-four findings across thirteen source corpora. Every one was intentional: matching multi-parameter nil dispatch, callback-variable shadowing, short-circuit receiver guards, or conditional-compilation definitions.
 - Context-sensitive nil sources, pattern coverage, lexical binding isolation, short-circuit proof, and source-path feasibility reduced the same corpus to one reviewed finding: `Plausible.Teams.Billing.monthly_pageview_usage(nil, _)` calls `usage_cycle(nil, ...)`, which preloads nil and then reads `team.subscription`.
 - The eight checksum-pinned Hex packages produce zero findings.
+- A 2,000-package download-ranked Hex scan produced forty-one initial use-site findings. One was a generated binary parser whose final wildcard clause safely accepted nil; wildcard fallback recognition removed it, while the remaining findings retain exact call/default provenance for review.
 - The historical LLM Proxy `07ed32b~1` response-handler source produces both intended findings when the two nil calls from the regression specimen are included: the two- and three-argument handlers pass nil to the struct-restricted token-pool function. Revision `07ed32b` is clean because `not is_nil(token)` moved into the helper clause head.
 - Hex-wide `_(nil)` prefilters by argument position were registered for arities one through three. The live Exograph structural endpoint returned HTTP 500 during the 2026-07-13 calibration, so no unsupported prevalence count is claimed.
 
@@ -143,13 +145,14 @@ Calibration notes:
 
 `Reach.Evidence.ReturnContract` records terminal return structures per function across clauses and explicit branches. `return_shape_divergence` is intentionally narrower than general union-return analysis: it reports only conflicts around the success tag—bare `:ok` versus tagged `{:ok, value}`, tagged success mixed with a known raw value, or multiple arities for the `:ok` tag. `nested_return_tag` separately reports duplicate success wrappers such as `{:ok, {:ok, value}}`.
 
-Dynamic forwarding, implicit `with` fallthrough, conventional error/sentinel alternatives, untagged state-machine tuples, and `@impl` callbacks suppress promotion. Raising paths do not count as returns, and function-level `else` replaces the successful `try` body when determining terminal shapes.
+Dynamic forwarding, implicit `with` fallthrough, conventional error/sentinel alternatives, untagged state-machine tuples, `@impl` callbacks, and source-declared OTP behaviour callbacks suppress promotion. Raising paths do not count as returns, and function-level `else` replaces the successful `try` body when determining terminal shapes.
 
 Calibration notes:
 
 - The broad prototype produced seventy-three findings across thirteen source corpora, dominated by intentional compiler state tuples, callback returns, rich error tuples, and transformed `try` values.
 - Restricting policy to `:ok`, excluding untagged tuples and dynamic outcomes, honoring `@impl`, and fixing `try`/`else` semantics reduced the same corpus to one reviewed finding: Elixir's private `Mix.Utils.do_symlink_or_copy/3` returns bare `:ok` after linking but `{:ok, files}` after copying.
 - The eight checksum-pinned Hex packages produce no findings. No corpus project produced a nested-success-tag finding.
+- A 2,000-package download-ranked Hex scan produced sixty-three initial return findings. It exposed legacy OTP implementations without `@impl` annotations, including a GenServer `init/1` timeout tuple and a `:gen_event` callback wrapper; source-declared OTP callback recognition keeps those contracts out of smell policy.
 
 ## Module-level facades
 
