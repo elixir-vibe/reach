@@ -52,6 +52,7 @@ defmodule Reach.Smell.Checks.ParameterShapeEntropy do
           "core_keys=#{inspect(fact.core_keys)}",
           "optional_keys=#{inspect(fact.optional_keys)}",
           "consumed_keys=#{inspect(fact.consumed_keys)}",
+          "strict_consumed_keys=#{inspect(fact.strict_consumed_keys)}",
           "variants=#{Enum.join(variants, " | ")}",
           recommendation(fact)
         ] ++ Enum.take(locations, config.evidence_limit),

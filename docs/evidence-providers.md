@@ -72,13 +72,13 @@ Raw facts include intentionally dynamic stores. The high-confidence `decoded_bou
 
 ## Parameter-shape evidence
 
-`Reach.Evidence.ParameterShape` follows literal fixed-shape maps through assignments and statically resolved project calls, then groups the observed key sets by target parameter. Facts include callers, shape variants, core/union/optional keys, a normalized key entropy (`1 - core/union`), keys consumed by the callee, parameter role, literal variant tags, and explicit multi-clause dispatch.
+`Reach.Evidence.ParameterShape` follows literal fixed-shape maps through assignments and statically resolved project calls, then groups the observed key sets by target parameter. Facts include callers, shape variants, core/union/optional keys, a normalized key entropy (`1 - core/union`), strict and defensive callee key consumption, parameter role, literal variant tags, companion-argument dispatch, and explicit multi-clause or guarded map/struct dispatch.
 
 ```elixir
 Reach.Evidence.parameter_shapes(project)
 ```
 
-Lineage is deliberately transparent-only: map literals flow through variables and assignments, but Reach does not descend through arbitrary calls or containers where a nested map could be mistaken for the whole argument. The `parameter_shape_entropy` smell requires multiple callers and variants, domain-role naming, multiple consumed contract keys including one that differs between variants, and excludes tagged or clause-dispatched unions.
+Lineage is deliberately transparent-only: map literals flow through variables and assignments, but Reach does not descend through arbitrary calls or containers where a nested map could be mistaken for the whole argument. Partial caller patterns are not treated as exact runtime shapes. The `parameter_shape_entropy` smell requires multiple callers and variants, domain-role naming, multiple consumed contract keys including a strictly consumed key that differs between variants, and excludes defensive optional-field access and tagged, companion-selected, clause-dispatched, or guarded unions.
 
 ## Representation-overlap evidence
 

@@ -6,7 +6,7 @@ defmodule Reach.Evidence.ParameterShape do
   defmodule Occurrence do
     @moduledoc false
     @type t :: %__MODULE__{}
-    defstruct [:caller, :file, :line, :column, keys: [], literals: %{}]
+    defstruct [:caller, :file, :line, :column, keys: [], literals: %{}, companion_literals: %{}]
   end
 
   defmodule Fact do
@@ -21,9 +21,12 @@ defmodule Reach.Evidence.ParameterShape do
       :line,
       :entropy,
       intentional_dispatch?: false,
+      companion_dispatch?: false,
       tagged_variants?: false,
       callers: [],
       consumed_keys: [],
+      strict_consumed_keys: [],
+      defensive_consumed_keys: [],
       core_keys: [],
       union_keys: [],
       optional_keys: [],
@@ -91,7 +94,9 @@ defmodule Reach.Evidence.ParameterShape do
       |> Enum.flat_map(fn {argument, parameter_index} ->
         argument
         |> map_origins(project, predecessor_index)
-        |> Enum.map(&{canonical_target, parameter_index, occurrence(&1, caller, node)})
+        |> Enum.map(
+          &{canonical_target, parameter_index, occurrence(&1, caller, node, parameter_index)}
+        )
       end)
     else
       _unresolved -> []
@@ -158,14 +163,20 @@ defmodule Reach.Evidence.ParameterShape do
   defp transparent_lineage?(%{type: type}) when type in [:block, :match, :var], do: true
   defp transparent_lineage?(_node), do: false
 
-  defp literal_map?(%{type: :map, children: children}) do
+  defp literal_map?(%{type: :map, children: children} = map) do
     keys = Enum.flat_map(children, &map_field_key/1)
-    keys != [] and length(keys) == length(children)
+    keys != [] and length(keys) == length(children) and not pattern_map?(map)
   end
 
   defp literal_map?(_node), do: false
 
-  defp occurrence(map, caller, call) do
+  defp pattern_map?(map) do
+    map
+    |> Reach.IR.all_nodes()
+    |> Enum.any?(&match?(%{type: :var, meta: %{binding_role: :definition}}, &1))
+  end
+
+  defp occurrence(map, caller, call, parameter_index) do
     span = call.source_span || map.source_span || %{}
 
     %Occurrence{
@@ -174,8 +185,25 @@ defmodule Reach.Evidence.ParameterShape do
       line: span[:start_line],
       column: span[:start_col],
       keys: map_keys(map),
-      literals: map_literals(map)
+      literals: map_literals(map),
+      companion_literals: companion_literals(call, parameter_index)
     }
+  end
+
+  defp companion_literals(call, parameter_index) do
+    call.children
+    |> Enum.take(Map.get(call.meta, :arity, 0))
+    |> Stream.with_index()
+    |> Enum.reduce(%{}, fn
+      {_argument, ^parameter_index}, literals ->
+        literals
+
+      {%{type: :literal, meta: %{value: value}}, index}, literals ->
+        Map.put(literals, index, value)
+
+      {_dynamic, _index}, literals ->
+        literals
+    end)
   end
 
   defp parameter_fact({{target, parameter_index}, entries}, project) do
@@ -193,6 +221,7 @@ defmodule Reach.Evidence.ParameterShape do
     union = union_sets(key_sets)
     variants = occurrences |> Enum.map(& &1.keys) |> Enum.uniq() |> Enum.sort()
     span = function.source_span || %{}
+    {consumed, strict, defensive} = consumed_keys(function, parameter)
 
     %Fact{
       target: target,
@@ -203,9 +232,12 @@ defmodule Reach.Evidence.ParameterShape do
       line: span[:start_line],
       entropy: 1.0 - MapSet.size(core) / max(MapSet.size(union), 1),
       intentional_dispatch?: intentional_dispatch?(function, parameter_index),
+      companion_dispatch?: companion_dispatch?(function, occurrences),
       tagged_variants?: tagged_variants?(occurrences, core),
       callers: occurrences |> Enum.map(& &1.caller) |> Enum.reject(&is_nil/1) |> Enum.uniq(),
-      consumed_keys: consumed_keys(function, parameter),
+      consumed_keys: consumed,
+      strict_consumed_keys: strict,
+      defensive_consumed_keys: defensive,
       core_keys: core |> MapSet.to_list() |> Enum.sort(),
       union_keys: union |> MapSet.to_list() |> Enum.sort(),
       optional_keys: union |> MapSet.difference(core) |> MapSet.to_list() |> Enum.sort(),
@@ -233,12 +265,77 @@ defmodule Reach.Evidence.ParameterShape do
     end)
   end
 
-  defp consumed_keys(_function, nil), do: []
+  defp companion_dispatch?(function, occurrences) do
+    indices =
+      occurrences
+      |> Enum.flat_map(&Map.keys(&1.companion_literals))
+      |> Enum.uniq()
+
+    Enum.any?(indices, fn index ->
+      companion_determines_shape?(occurrences, index) and
+        parameter_dispatch?(function, index)
+    end)
+  end
+
+  defp parameter_dispatch?(function, parameter_index) do
+    clauses = function_clauses(function)
+
+    (length(clauses) >= 2 and
+       Enum.count(
+         clauses,
+         &restrictive_clause_parameter?(&1, parameter_index, function.meta.arity)
+       ) >= 2) or case_dispatches_on_parameter?(function, parameter_index)
+  end
+
+  defp case_dispatches_on_parameter?(function, parameter_index) do
+    case parameter_name(function, parameter_index) do
+      nil ->
+        false
+
+      parameter ->
+        function
+        |> Reach.IR.all_nodes()
+        |> Enum.any?(fn
+          %{type: :case, children: [subject | _clauses]} -> bound_name(subject) == parameter
+          _node -> false
+        end)
+    end
+  end
+
+  defp companion_determines_shape?(occurrences, index) do
+    if Enum.all?(occurrences, &Map.has_key?(&1.companion_literals, index)) do
+      by_literal = Enum.group_by(occurrences, &Map.fetch!(&1.companion_literals, index))
+
+      map_size(by_literal) >= 2 and
+        Enum.all?(by_literal, fn {_literal, grouped} ->
+          grouped |> Enum.map(& &1.keys) |> Enum.uniq() |> length() == 1
+        end)
+    else
+      false
+    end
+  end
+
+  defp consumed_keys(_function, nil), do: {[], [], []}
 
   defp consumed_keys(function, parameter) do
-    function
-    |> Reach.IR.all_nodes()
-    |> Enum.flat_map(&consumed_key(&1, parameter))
+    uses =
+      function
+      |> Reach.IR.all_nodes()
+      |> Enum.flat_map(&consumed_key(&1, parameter))
+      |> Enum.uniq()
+
+    consumed = uses |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
+    strict = uses |> keys_for_access(:strict)
+    defensive = uses |> keys_for_access(:defensive)
+    {consumed, strict, defensive}
+  end
+
+  defp keys_for_access(uses, access) do
+    uses
+    |> Enum.flat_map(fn
+      {key, ^access} -> [key]
+      _other -> []
+    end)
     |> Enum.uniq()
     |> Enum.sort()
   end
@@ -248,7 +345,7 @@ defmodule Reach.Evidence.ParameterShape do
          parameter
        )
        when is_atom(key) and kind in [:field_access, :remote],
-       do: [key]
+       do: [{key, :strict}]
 
   defp consumed_key(
          %{
@@ -260,27 +357,61 @@ defmodule Reach.Evidence.ParameterShape do
        )
        when module in [Map, Access] and function in [:fetch, :fetch!, :get, :has_key?] and
               (is_atom(key) or is_binary(key)) do
-    if bound_name(map) == parameter, do: [key], else: []
+    if bound_name(map) == parameter, do: [{key, access_kind(function)}], else: []
   end
 
   defp consumed_key(_node, _parameter), do: []
+
+  defp access_kind(function) when function in [:fetch, :fetch!], do: :strict
+  defp access_kind(function) when function in [:get, :has_key?], do: :defensive
 
   defp intersect_sets([]), do: MapSet.new()
   defp intersect_sets([first | rest]), do: Enum.reduce(rest, first, &MapSet.intersection/2)
   defp union_sets(sets), do: Enum.reduce(sets, MapSet.new(), &MapSet.union/2)
 
   defp intentional_dispatch?(function, parameter_index) do
-    patterns =
-      function
-      |> function_clauses()
-      |> Enum.map(fn clause ->
-        clause.children
-        |> Enum.take(function.meta.arity)
-        |> Enum.drop(parameter_index)
-        |> List.first()
-      end)
+    clauses = function_clauses(function)
 
-    length(patterns) >= 2 and Enum.count(patterns, &restrictive_pattern?/1) >= 2
+    length(clauses) >= 2 and
+      Enum.count(
+        clauses,
+        &restrictive_clause_parameter?(&1, parameter_index, function.meta.arity)
+      ) >= 2
+  end
+
+  defp restrictive_clause_parameter?(clause, parameter_index, arity) do
+    pattern = clause.children |> Enum.take(arity) |> Enum.at(parameter_index)
+    restrictive_pattern?(pattern) or restrictive_guard?(clause, pattern, arity)
+  end
+
+  defp restrictive_guard?(_clause, nil, _arity), do: false
+
+  defp restrictive_guard?(clause, pattern, arity) do
+    parameter = bound_name(pattern)
+
+    clause.children
+    |> Enum.drop(arity)
+    |> Enum.filter(&(&1.type == :guard))
+    |> Enum.any?(&guard_restricts_parameter?(&1, parameter))
+  end
+
+  defp guard_restricts_parameter?(_guard, nil), do: false
+
+  defp guard_restricts_parameter?(guard, parameter) do
+    guard
+    |> Reach.IR.all_nodes()
+    |> Enum.any?(fn
+      %{
+        type: :call,
+        meta: %{function: function},
+        children: [%{type: :var, meta: %{name: ^parameter}} | _]
+      }
+      when function in [:is_map, :is_struct] ->
+        true
+
+      _node ->
+        false
+    end)
   end
 
   defp restrictive_pattern?(%{type: type}) when type in [:literal, :map, :struct, :tuple],

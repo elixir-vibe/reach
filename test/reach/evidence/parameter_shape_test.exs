@@ -10,7 +10,7 @@ defmodule Reach.Evidence.ParameterShapeTest do
       defmodule ShapeFlow do
         def first, do: consume(%{id: 1, name: "A", email: "a@example.com"})
         def second, do: consume(%{id: 2, status: :active, role: :admin})
-        def consume(entity), do: entity
+        def consume(entity), do: {entity.name, Map.get(entity, :status)}
       end
       """)
 
@@ -24,6 +24,8 @@ defmodule Reach.Evidence.ParameterShapeTest do
     assert fact.entropy == 0.8
     assert length(fact.callers) == 2
     assert length(fact.variants) == 2
+    assert fact.strict_consumed_keys == [:name]
+    assert fact.defensive_consumed_keys == [:status]
   end
 
   test "follows map values through local assignments" do
@@ -46,6 +48,55 @@ defmodule Reach.Evidence.ParameterShapeTest do
 
     assert fact.target == {AssignedShapes, :consume, 1}
     assert length(fact.occurrences) == 2
+  end
+
+  test "marks literal companion-argument dispatch" do
+    [fact] =
+      collect("""
+      defmodule CompanionDispatch do
+        def first, do: log(:started, %{id: 1, name: "A"})
+        def second, do: log(:finished, %{id: 2, status: :done})
+
+        def log(event, data) do
+          case event do
+            :started -> data.name
+            :finished -> data.status
+          end
+        end
+      end
+      """)
+
+    assert fact.companion_dispatch?
+  end
+
+  test "does not treat partial caller patterns as exact map origins" do
+    assert [] =
+             collect("""
+             defmodule PartialPatterns do
+               def first(%{conn: _conn, chan: _chan} = stream), do: send_eof(stream)
+               def second(%{data: _data} = stream), do: send_eof(stream)
+               def send_eof(stream), do: {stream.conn, stream.chan}
+             end
+             """)
+  end
+
+  test "marks struct and guarded-map clause dispatch" do
+    [fact] =
+      collect("""
+      defmodule GuardedMapDispatch do
+        defmodule Spec do
+          defstruct [:kind, :name, :metadata]
+        end
+
+        def first, do: matches?(%{kind: :tool, name: "run"})
+        def second, do: matches?(%{kind: :tool, name: "run", metadata: %{safe: true}})
+
+        def matches?(%Spec{} = operation), do: matches?(Map.from_struct(operation))
+        def matches?(operation) when is_map(operation), do: operation.name
+      end
+      """)
+
+    assert fact.intentional_dispatch?
   end
 
   test "marks explicit multi-clause dispatch and non-contract parameter roles" do

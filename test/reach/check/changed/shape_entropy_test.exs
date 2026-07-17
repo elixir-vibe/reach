@@ -17,11 +17,7 @@ defmodule Reach.Check.Changed.ShapeEntropyTest do
         archive(entity)
       end
 
-      def process(entity) do
-        Map.get(entity, :id)
-        Map.get(entity, :name)
-        Map.get(entity, :status)
-      end
+      def process(entity), do: {entity.id, entity.name, entity.status}
 
       def archive(entity), do: entity
     end
@@ -63,11 +59,7 @@ defmodule Reach.Check.Changed.ShapeEntropyTest do
       def first, do: process(%{id: 1, name: "A", email: "a@example.com"})
       def second, do: process(%{id: 2, status: :active, role: :admin})
 
-      def process(entity) do
-        Map.get(entity, :id)
-        Map.get(entity, :name)
-        Map.get(entity, :status)
-      end
+      def process(entity), do: {entity.id, entity.name, entity.status}
     end
     """
 

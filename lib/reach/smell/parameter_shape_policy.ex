@@ -3,7 +3,7 @@ defmodule Reach.Smell.ParameterShapePolicy do
 
   @spec eligible?(Reach.Evidence.ParameterShape.Fact.t(), map()) :: boolean()
   def eligible?(fact, config) do
-    fact.role == :domain and not fact.intentional_dispatch? and not fact.tagged_variants? and
+    fact.role == :domain and not intentional_shape_dispatch?(fact) and
       length(fact.callers) >= config.min_callers and
       length(fact.variants) >= config.min_variants and
       length(fact.union_keys) >= config.min_union_keys and
@@ -11,9 +11,13 @@ defmodule Reach.Smell.ParameterShapePolicy do
       consumes_variant_key?(fact) and fact.entropy >= config.min_entropy
   end
 
+  defp intentional_shape_dispatch?(fact) do
+    fact.intentional_dispatch? or fact.companion_dispatch? or fact.tagged_variants?
+  end
+
   defp consumes_variant_key?(fact) do
-    consumed = MapSet.new(fact.consumed_keys)
+    strict = MapSet.new(fact.strict_consumed_keys)
     optional = MapSet.new(fact.optional_keys)
-    not MapSet.disjoint?(consumed, optional)
+    not MapSet.disjoint?(strict, optional)
   end
 end

@@ -11,11 +11,7 @@ defmodule Reach.Smell.Checks.ParameterShapeEntropyTest do
         def user_caller, do: process(%{id: 1, name: "A", email: "a@example.com"})
         def status_caller, do: process(%{id: 2, status: :active, role: :admin})
 
-        def process(entity) do
-          Map.get(entity, :id)
-          Map.get(entity, :name)
-          Map.get(entity, :status)
-        end
+        def process(entity), do: {entity.id, entity.name, entity.status}
       end
       """)
 
@@ -26,6 +22,27 @@ defmodule Reach.Smell.Checks.ParameterShapeEntropyTest do
     assert finding.keys == ["email", "id", "name", "role", "status"]
     assert finding.evidence |> List.first() =~ "core_keys=[:id]"
     assert Enum.any?(finding.evidence, &String.starts_with?(&1, "suggestion=introduce a struct"))
+  end
+
+  test "retains incompatible classifier schemas with strict shape-specific reads" do
+    findings =
+      smells("""
+      defmodule DivergentClassifier do
+        def first, do: classify(%{score: 0.9, coordination: 0.8, synthesis: 0.7})
+        def second, do: classify(%{behavioral: 0.9, cognitive: 0.8, social: 0.7})
+
+        def classify(indicators) do
+          cond do
+            Map.has_key?(indicators, :score) and indicators.score > 0.8 -> :strong
+            Map.has_key?(indicators, :coordination) and indicators.coordination > 0.7 -> :coordinated
+            true -> :weak
+          end
+        end
+      end
+      """)
+
+    assert [finding] = by_kind(findings)
+    assert finding.message =~ "DivergentClassifier.classify/1"
   end
 
   test "excludes options, tagged variants, and explicit clause dispatch" do
@@ -49,6 +66,59 @@ defmodule Reach.Smell.Checks.ParameterShapeEntropyTest do
       """)
 
     assert by_kind(findings) == []
+  end
+
+  test "excludes intentionally optional keys consumed with defensive access" do
+    findings =
+      smells("""
+      defmodule DefensiveOptionalFields do
+        def first, do: process(%{records: []})
+        def second, do: process(%{records: [], variables: %{}, metadata: %{}})
+
+        def process(result) do
+          {
+            Map.get(result, :records, []),
+            Map.get(result, :variables, %{}),
+            Map.get(result, :metadata, %{})
+          }
+        end
+      end
+      """)
+
+    assert by_kind(findings) == []
+  end
+
+  test "excludes shapes selected by a literal companion argument" do
+    findings =
+      smells("""
+      defmodule CompanionShapeDispatch do
+        def first, do: log(:started, %{id: 1, name: "A", email: "a@example.com"})
+        def second, do: log(:finished, %{id: 2, status: :done, reason: :normal})
+
+        def log(event, data) do
+          case event do
+            :started -> data.name
+            :finished -> data.status
+          end
+        end
+      end
+      """)
+
+    assert by_kind(findings) == []
+  end
+
+  test "does not exclude correlated literals when the callee does not dispatch on them" do
+    findings =
+      smells("""
+      defmodule CorrelatedButIgnored do
+        def first, do: process(:legacy, %{id: 1, name: "A", email: "a@example.com"})
+        def second, do: process(:modern, %{id: 2, status: :active, role: :admin})
+
+        def process(_version, entity), do: {entity.id, entity.name, entity.status}
+      end
+      """)
+
+    assert [_finding] = by_kind(findings)
   end
 
   test "requires the callee to consume keys that vary between shapes" do
@@ -77,11 +147,7 @@ defmodule Reach.Smell.Checks.ParameterShapeEntropyTest do
           process(%{id: 2, status: :active, role: :admin})
         end
 
-        def process(entity) do
-          Map.get(entity, :id)
-          Map.get(entity, :name)
-          Map.get(entity, :status)
-        end
+        def process(entity), do: {entity.id, entity.name, entity.status}
       end
       """)
 
@@ -109,11 +175,7 @@ defmodule Reach.Smell.Checks.ParameterShapeEntropyTest do
         def second, do: process(%{id: 2, status: :active, role: :admin})
 
         # reach:disable-next-line parameter_shape_entropy -- compatibility boundary
-        def process(entity) do
-          Map.get(entity, :id)
-          Map.get(entity, :name)
-          Map.get(entity, :status)
-        end
+        def process(entity), do: {entity.id, entity.name, entity.status}
       end
       """)
 

@@ -97,7 +97,7 @@ Calibration notes:
 
 ## Parameter-shape entropy
 
-`Reach.Evidence.ParameterShape` groups fixed map shapes flowing into each resolved project parameter. Entropy is the fraction of union keys absent from the intersection: zero means every observed caller supplies the same keys, while one means no key is universal. `parameter_shape_entropy` requires multiple distinct callers and variants, a domain-role parameter, at least two keys actually consumed by the callee, at least one consumed key that varies between shapes, and configurable minimum union size and entropy.
+`Reach.Evidence.ParameterShape` groups fixed map shapes flowing into each resolved project parameter. Entropy is the fraction of union keys absent from the intersection: zero means every observed caller supplies the same keys, while one means no key is universal. `parameter_shape_entropy` requires multiple distinct callers and variants, a domain-role parameter, at least two keys consumed by the callee, at least one strictly consumed key that varies between shapes, and configurable minimum union size and entropy. Defensive `Map.get`/bracket access, partial caller patterns, literal companion-argument dispatch, and explicit clause or guarded map/struct dispatch remain evidence-only.
 
 Options/config/external/transport parameter names remain evidence-only. Explicit multi-clause map dispatch and common literal variant tags such as `:type`, `:kind`, or `:status` are treated as intentional unions. Lineage follows only maps that are the whole argument through variables/assignments; it stops at calls and containers to avoid attributing nested metadata maps to an enclosing struct or query.
 
