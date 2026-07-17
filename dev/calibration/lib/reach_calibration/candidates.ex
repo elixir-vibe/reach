@@ -13,6 +13,12 @@ defmodule ReachCalibration.Candidates do
     schema_key_representation_mismatch: ["Map.get(_, _)"],
     required_schema_key_default: ["Map.get(_, _, _)"],
     default_drift: ["Map.get(_, _, _)"],
+    decoded_boundary_leakage: [
+      "Jason.decode!(_)",
+      "Jason.decode(_)",
+      "Poison.decode!(_)",
+      "Poison.decode(_)"
+    ],
     total_function_laundering: ["_ when _ in [_, _]", "defp _(_), do: _"]
   }
 

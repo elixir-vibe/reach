@@ -16,6 +16,15 @@ defmodule ReachCalibration.CandidatesTest do
            ]
   end
 
+  test "uses plugin-owned decoder prefilters for boundary leakage" do
+    assert Candidates.patterns(MapSet.new([:decoded_boundary_leakage])) == [
+             "Jason.decode!(_)",
+             "Jason.decode(_)",
+             "Poison.decode!(_)",
+             "Poison.decode(_)"
+           ]
+  end
+
   test "falls back to package-version selection when any kind lacks a safe prefilter" do
     assert Candidates.patterns(MapSet.new([:dual_key_fallback, :unmapped_kind])) == :all
     assert Candidates.patterns(nil) == :all

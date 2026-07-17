@@ -6,7 +6,7 @@ defmodule Reach.Evidence do
   something is a user-facing finding; smell and check modules own that policy.
   """
 
-  alias Reach.Evidence.CloneAnalysis
+  alias Reach.Evidence.{CloneAnalysis, ExternalDataBoundary}
 
   @ast_providers [
     Reach.Evidence.StandardLibraryBypass,
@@ -26,6 +26,9 @@ defmodule Reach.Evidence do
   def ast_providers_for(family, plugins) when is_atom(family) do
     Enum.filter(ast_providers(plugins), &(&1.family() == family))
   end
+
+  @doc "Returns decoded external values crossing storage or process boundaries."
+  def external_data_boundaries(project), do: ExternalDataBoundary.collect_project(project)
 
   @doc "Returns generic project-to-dependency reimplementation evidence."
   def dependency_bypass(project, config \\ []) do

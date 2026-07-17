@@ -28,6 +28,9 @@ defmodule Reach.Plugin do
   7. **Reinterpreted DSL semantics** — `reinterpreted_ast?/1` identifies macro
      ranges where generic Elixir smell/evidence rules do not apply.
 
+  8. **External-data provenance** — `external_data_source/1` identifies
+     dependency-owned decoder call shapes without hardcoding libraries in generic evidence.
+
   ## Implementing a plugin
 
       defmodule MyPlugin do
@@ -111,6 +114,7 @@ defmodule Reach.Plugin do
   @callback inference_hints() :: %{optional(:deps) => [atom()], optional(:source) => [String.t()]}
   @callback refine_evidence(evidence :: struct() | map(), context :: map()) ::
               struct() | map() | :unchanged
+  @callback external_data_source(ast :: Macro.t()) :: String.t() | nil
   @callback macro_facts(ast :: Macro.t(), context :: map()) :: [Reach.MacroFact.t()]
   @callback refine_macro_fact(fact :: Reach.MacroFact.t(), context :: map()) ::
               Reach.MacroFact.t() | map() | :unchanged
@@ -133,6 +137,7 @@ defmodule Reach.Plugin do
                       smell_checks: 0,
                       evidence_providers: 0,
                       inference_hints: 0,
+                      external_data_source: 1,
                       macro_facts: 2,
                       refine_evidence: 2,
                       refine_macro_fact: 2,
@@ -324,6 +329,13 @@ defmodule Reach.Plugin do
 
   defp same_struct?(%module{}, %module{}), do: true
   defp same_struct?(_evidence, _updates), do: false
+
+  @doc "Returns a plugin-owned label when an AST node decodes external data."
+  def external_data_source(plugins, ast) do
+    Enum.find_value(plugins, fn plugin ->
+      if exports?(plugin, :external_data_source, 1), do: plugin.external_data_source(ast)
+    end)
+  end
 
   @doc "Collects source-first macro/DSL facts contributed by plugins."
   def macro_facts(plugins, ast, context \\ %{}) do

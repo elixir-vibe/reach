@@ -63,6 +63,8 @@ mix reach.check --candidates
 
 `--arch` is a failing gate by default. It validates layer dependency rules, optional layer coverage, source bans, call bans, boundary policy, effect policy, and layer cycles. Layer cycle output includes concrete call edges so policy failures can be traced back to source locations. `--smells` is advisory by default; add `--strict` or set `smells: [strict: true]` in `.reach.exs` to fail when non-baseline smell findings are present.
 
+`decoded_boundary_leakage` reports plugin-owned decoded data stored or sent without explicit normalization when fixed literal-key consumers show that the payload behaves as an implicit contract. Normalize at the reported storage/process boundary rather than adding defensive defaults downstream.
+
 Changed-code output reports **risk** and **assessment confidence** separately. Risk is derived from the functions Reach could analyze plus high-confidence contract-erosion events; confidence describes how much of the diff mapped to current function definitions:
 
 - `high` — every changed line unit was assessed;

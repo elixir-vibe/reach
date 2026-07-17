@@ -11,9 +11,11 @@
 - Changed-code analysis now reports strict field, fetch, and map-pattern access replaced by lenient `Map.get`, including malformed map-literal callers when available.
 - Changed-code analysis now classifies moved dual-key/default-drift evidence and exact whole-function clones as displaced when occurrence counts do not improve.
 - Changed-code analysis now inventories added and removed source suppressions and raises risk for additions without reasons, while project maps expose total and reasonless suppression counts.
+- Smell analysis now detects decoded external fixed-shape payloads crossing storage or process boundaries without explicit normalization.
 
 ### Fixed
 
+- Scanner integration tests now propagate the active Mix environment to child processes, keeping clean `mix ci` runs deterministic.
 - Clone analysis cache keys now distinguish projects with identical node-id ranges, preventing evidence from leaking between parse snapshots.
 - Root `mix ci` now fetches the isolated calibration project's dependencies before running its checks.
 - Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.

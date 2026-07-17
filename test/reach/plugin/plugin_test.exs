@@ -63,6 +63,17 @@ defmodule Reach.PluginsTest do
     end
   end
 
+  describe "plugin-owned external data sources" do
+    test "Jason and Poison own their decoder call shapes" do
+      jason = Code.string_to_quoted!("raw |> Jason.decode!(keys: :atoms)")
+      poison = Code.string_to_quoted!("Poison.decode(raw)")
+
+      assert Plugin.external_data_source([Plugins.Jason], jason) == "Jason.decode!/2"
+      assert Plugin.external_data_source([Plugins.Poison], poison) == "Poison.decode/1"
+      assert Plugin.external_data_source([], jason) == nil
+    end
+  end
+
   describe "Ecto plugin" do
     test "tracks cast params to Repo.insert within same function" do
       graph =

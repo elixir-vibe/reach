@@ -81,6 +81,18 @@ Calibration notes:
 - GitHub structural samples found additional direct regex reads/rewrites of `mix.exs`, validating that the behavior exists in real packages.
 - The preset remains a trace workflow rather than a smell. Promotion requires broader path review and explicit suppression policy for intentional release/build scripts.
 
+## Decoded external data crossing boundaries
+
+`Reach.Evidence.ExternalDataBoundary` tracks plugin-owned decoder results into generic storage and process boundaries without compiling source. Jason and Poison own their decode call shapes; the generic provider owns `:persistent_term`, ETS, process dictionaries, sends, GenServer calls/starts, and GenServer callback state returns. Explicit struct/map construction and transformation calls stop provenance.
+
+Raw boundary crossings are evidence. Promotion to the high-confidence `decoded_boundary_leakage` smell additionally requires at least two distinct downstream literal map keys in the same module. This preserves intentionally dynamic stores while finding decoded fixed-shape contracts that lose provenance before consumers apply string-key defaults.
+
+Calibration notes:
+
+- The historical LLM Proxy pricing specimen at `c374082~1` produces one finding at `lib/llm_proxy/pricing.ex:22`: `Jason.decode!/1` flows into `:persistent_term.put/2`, followed by four literal pricing-key consumers. The normalized struct-based revision is clean.
+- Thirteen current local projects and the eight checksum-pinned Hex packages produce no findings.
+- Exograph structural search for `Poison.decode!(_)` returned a capped 100 candidates across 47 packages. A deterministic 25-package source sample produced one raw evidence fact in `country_data`, whose intentionally dynamic-key GenServer store remains evidence-only after the literal-consumer discriminator; no sampled package produced a smell.
+
 ## Module-level facades
 
 `Reach.Evidence.Facade` aggregates public `defdelegate` declarations and exact same-argument public forwarders by module. `mix reach.check --candidates` emits `:review_facade` only when the forwarded share, minimum public-function count, and target concentration pass named candidate thresholds.
