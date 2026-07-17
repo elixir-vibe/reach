@@ -46,7 +46,7 @@ defmodule Reach.Evidence.RepresentationOverlapTest do
     assert view.map.projection_sources == [:user]
     assert view.map.role == :presentation
 
-    assert factory.map.normalized_into == Domain.User
+    assert factory.map.normalized_into == {:call, Domain.User, :new!}
   end
 
   test "resolves nested struct modules" do
@@ -83,6 +83,88 @@ defmodule Reach.Evidence.RepresentationOverlapTest do
     assert [%{struct: %{module: Container.Resolution}}] = facts
   end
 
+  test "recognizes nested field projections" do
+    [fact] =
+      collect("""
+      defmodule Domain.Cursor do
+        defstruct [:position, :visible, :style, :blink_state]
+      end
+
+      defmodule CursorSnapshot do
+        def get_cursor_state(emulator) do
+          %{
+            position: emulator.cursor.position,
+            visible: emulator.cursor.visible,
+            style: emulator.cursor.style,
+            blink_state: emulator.cursor.blink_state
+          }
+        end
+      end
+      """)
+
+    assert fact.map.projection?
+    assert fact.map.projection_sources == [:cursor]
+  end
+
+  test "tracks maps normalized through local struct construction" do
+    [fact] =
+      collect("""
+      defmodule Domain.Session do
+        defstruct [:id, :name, :status]
+      end
+
+      defmodule SessionLoader do
+        def load(attrs) do
+          session = %{id: attrs.id, name: attrs.name, status: attrs.status}
+          struct(Domain.Session, session)
+        end
+      end
+      """)
+
+    assert fact.map.normalized_into == :struct_constructor
+  end
+
+  test "tracks helper return maps normalized by all callers" do
+    [fact] =
+      collect("""
+      defmodule Domain.Profile do
+        defstruct [:id, :name, :status]
+        def new!(attrs), do: struct!(__MODULE__, attrs)
+      end
+
+      defmodule ProfileLoader do
+        def load(attrs), do: Domain.Profile.new!(profile_fields(attrs))
+
+        defp profile_fields(attrs) do
+          %{id: attrs.id, name: attrs.name, status: attrs.status}
+        end
+      end
+      """)
+
+    assert fact.map.normalized_into == {:call, Domain.Profile, :new!}
+  end
+
+  test "does not infer helper normalization when any caller keeps the map" do
+    [fact] =
+      collect("""
+      defmodule Domain.Profile do
+        defstruct [:id, :name, :status]
+        def new!(attrs), do: struct!(__MODULE__, attrs)
+      end
+
+      defmodule ProfileLoader do
+        def load(attrs), do: Domain.Profile.new!(profile_fields(attrs))
+        def raw(attrs), do: profile_fields(attrs)
+
+        defp profile_fields(attrs) do
+          %{id: attrs.id, name: attrs.name, status: attrs.status}
+        end
+      end
+      """)
+
+    assert is_nil(fact.map.normalized_into)
+  end
+
   test "requires near-equivalent shapes and excludes map patterns" do
     facts =
       collect("""
@@ -93,6 +175,26 @@ defmodule Reach.Evidence.RepresentationOverlapTest do
       defmodule Reader do
         def read(%{id: id, name: name, email: email, other: other}) do
           %{id: id, name: name, email: email, other: other}
+        end
+      end
+      """)
+
+    assert facts == []
+  end
+
+  test "excludes literal-only function-head patterns and explicit __struct__ maps" do
+    facts =
+      collect("""
+      defmodule Domain.Color do
+        defstruct [:red, :green, :blue]
+      end
+
+      defmodule ColorCompatibility do
+        def black?(%{red: 0, green: 0, blue: 0}), do: true
+        def black?(_color), do: false
+
+        def generated do
+          %{__struct__: Domain.Color, red: 1, green: 2, blue: 3}
         end
       end
       """)

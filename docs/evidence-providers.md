@@ -88,7 +88,7 @@ Lineage is deliberately transparent-only: map literals flow through variables an
 Reach.Evidence.representation_overlaps(project)
 ```
 
-The evidence layer keeps all overlaps above its configurable shape threshold. The `same_entity_representation` smell promotes only domain-role maps with entity-bearing names, excluding direct projections from the matching entity, presentation/serialization functions and modules, ambiguous entity names, accumulators, maps passed immediately to the canonical struct module, and structs that declare an explicit outbound map conversion such as `to_map/1`. Framework-generated structs remain plugin territory; the generic provider reads only explicit source declarations.
+The evidence layer keeps all overlaps above its configurable shape threshold. The `same_entity_representation` smell promotes only domain-role maps with entity-bearing names. It excludes map patterns and explicit `__struct__` values before shape comparison, then keeps direct and caller-level normalization targets, nested projection provenance, assigned roles, and declared map conversions visible on facts. Promotion excludes adapter/presentation/serialization boundaries, ambiguous entity names, accumulators, projections from the matching entity, normalized maps, and structs that declare conversions such as `from_map/1` or `to_map/1`. Framework-generated structs remain plugin territory; the generic provider reads only explicit source declarations.
 
 ## Nil-parameter evidence
 

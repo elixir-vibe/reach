@@ -6,7 +6,8 @@ defmodule Reach.Smell.Checks.SameEntityRepresentation do
   alias Reach.Evidence.RepresentationOverlap
   alias Reach.Smell.Finding
 
-  @ambiguous_entity_names ~w(context request response result state)
+  @ambiguous_entity_names ~w(context item list message request response result state)
+  @constructor_functions [:build, :from_map, :from_map!, :new, :new!]
 
   @impl true
   def kinds, do: [:same_entity_representation]
@@ -45,12 +46,35 @@ defmodule Reach.Smell.Checks.SameEntityRepresentation do
     name_matches? = not config.require_name_match or fact.name_match?
 
     name_matches? and distinctive_entity?(fact.struct.module) and fact.map.role == :domain and
-      fact.map.normalized_into != fact.struct.module and
-      fact.struct.map_conversion_functions == [] and
+      not normalization_boundary?(fact) and fact.struct.map_conversion_functions == [] and
       not direct_entity_projection?(fact)
   end
 
   defp distinctive_entity?(module), do: entity_name(module) not in @ambiguous_entity_names
+
+  defp normalization_boundary?(%{map: %{normalized_into: nil}}), do: false
+  defp normalization_boundary?(%{map: %{normalized_into: :boundary_call}}), do: true
+  defp normalization_boundary?(%{map: %{normalized_into: :struct_constructor}}), do: true
+
+  defp normalization_boundary?(%{
+         struct: %{module: struct_module},
+         map: %{normalized_into: {:call, module, function}}
+       }) do
+    module == struct_module or function in @constructor_functions or
+      canonical_factory?(struct_module, module, function)
+  end
+
+  defp canonical_factory?(struct_module, module, function) do
+    if module |> Atom.to_string() |> String.starts_with?("Elixir.") do
+      struct_parts = Module.split(struct_module)
+      module_parts = Module.split(module)
+
+      Enum.drop(struct_parts, -1) == module_parts and
+        singular(to_string(function)) == singular(entity_name(struct_module))
+    else
+      false
+    end
+  end
 
   defp direct_entity_projection?(fact) do
     entity = entity_name(fact.struct.module)

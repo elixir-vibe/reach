@@ -79,6 +79,46 @@ defmodule Reach.Smell.Checks.SameEntityRepresentationTest do
     assert by_kind(findings) == []
   end
 
+  test "retains entity maps passed to non-normalizing Erlang calls" do
+    findings =
+      smells("""
+      defmodule Domain.Profile do
+        defstruct [:id, :name, :email, :status]
+      end
+
+      defmodule ProfileCache do
+        def store_profile(attrs) do
+          :ets.insert(:profiles, {attrs.id, %{id: attrs.id, name: attrs.name, email: attrs.email, status: attrs.status}})
+        end
+      end
+      """)
+
+    assert [_finding] = by_kind(findings)
+  end
+
+  test "excludes explicit adapter and conversion boundaries" do
+    findings =
+      smells("""
+      defmodule Domain.Account do
+        defstruct [:id, :name, :email, :status]
+      end
+
+      defmodule AccountStorage.Adapter do
+        def account_attrs(account) do
+          %{id: account.id, name: account.name, email: account.email, status: account.status}
+        end
+      end
+
+      defmodule AccountProjection do
+        def project_account(account) do
+          %{id: account.id, name: account.name, email: account.email, status: account.status}
+        end
+      end
+      """)
+
+    assert by_kind(findings) == []
+  end
+
   test "excludes structs with an explicit outbound map conversion" do
     findings =
       smells("""
@@ -89,6 +129,26 @@ defmodule Reach.Smell.Checks.SameEntityRepresentationTest do
 
       defmodule SnapshotBuilder do
         def build_snapshot(attrs), do: %{id: attrs.id, name: attrs.name, value: attrs.value}
+      end
+      """)
+
+    assert by_kind(findings) == []
+  end
+
+  test "excludes generic list and item entities" do
+    findings =
+      smells("""
+      defmodule Domain.List do
+        defstruct [:data, :has_more, :object, :url]
+      end
+
+      defmodule Domain.Item do
+        defstruct [:id, :label, :value, :disabled]
+      end
+
+      defmodule CollectionBuilder do
+        def nested_list, do: %{data: [], has_more: false, object: "list", url: "/items"}
+        def list_item, do: %{id: 1, label: "One", value: "one", disabled: false}
       end
       """)
 

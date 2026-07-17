@@ -69,7 +69,7 @@ mix reach.check --candidates
 
 `nil_parameter_without_guard` reports a parameter proven nil-capable by a call, default, or matching clause when a strict use has no dominating non-nil proof. The finding identifies both the nil source and unsafe use; fix the contract with a clause-head guard or normalize before every reported path rather than rescuing the eventual crash.
 
-`same_entity_representation` reports cross-module bare maps whose keys and entity-bearing names closely match an existing struct. Direct struct projections, presentation maps, accumulators, and maps immediately normalized by the struct module are excluded. Findings name the canonical struct and every retained bare-map location.
+`same_entity_representation` reports cross-module bare maps whose keys and entity-bearing names closely match an existing struct. Source patterns, explicit struct values, nested projections, adapter/presentation maps, accumulators, and maps normalized directly or by consistently struct-building callers are excluded. Findings name the canonical struct and every retained bare-map location.
 
 `parameter_shape_entropy` reports domain parameters that strictly consume varying keys while receiving divergent fixed map shapes from distinct callers. Options/payload roles, defensive optional fields, partial caller patterns, companion-selected shapes, tagged unions, and explicit or guarded dispatch are excluded. `--changed` separately reports qualifying entropy increases with old/new values and raises aggregate risk to medium.
 

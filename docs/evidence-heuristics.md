@@ -114,9 +114,9 @@ Calibration notes:
 
 ## Same entity represented as a struct and bare map
 
-`Reach.Evidence.RepresentationOverlap` joins explicit `defstruct` declarations with atom-key bare map constructions in other modules. The raw fact requires at least three shared keys and 0.8 Jaccard key similarity by default. It also records entity-bearing names, direct field-projection sources, presentation/accumulator roles, and calls that immediately normalize the map through the struct module.
+`Reach.Evidence.RepresentationOverlap` joins explicit `defstruct` declarations with atom-key bare map constructions in other modules. The raw fact requires at least three shared keys and 0.8 Jaccard key similarity by default. It also records entity-bearing names, nested field-projection sources, presentation/accumulator roles, and direct or caller-level normalization targets.
 
-`same_entity_representation` requires distinctive entity-name evidence and excludes direct projections from the matching entity, presentation/serialization functions and modules, accumulators, immediate struct normalization, structs with an explicit outbound map conversion, and ambiguous entity names such as `Context` or `Request`. Findings are grouped by struct/map module pair and name the existing canonical struct instead of suggesting a second abstraction.
+`same_entity_representation` requires distinctive entity-name evidence and excludes direct or nested projections from the matching entity, adapter/presentation/serialization boundaries, accumulators, explicit `__struct__` maps, function-head patterns, direct struct normalization, helper maps consistently normalized by every caller, structs with explicit map conversion functions, and ambiguous entity names such as `Context`, `Item`, `List`, or `Request`. Findings are grouped by struct/map module pair and name the existing canonical struct instead of suggesting a second abstraction.
 
 Calibration notes:
 
