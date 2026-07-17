@@ -798,7 +798,8 @@ defmodule Reach.Frontend.Elixir do
   end
 
   defp translate_for(meta, args, counter, file) do
-    {clauses, [opts]} = split_for_clauses(args)
+    {clauses, opts} = split_for_clauses(args)
+    opts = List.flatten(opts)
 
     clause_nodes =
       Enum.map(clauses, fn

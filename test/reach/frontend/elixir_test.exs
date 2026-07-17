@@ -453,6 +453,12 @@ defmodule Reach.Frontend.ElixirTest do
       assert length(filters) == 1
     end
 
+    test "for with separate options and body keyword lists" do
+      [node] = IR.from_string!("for x <- list, into: %{}, do: {x, x}")
+
+      assert %Node{type: :comprehension, meta: %{into: _into}} = node
+    end
+
     test "local function named for is not treated as a comprehension" do
       [node] = IR.from_string!("for(builder, event_type, [struct()])")
 
