@@ -94,6 +94,12 @@ The file must evaluate to a keyword list. Start from [`examples/reach.exs`](../e
       min_callbacks: 3,
       module_display_limit: 8,
       callback_display_limit: 8
+    ],
+    representation_overlap: [
+      min_shared_keys: 3,
+      min_similarity: 0.8,
+      require_name_match: true,
+      evidence_limit: 8
     ]
   ],
   tests: [
@@ -461,6 +467,12 @@ smells: [
     module_display_limit: 8,
     callback_display_limit: 8,
     ignore: [modules: ["MyApp.Legacy.*"]]
+  ],
+  representation_overlap: [
+    min_shared_keys: 3,
+    min_similarity: 0.8,
+    require_name_match: true,
+    evidence_limit: 8
   ]
 ]
 ```
@@ -587,9 +599,11 @@ Reach combines generic Elixir smells with plugin-provided Phoenix, Ecto, and Oba
 
 Some intentionally context-sensitive checks, such as dynamic `Phoenix.HTML.raw/1`, are kept available as direct check modules but are not enabled by the default Phoenix plugin because real applications often use them in sanitizer, markdown, or compiler helpers.
 
-### `smells[:fixed_shape_map]` and `smells[:behaviour_candidate]`
+### Map, representation, and behaviour smell thresholds
 
-Use smell-specific thresholds when a codebase intentionally uses small map contracts, when you want stronger pressure toward structs/contracts, or when behaviour-candidate hints are too noisy for small module families.
+Use `smells[:fixed_shape_map]` and `smells[:behaviour_candidate]` when a codebase intentionally uses small map contracts, when you want stronger pressure toward structs/contracts, or when behaviour-candidate hints are too noisy for small module families.
+
+`smells[:representation_overlap]` controls cross-module bare maps that resemble an existing struct. `min_similarity` is Jaccard key similarity, `min_shared_keys` prevents generic tiny shapes, and `require_name_match` keeps promotion tied to entity-bearing variable/function/module names. Keep name matching enabled unless reviewing broad evidence manually.
 
 ### `tests[:hints]`
 
@@ -641,6 +655,7 @@ Reach validates `.reach.exs` shape and reports `config_error` entries for:
 - invalid `candidates[:limits]`
 - invalid `smells[:fixed_shape_map]`
 - invalid `smells[:behaviour_candidate]`
+- invalid `smells[:representation_overlap]`
 - invalid `clone_analysis`
 - invalid `tests[:hints]`
 

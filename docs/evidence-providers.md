@@ -70,6 +70,16 @@ Reach.Evidence.external_data_boundaries(project)
 
 Raw facts include intentionally dynamic stores. The high-confidence `decoded_boundary_leakage` smell therefore requires downstream use of at least two distinct literal map keys in the same module. Generic decoded stores accessed only through dynamic keys remain evidence-only. Fixed-contract facts also retain the boundary function and matching literal-key consumer functions, allowing candidate generation to compute a precise, bounded impact list without re-parsing source. `Reach.Evidence.Impact` owns the reusable call-graph traversal consumed by both boundary candidates and target-local `Reach.Inspect.Impact`.
 
+## Representation-overlap evidence
+
+`Reach.Evidence.RepresentationOverlap` compares source-declared `defstruct` fields with bare atom-key map constructions in other modules. Facts retain both locations, shared and exclusive keys, Jaccard similarity, entity-name evidence, direct projection sources, map role, and immediate normalization targets.
+
+```elixir
+Reach.Evidence.representation_overlaps(project)
+```
+
+The evidence layer keeps all overlaps above its configurable shape threshold. The `same_entity_representation` smell promotes only domain-role maps with entity-bearing names, excluding direct projections from the matching entity, presentation/serialization functions, accumulators, maps passed immediately to the canonical struct module, and structs that declare an explicit outbound map conversion such as `to_map/1`. Framework-generated structs remain plugin territory; the generic provider reads only explicit source declarations.
+
 ## Nil-parameter evidence
 
 `Reach.Evidence.NilParameter` combines call evidence with per-function control flow. A parameter becomes nil-capable only when Reach observes a literal nil argument, a nil default, or a matching nil clause. Nil-clause evidence retains the other parameter patterns, so a clause for `(:with_cte, nil)` does not make the same parameter nullable in an unrelated `(:from, value)` clause.

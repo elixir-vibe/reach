@@ -79,6 +79,12 @@ defmodule Reach.ConfigTest do
                    module_display_limit: 4,
                    callback_display_limit: 5,
                    ignore: [modules: ["MyAppWeb.*Live"]]
+                 ],
+                 representation_overlap: [
+                   min_shared_keys: 4,
+                   min_similarity: 0.9,
+                   require_name_match: false,
+                   evidence_limit: 5
                  ]
                ],
                clone_analysis: [
@@ -150,6 +156,10 @@ defmodule Reach.ConfigTest do
     assert config.smells.behaviour_candidate.module_display_limit == 4
     assert config.smells.behaviour_candidate.callback_display_limit == 5
     assert config.smells.behaviour_candidate.ignore == [modules: ["MyAppWeb.*Live"]]
+    assert config.smells.representation_overlap.min_shared_keys == 4
+    assert config.smells.representation_overlap.min_similarity == 0.9
+    assert config.smells.representation_overlap.require_name_match == false
+    assert config.smells.representation_overlap.evidence_limit == 5
     assert config.clone_analysis.provider == :ex_dna
     assert config.clone_analysis.min_mass == 12
     assert config.clone_analysis.min_occurrences == 3
@@ -288,7 +298,10 @@ defmodule Reach.ConfigTest do
                deps: [forbidden: :bad, unexpected: []],
                risk: [changed: [branch_heavy: 0]],
                candidates: [thresholds: [mixed_effect_count: "many"]],
-               smells: [fixed_shape_map: [min_keys: 0]],
+               smells: [
+                 fixed_shape_map: [min_keys: 0],
+                 representation_overlap: [min_similarity: 2.0]
+               ],
                clone_analysis: [provider: :unknown]
              )
 
@@ -308,6 +321,9 @@ defmodule Reach.ConfigTest do
 
     assert %{key: "smells.fixed_shape_map.min_keys"} =
              Enum.find(violations, &(&1.key == "smells.fixed_shape_map.min_keys"))
+
+    assert %{key: "smells.representation_overlap.min_similarity"} =
+             Enum.find(violations, &(&1.key == "smells.representation_overlap.min_similarity"))
 
     assert %{key: "clone_analysis.provider"} =
              Enum.find(violations, &(&1.key == "clone_analysis.provider"))

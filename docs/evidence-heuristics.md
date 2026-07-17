@@ -95,6 +95,19 @@ Calibration notes:
 - Thirteen current local projects and the eight checksum-pinned Hex packages produce no findings or boundary-contract candidates.
 - Exograph structural search for `Poison.decode!(_)` returned a capped 100 candidates across 47 packages. A deterministic 25-package source sample produced one raw evidence fact in `country_data`, whose intentionally dynamic-key GenServer store remains evidence-only after the literal-consumer discriminator; no sampled package produced a smell.
 
+## Same entity represented as a struct and bare map
+
+`Reach.Evidence.RepresentationOverlap` joins explicit `defstruct` declarations with atom-key bare map constructions in other modules. The raw fact requires at least three shared keys and 0.8 Jaccard key similarity by default. It also records entity-bearing names, direct field-projection sources, presentation/accumulator roles, and calls that immediately normalize the map through the struct module.
+
+`same_entity_representation` requires entity-name evidence and excludes direct projections from the matching entity, presentation/serialization functions, accumulators, immediate struct normalization, and structs with an explicit outbound map conversion. Findings are grouped by struct/map module pair and name the existing canonical struct instead of suggesting a second abstraction.
+
+Calibration notes:
+
+- The broad shape join produced twenty-six overlaps across thirteen source corpora. Most were intentional DTO projections, JSON/presentation maps, compiler accumulators, constructor attributes, or generic shapes whose names did not identify the struct entity.
+- Promotion retained two reviewed findings: `Exograph.Hex.Corpus.combine_results/1` converts a `%Exograph.Hex.IndexReport.Result{}` accumulator back into the same-shaped bare map, and three `Incant.Live.Rows` page builders duplicate `Incant.Service.Page` after that struct became canonical.
+- The eight checksum-pinned Hex packages produce no findings.
+- Exograph structural prefilter `defstruct _` returned the requested capped twenty-five candidates in 4.8 seconds on 2026-07-13; full overlap validation still requires hydrating each package because the index query alone cannot join arbitrary field sets.
+
 ## Nil-capable parameters without dominating guards
 
 `nil_parameter_without_guard` requires two independent facts: a literal nil reaches a parameter (or the definition explicitly supplies/accepts nil), and a strict use is reachable without a dominating non-nil proof. Strict uses are limited to field/dynamic receiver access, strict platform map operations, and calls into project functions whose parameter patterns reject nil in every clause. The finding points at the unsafe use while retaining the nil-producing call/default/clause as evidence.

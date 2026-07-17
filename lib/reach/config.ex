@@ -110,7 +110,8 @@ defmodule Reach.Config do
               ignore: [],
               dsl_macros: [],
               fixed_shape_map: nil,
-              behaviour_candidate: nil
+              behaviour_candidate: nil,
+              representation_overlap: nil
   end
 
   defmodule Smells.FixedShapeMap do
@@ -128,6 +129,14 @@ defmodule Reach.Config do
               module_display_limit: 8,
               callback_display_limit: 8,
               ignore: []
+  end
+
+  defmodule Smells.RepresentationOverlap do
+    @moduledoc false
+    defstruct min_shared_keys: 3,
+              min_similarity: 0.8,
+              require_name_match: true,
+              evidence_limit: 8
   end
 
   defmodule Error do
@@ -344,6 +353,16 @@ defmodule Reach.Config do
           callback_display_limit:
             nested(config, [:smells, :behaviour_candidate, :callback_display_limit], nil, 8),
           ignore: nested(config, [:smells, :behaviour_candidate, :ignore], nil, [])
+        },
+        representation_overlap: %Smells.RepresentationOverlap{
+          min_shared_keys:
+            nested(config, [:smells, :representation_overlap, :min_shared_keys], nil, 3),
+          min_similarity:
+            nested(config, [:smells, :representation_overlap, :min_similarity], nil, 0.8),
+          require_name_match:
+            nested(config, [:smells, :representation_overlap, :require_name_match], nil, true),
+          evidence_limit:
+            nested(config, [:smells, :representation_overlap, :evidence_limit], nil, 8)
         }
       }
     }
@@ -389,14 +408,16 @@ defmodule Reach.Config do
     %{
       smells
       | fixed_shape_map: smells.fixed_shape_map || %Smells.FixedShapeMap{},
-        behaviour_candidate: smells.behaviour_candidate || %Smells.BehaviourCandidate{}
+        behaviour_candidate: smells.behaviour_candidate || %Smells.BehaviourCandidate{},
+        representation_overlap: smells.representation_overlap || %Smells.RepresentationOverlap{}
     }
   end
 
   defp normalize_smells(_smells) do
     %Smells{
       fixed_shape_map: %Smells.FixedShapeMap{},
-      behaviour_candidate: %Smells.BehaviourCandidate{}
+      behaviour_candidate: %Smells.BehaviourCandidate{},
+      representation_overlap: %Smells.RepresentationOverlap{}
     }
   end
 
@@ -626,6 +647,7 @@ defmodule Reach.Config do
     )
     |> check(config, [:smells, :fixed_shape_map], &valid_group?/1, "expected keyword list")
     |> check(config, [:smells, :behaviour_candidate], &valid_group?/1, "expected keyword list")
+    |> check(config, [:smells, :representation_overlap], &valid_group?/1, "expected keyword list")
     |> check(
       config,
       [:smells, :fixed_shape_map, :min_keys],
@@ -679,6 +701,30 @@ defmodule Reach.Config do
       [:smells, :behaviour_candidate, :ignore],
       &valid_ignore?/1,
       "expected keyword list with paths and modules"
+    )
+    |> check(
+      config,
+      [:smells, :representation_overlap, :min_shared_keys],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:smells, :representation_overlap, :min_similarity],
+      &valid_positive_similarity?/1,
+      "expected number greater than zero and at most one"
+    )
+    |> check(
+      config,
+      [:smells, :representation_overlap, :require_name_match],
+      &valid_boolean?/1,
+      "expected boolean"
+    )
+    |> check(
+      config,
+      [:smells, :representation_overlap, :evidence_limit],
+      &valid_positive_integer?/1,
+      "expected positive integer"
     )
     |> check(config, [:candidates, :thresholds], &valid_group?/1, "expected keyword list")
     |> check(
@@ -882,7 +928,8 @@ defmodule Reach.Config do
       :ignore,
       :dsl_macros,
       :fixed_shape_map,
-      :behaviour_candidate
+      :behaviour_candidate,
+      :representation_overlap
     ])
     |> unknown_nested_key_errors(config, [:smells, :ignore], [:paths, :modules])
     |> unknown_nested_key_errors(config, [:smells, :fixed_shape_map], [
@@ -902,6 +949,12 @@ defmodule Reach.Config do
     |> unknown_nested_key_errors(config, [:smells, :behaviour_candidate, :ignore], [
       :paths,
       :modules
+    ])
+    |> unknown_nested_key_errors(config, [:smells, :representation_overlap], [
+      :min_shared_keys,
+      :min_similarity,
+      :require_name_match,
+      :evidence_limit
     ])
   end
 

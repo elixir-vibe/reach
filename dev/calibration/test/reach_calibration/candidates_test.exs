@@ -32,6 +32,10 @@ defmodule ReachCalibration.CandidatesTest do
            ]
   end
 
+  test "uses struct declarations to prefilter representation overlap checks" do
+    assert Candidates.patterns(MapSet.new([:same_entity_representation])) == ["defstruct _"]
+  end
+
   test "uses nil-argument prefilters for nil guard checks" do
     patterns = Candidates.patterns(MapSet.new([:nil_parameter_without_guard]))
 

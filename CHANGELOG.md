@@ -15,6 +15,7 @@
 - Fixed decoded-boundary evidence now produces advisory contract-normalization candidates with draft structs/schemas and graph-backed blast radii.
 - Smell analysis now detects incompatible success return structures and nested duplicate `:ok` tags across function clauses and branches.
 - Smell analysis now reports proven nil-capable parameters that reach strict uses without a dominating non-nil guard.
+- Smell analysis now identifies cross-module bare maps that duplicate an existing canonical struct entity while excluding projections and boundary representations.
 
 ### Fixed
 

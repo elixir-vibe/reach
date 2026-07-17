@@ -69,6 +69,8 @@ mix reach.check --candidates
 
 `nil_parameter_without_guard` reports a parameter proven nil-capable by a call, default, or matching clause when a strict use has no dominating non-nil proof. The finding identifies both the nil source and unsafe use; fix the contract with a clause-head guard or normalize before every reported path rather than rescuing the eventual crash.
 
+`same_entity_representation` reports cross-module bare maps whose keys and entity-bearing names closely match an existing struct. Direct struct projections, presentation maps, accumulators, and maps immediately normalized by the struct module are excluded. Findings name the canonical struct and every retained bare-map location.
+
 Changed-code output reports **risk** and **assessment confidence** separately. Risk is derived from the functions Reach could analyze plus high-confidence contract-erosion events; confidence describes how much of the diff mapped to current function definitions:
 
 - `high` — every changed line unit was assessed;
