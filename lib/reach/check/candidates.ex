@@ -5,6 +5,7 @@ defmodule Reach.Check.Candidates do
 
   alias Reach.Check.{
     Architecture,
+    BoundaryContractCandidates,
     Candidate,
     Changed,
     CloneConsolidationCandidates,
@@ -33,6 +34,7 @@ defmodule Reach.Check.Candidates do
          extract_region_candidates(project, config.candidates) ++
          boundary_candidates(project, config) ++
          cycle_candidates(project, config.candidates) ++
+         boundary_contract_candidates(project, config.candidates) ++
          map_contract_candidates(project, config.candidates) ++
          dependency_bypass_candidates(project, config) ++
          facade_candidates(facade_modules, config) ++
@@ -457,6 +459,10 @@ defmodule Reach.Check.Candidates do
       end)
 
     source_labels ++ variant_labels ++ examples
+  end
+
+  defp boundary_contract_candidates(project, candidate_config) do
+    BoundaryContractCandidates.build(project, candidate_config)
   end
 
   defp dependency_bypass_candidates(project, config) do

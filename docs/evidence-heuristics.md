@@ -87,10 +87,12 @@ Calibration notes:
 
 Raw boundary crossings are evidence. Promotion to the high-confidence `decoded_boundary_leakage` smell additionally requires at least two distinct downstream literal map keys in the same module. This preserves intentionally dynamic stores while finding decoded fixed-shape contracts that lose provenance before consumers apply string-key defaults.
 
+The same fixed-contract evidence produces advisory `introduce_boundary_contract` candidates. Each candidate names the decoder and exact storage/process boundary, emits a draft `@enforce_keys`/`defstruct` when keys are valid fields (otherwise a validation-schema draft), and computes a bounded blast radius from the boundary and literal-key consumer functions through the shared `Reach.Evidence.Impact` traversal also used by `Reach.Inspect.Impact`.
+
 Calibration notes:
 
-- The historical LLM Proxy pricing specimen at `c374082~1` produces one finding at `lib/llm_proxy/pricing.ex:22`: `Jason.decode!/1` flows into `:persistent_term.put/2`, followed by four literal pricing-key consumers. The normalized struct-based revision is clean.
-- Thirteen current local projects and the eight checksum-pinned Hex packages produce no findings.
+- The historical LLM Proxy pricing specimen at `c374082~1` produces one finding and one contract candidate at `lib/llm_proxy/pricing.ex:22`: `Jason.decode!/1` flows into `:persistent_term.put/2`, followed by `cache_read`, `cache_write`, `input`, and `output` consumers. The candidate drafts those four enforced struct fields and names `init/0` plus `calculate_cost/3` in its isolated-source blast radius. The normalized struct-based revision is clean.
+- Thirteen current local projects and the eight checksum-pinned Hex packages produce no findings or boundary-contract candidates.
 - Exograph structural search for `Poison.decode!(_)` returned a capped 100 candidates across 47 packages. A deterministic 25-package source sample produced one raw evidence fact in `country_data`, whose intentionally dynamic-key GenServer store remains evidence-only after the literal-consumer discriminator; no sampled package produced a smell.
 
 ## Module-level facades

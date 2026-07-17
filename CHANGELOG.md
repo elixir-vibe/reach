@@ -12,6 +12,7 @@
 - Changed-code analysis now classifies moved dual-key/default-drift evidence and exact whole-function clones as displaced when occurrence counts do not improve.
 - Changed-code analysis now inventories added and removed source suppressions and raises risk for additions without reasons, while project maps expose total and reasonless suppression counts.
 - Smell analysis now detects decoded external fixed-shape payloads crossing storage or process boundaries without explicit normalization.
+- Fixed decoded-boundary evidence now produces advisory contract-normalization candidates with draft structs/schemas and graph-backed blast radii.
 
 ### Fixed
 

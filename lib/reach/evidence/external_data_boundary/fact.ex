@@ -9,8 +9,10 @@ defmodule Reach.Evidence.ExternalDataBoundary.Fact do
           file: Path.t(),
           line: pos_integer() | nil,
           column: pos_integer() | nil,
+          boundary_function: {module(), atom(), non_neg_integer()} | nil,
           variables: [atom()],
-          consumer_keys: [String.t()]
+          consumer_keys: [String.t()],
+          consumer_functions: [{module(), atom(), non_neg_integer()}]
         }
 
   @enforce_keys [:source, :boundary, :boundary_kind, :file]
@@ -22,7 +24,9 @@ defmodule Reach.Evidence.ExternalDataBoundary.Fact do
     :file,
     :line,
     :column,
+    :boundary_function,
     variables: [],
-    consumer_keys: []
+    consumer_keys: [],
+    consumer_functions: []
   ]
 end

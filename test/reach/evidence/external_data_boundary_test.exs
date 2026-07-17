@@ -30,7 +30,10 @@ defmodule Reach.Evidence.ExternalDataBoundaryTest do
     assert fact.boundary == ":persistent_term.put/2"
     assert fact.boundary_kind == :storage
     assert fact.line == 9
+    assert fact.boundary_function == {PricingLeak, :init, 0}
+    assert fact.variables == [:pricing]
     assert fact.consumer_keys == ["input", "output"]
+    assert fact.consumer_functions == [{PricingLeak, :total, 1}]
   end
 
   test "tracks successful tagged decoder results into ETS" do

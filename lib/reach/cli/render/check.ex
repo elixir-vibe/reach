@@ -42,6 +42,8 @@ defmodule Reach.CLI.Render.Check do
 
       IO.puts("    evidence=#{Format.humanized_join(candidate.evidence)}")
 
+      render_boundary_contract(candidate)
+      render_blast_radius(candidate.blast_radius)
       render_representative_calls(candidate)
       render_clone_siblings(candidate.clone_siblings)
 
@@ -253,6 +255,26 @@ defmodule Reach.CLI.Render.Check do
       IO.puts("      #{Format.loc(edge.file, edge.line)}")
       IO.puts("      #{edge.caller_module} -> #{edge.call}")
     end)
+  end
+
+  defp render_boundary_contract(%{boundary: boundary, decoder: decoder, draft_contract: draft})
+       when is_binary(boundary) and is_binary(decoder) do
+    IO.puts("    decoder=#{decoder} boundary=#{boundary}")
+    IO.puts("    draft contract:")
+
+    draft
+    |> String.split("\n")
+    |> Enum.each(&IO.puts("      #{&1}"))
+  end
+
+  defp render_boundary_contract(_candidate), do: :ok
+
+  defp render_blast_radius([]), do: :ok
+  defp render_blast_radius(nil), do: :ok
+
+  defp render_blast_radius(functions) do
+    IO.puts("    #{Format.faint("blast radius:")}")
+    Enum.each(functions, &IO.puts("      #{&1}"))
   end
 
   defp render_clone_siblings([]), do: :ok

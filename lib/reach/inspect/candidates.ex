@@ -4,7 +4,7 @@ defmodule Reach.Inspect.Candidates do
   """
 
   alias Reach.Analysis
-  alias Reach.Check.Candidate
+  alias Reach.Check.{BoundaryContractCandidates, Candidate}
   alias Reach.Config
   alias Reach.Effects
   alias Reach.IR
@@ -19,11 +19,14 @@ defmodule Reach.Inspect.Candidates do
     callers = Query.callers(project, mfa, 1)
     branch_count = branch_count(func)
 
-    []
-    |> maybe_candidate(
-      isolate_effects_candidate(func, non_pure_effects, candidate_config, project.plugins)
-    )
-    |> maybe_candidate(extract_region_candidate(func, branch_count, callers, candidate_config))
+    local_candidates =
+      []
+      |> maybe_candidate(
+        isolate_effects_candidate(func, non_pure_effects, candidate_config, project.plugins)
+      )
+      |> maybe_candidate(extract_region_candidate(func, branch_count, callers, candidate_config))
+
+    local_candidates ++ boundary_contract_candidates(project, mfa, candidate_config)
   end
 
   defp isolate_effects_candidate(func, effects, candidate_config, plugins) do
@@ -91,6 +94,16 @@ defmodule Reach.Inspect.Candidates do
         "Look for a single-entry/single-exit pure branch region before extracting. Do not extract by size alone."
     )
   end
+
+  defp boundary_contract_candidates(project, mfa, candidate_config) do
+    target = mfa_to_string(mfa)
+
+    project
+    |> BoundaryContractCandidates.build(candidate_config)
+    |> Enum.filter(&(target in &1.blast_radius))
+  end
+
+  defp mfa_to_string({module, function, arity}), do: "#{inspect(module)}.#{function}/#{arity}"
 
   defp maybe_candidate(candidates, nil), do: candidates
   defp maybe_candidate(candidates, candidate), do: candidates ++ [candidate]

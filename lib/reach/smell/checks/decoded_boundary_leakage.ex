@@ -4,9 +4,8 @@ defmodule Reach.Smell.Checks.DecodedBoundaryLeakage do
   @behaviour Reach.Smell.Check
 
   alias Reach.Evidence
+  alias Reach.Evidence.ExternalDataBoundary
   alias Reach.Smell.Finding
-
-  @min_literal_consumer_keys 2
 
   @impl true
   def kinds, do: [:decoded_boundary_leakage]
@@ -15,7 +14,7 @@ defmodule Reach.Smell.Checks.DecodedBoundaryLeakage do
   def run(project) do
     project
     |> Evidence.external_data_boundaries()
-    |> Enum.filter(&(length(&1.consumer_keys) >= @min_literal_consumer_keys))
+    |> Enum.filter(&ExternalDataBoundary.fixed_contract?/1)
     |> Enum.map(&finding/1)
   end
 

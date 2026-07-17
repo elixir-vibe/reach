@@ -14,6 +14,8 @@ JSON output is pipe-safe and should not include progress text. Tests decode comp
 
 Prefer JSON for agents and CI. Human text output is intentionally summarized, colorized, and may include truncation hints.
 
+Boundary-contract candidates include structured `decoder`, `boundary`, `keys`, `draft_contract`, and `blast_radius` fields in addition to the common candidate proof and suggestion fields. Agents should treat `draft_contract` as a starting shape and complete every listed proof step before editing.
+
 Changed-code results include top-level `risk` and `confidence` fields plus a detailed `coverage` object:
 
 ```json

@@ -3,6 +3,7 @@ defmodule Reach.Inspect.Impact do
   Builds impact summaries for a target function.
   """
 
+  alias Reach.Evidence.Impact, as: ImpactEvidence
   alias Reach.IR
   alias Reach.IR.Helpers, as: IRHelpers
 
@@ -27,37 +28,9 @@ defmodule Reach.Inspect.Impact do
   end
 
   defp find_callers(project, target, depth) do
-    cg = project.call_graph
-
-    if Graph.has_vertex?(cg, target) do
-      do_find_callers(cg, [target], depth, MapSet.new([target]), [])
-    else
-      []
-    end
-  end
-
-  defp do_find_callers(_cg, [], _depth, _visited, acc), do: Enum.reverse(acc)
-  defp do_find_callers(_cg, _frontier, 0, _visited, acc), do: Enum.reverse(acc)
-
-  defp do_find_callers(cg, frontier, depth, visited, acc) do
-    {new_callers, new_visited} =
-      Enum.reduce(frontier, {[], visited}, fn f, {found, vis} ->
-        callers =
-          cg
-          |> Graph.in_neighbors(f)
-          |> Enum.filter(&match?({_, _, _}, &1))
-          |> Enum.reject(&MapSet.member?(vis, &1))
-
-        {Enum.reverse(callers, found), Enum.reduce(callers, vis, &MapSet.put(&2, &1))}
-      end)
-
-    acc = Enum.reduce(new_callers, acc, fn caller, acc -> [%{id: caller} | acc] end)
-
-    if depth > 1 do
-      do_find_callers(cg, new_callers, depth - 1, new_visited, acc)
-    else
-      Enum.reverse(acc)
-    end
+    project
+    |> ImpactEvidence.callers(target, depth)
+    |> Enum.map(&%{id: &1})
   end
 
   defp find_return_dependents(project, target) do

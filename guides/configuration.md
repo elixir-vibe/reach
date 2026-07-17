@@ -68,7 +68,9 @@ The file must evaluate to a keyword list. Start from [`examples/reach.exs`](../e
     limits: [
       per_kind: 20,
       representative_calls: 10,
-      representative_calls_per_edge: 3
+      representative_calls_per_edge: 3,
+      boundary_contract_impact_depth: 2,
+      boundary_contract_blast_radius: 20
     ]
   ],
   clone_analysis: [
@@ -403,12 +405,14 @@ candidates: [
   limits: [
     per_kind: 20,
     representative_calls: 10,
-    representative_calls_per_edge: 3
+    representative_calls_per_edge: 3,
+    boundary_contract_impact_depth: 2,
+    boundary_contract_blast_radius: 20
   ]
 ]
 ```
 
-Thresholds decide when Reach reports mixed-effect, branch-heavy, module-level facade, and exact-clone consolidation candidates. `facade_ratio` is the minimum forwarded share of public functions; `facade_min_functions` avoids tiny wrappers; `facade_max_targets` requires forwarding to remain concentrated. `clone_consolidation_min_fragments` is the minimum number of distinct project functions in an exact Type-I clone family before Reach recommends a canonical implementation. Modules configured in `boundaries[:public]`, behaviour/use implementations, and deprecated compatibility shims are excluded from facade analysis. Limits bound candidate evidence and per-kind generation while preserving exact cycle-component detection.
+Thresholds decide when Reach reports mixed-effect, branch-heavy, module-level facade, and exact-clone consolidation candidates. `facade_ratio` is the minimum forwarded share of public functions; `facade_min_functions` avoids tiny wrappers; `facade_max_targets` requires forwarding to remain concentrated. `clone_consolidation_min_fragments` is the minimum number of distinct project functions in an exact Type-I clone family before Reach recommends a canonical implementation. Modules configured in `boundaries[:public]`, behaviour/use implementations, and deprecated compatibility shims are excluded from facade analysis. Limits bound candidate evidence and per-kind generation while preserving exact cycle-component detection. `boundary_contract_impact_depth` controls caller traversal for decoded-boundary contract candidates, while `boundary_contract_blast_radius` caps the function list emitted in text and JSON.
 
 ### `clone_analysis`
 

@@ -57,7 +57,9 @@ defmodule Reach.ConfigTest do
                  limits: [
                    per_kind: 30,
                    representative_calls: 12,
-                   representative_calls_per_edge: 2
+                   representative_calls_per_edge: 2,
+                   boundary_contract_impact_depth: 4,
+                   boundary_contract_blast_radius: 7
                  ]
                ],
                smells: [
@@ -133,6 +135,8 @@ defmodule Reach.ConfigTest do
     assert config.candidates.limits.per_kind == 30
     assert config.candidates.limits.representative_calls == 12
     assert config.candidates.limits.representative_calls_per_edge == 2
+    assert config.candidates.limits.boundary_contract_impact_depth == 4
+    assert config.candidates.limits.boundary_contract_blast_radius == 7
     assert config.smells.strict == true
     assert config.smells.custom_checks == [MyApp.ReachSmells.NoFoo]
     assert config.smells.ignore == [paths: ["vendor/**"], modules: ["Generated.*"]]
@@ -183,6 +187,28 @@ defmodule Reach.ConfigTest do
     assert Enum.any?(
              errors,
              &(&1.path == [:candidates, :thresholds, :clone_consolidation_min_fragments])
+           )
+  end
+
+  test "rejects malformed boundary contract candidate limits" do
+    assert {:error, errors} =
+             Config.from_terms(
+               candidates: [
+                 limits: [
+                   boundary_contract_impact_depth: 0,
+                   boundary_contract_blast_radius: 0
+                 ]
+               ]
+             )
+
+    assert Enum.any?(
+             errors,
+             &(&1.path == [:candidates, :limits, :boundary_contract_impact_depth])
+           )
+
+    assert Enum.any?(
+             errors,
+             &(&1.path == [:candidates, :limits, :boundary_contract_blast_radius])
            )
   end
 

@@ -18,6 +18,13 @@ defmodule Reach.Evidence.ExternalDataBoundary do
         }
 
   @state_callback_key {:reach, :state_callback}
+  @default_fixed_contract_min_keys 2
+
+  @doc "Returns whether boundary evidence has enough fixed-key consumers for policy promotion."
+  @spec fixed_contract?(Fact.t(), pos_integer()) :: boolean()
+  def fixed_contract?(fact, min_keys \\ @default_fixed_contract_min_keys) do
+    length(fact.consumer_keys) >= min_keys
+  end
 
   @doc "Collects boundary-crossing evidence from all source files in a project."
   @spec collect_project(Reach.Project.t()) :: [Fact.t()]
@@ -39,7 +46,8 @@ defmodule Reach.Evidence.ExternalDataBoundary do
     |> Enum.flat_map(fn %{
                           body: body,
                           state_callback: state_callback,
-                          consumer_keys: consumer_keys
+                          function: boundary_function,
+                          consumer_profiles: consumer_profiles
                         } ->
       environment =
         if state_callback, do: %{@state_callback_key => state_callback}, else: %{}
@@ -47,8 +55,16 @@ defmodule Reach.Evidence.ExternalDataBoundary do
       {facts, _taint, _environment} = analyze(body, environment, file, plugins)
 
       Enum.map(facts, fn fact ->
-        keys = fact.variables |> Enum.flat_map(&Map.get(consumer_keys, &1, [])) |> Enum.uniq()
-        %{fact | consumer_keys: Enum.sort(keys)}
+        profiles = Enum.map(fact.variables, &Map.get(consumer_profiles, &1, empty_profile()))
+        keys = profiles |> Enum.flat_map(& &1.keys) |> Enum.uniq() |> Enum.sort()
+        consumers = profiles |> Enum.flat_map(& &1.functions) |> Enum.uniq() |> Enum.sort()
+
+        %{
+          fact
+          | boundary_function: boundary_function,
+            consumer_keys: keys,
+            consumer_functions: consumers
+        }
       end)
     end)
   end
@@ -102,47 +118,81 @@ defmodule Reach.Evidence.ExternalDataBoundary do
   defp function_bodies(ast) do
     ast
     |> AST.collect(fn
-      {:defmodule, _meta, [_module, block]}, bodies when is_list(block) ->
-        case Keyword.fetch(block, :do) do
-          {:ok, body} -> [body | bodies]
-          :error -> bodies
+      {:defmodule, _meta, [module_ast, block]}, modules when is_list(block) ->
+        with {:ok, module} <- module_name(module_ast),
+             {:ok, body} <- Keyword.fetch(block, :do) do
+          [{module, body} | modules]
+        else
+          _other -> modules
         end
 
-      _node, bodies ->
-        bodies
+      _node, modules ->
+        modules
     end)
     |> Enum.flat_map(&module_function_bodies/1)
   end
 
-  defp module_function_bodies(body) do
+  defp module_function_bodies({module, body}) do
     genserver? = AST.contains?(body, &genserver_use?/1)
-    consumer_keys = literal_consumer_keys(body)
 
-    body
-    |> module_statements()
-    |> Enum.flat_map(fn statement ->
-      case function_body(statement, genserver?) do
-        nil -> []
-        function -> [Map.put(function, :consumer_keys, consumer_keys)]
-      end
+    functions =
+      body
+      |> module_statements()
+      |> Enum.flat_map(fn statement ->
+        case function_body(statement, module, genserver?) do
+          nil -> []
+          function -> [function]
+        end
+      end)
+
+    consumer_profiles = consumer_profiles(functions)
+    Enum.map(functions, &Map.put(&1, :consumer_profiles, consumer_profiles))
+  end
+
+  defp consumer_profiles(functions) do
+    Enum.reduce(functions, %{}, fn function, profiles ->
+      function.body
+      |> literal_consumer_keys()
+      |> Enum.reduce(profiles, &put_consumer_profile(&1, &2, function.function))
     end)
   end
+
+  defp put_consumer_profile({variable, keys}, profiles, function) do
+    Map.update(profiles, variable, %{keys: keys, functions: [function]}, fn profile ->
+      %{
+        keys:
+          profile.keys
+          |> MapSet.new()
+          |> MapSet.union(MapSet.new(keys))
+          |> MapSet.to_list(),
+        functions: Enum.uniq([function | profile.functions])
+      }
+    end)
+  end
+
+  defp empty_profile, do: %{keys: [], functions: []}
+
+  defp module_name({:__aliases__, _meta, parts}) when is_list(parts) do
+    if Enum.all?(parts, &is_atom/1), do: {:ok, Module.concat(parts)}, else: :error
+  end
+
+  defp module_name(_module_ast), do: :error
 
   defp module_statements({:__block__, _meta, statements}), do: statements
   defp module_statements(body), do: [body]
 
-  defp function_body({kind, _meta, [head, block]}, genserver?)
+  defp function_body({kind, _meta, [head, block]}, module, genserver?)
        when kind in [:def, :defp] and is_list(block) do
     with {:ok, body} <- Keyword.fetch(block, :do),
          {:ok, name, arity} <- function_identity(head) do
       state_callback = if genserver? and state_callback?(name, arity), do: {name, arity}
-      %{body: body, state_callback: state_callback}
+      %{body: body, function: {module, name, arity}, state_callback: state_callback}
     else
       _other -> nil
     end
   end
 
-  defp function_body(_node, _genserver?), do: nil
+  defp function_body(_node, _module, _genserver?), do: nil
 
   defp function_identity({:when, _meta, [head | _guards]}), do: function_identity(head)
 

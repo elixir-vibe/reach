@@ -67,7 +67,9 @@ defmodule Reach.Config do
     @moduledoc false
     defstruct per_kind: 20,
               representative_calls: 10,
-              representative_calls_per_edge: 3
+              representative_calls_per_edge: 3,
+              boundary_contract_impact_depth: 2,
+              boundary_contract_blast_radius: 20
   end
 
   defmodule CloneAnalysis do
@@ -294,7 +296,11 @@ defmodule Reach.Config do
           representative_calls:
             nested(config, [:candidates, :limits, :representative_calls], nil, 10),
           representative_calls_per_edge:
-            nested(config, [:candidates, :limits, :representative_calls_per_edge], nil, 3)
+            nested(config, [:candidates, :limits, :representative_calls_per_edge], nil, 3),
+          boundary_contract_impact_depth:
+            nested(config, [:candidates, :limits, :boundary_contract_impact_depth], nil, 2),
+          boundary_contract_blast_radius:
+            nested(config, [:candidates, :limits, :boundary_contract_blast_radius], nil, 20)
         }
       },
       checks: %Checks{
@@ -738,6 +744,18 @@ defmodule Reach.Config do
     )
     |> check(
       config,
+      [:candidates, :limits, :boundary_contract_impact_depth],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:candidates, :limits, :boundary_contract_blast_radius],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
       [:source, :forbidden_modules],
       &valid_pattern_list?/1,
       "expected string or list of module patterns"
@@ -845,7 +863,9 @@ defmodule Reach.Config do
     |> unknown_nested_key_errors(config, [:candidates, :limits], [
       :per_kind,
       :representative_calls,
-      :representative_calls_per_edge
+      :representative_calls_per_edge,
+      :boundary_contract_impact_depth,
+      :boundary_contract_blast_radius
     ])
     |> unknown_nested_key_errors(config, [:checks], [
       :baseline,

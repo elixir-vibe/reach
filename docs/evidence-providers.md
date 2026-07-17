@@ -68,7 +68,7 @@ The provider follows direct assignments, aliases, `case`, `with`, `if`, and cont
 Reach.Evidence.external_data_boundaries(project)
 ```
 
-Raw facts include intentionally dynamic stores. The high-confidence `decoded_boundary_leakage` smell therefore requires downstream use of at least two distinct literal map keys in the same module. Generic decoded stores accessed only through dynamic keys remain evidence-only.
+Raw facts include intentionally dynamic stores. The high-confidence `decoded_boundary_leakage` smell therefore requires downstream use of at least two distinct literal map keys in the same module. Generic decoded stores accessed only through dynamic keys remain evidence-only. Fixed-contract facts also retain the boundary function and matching literal-key consumer functions, allowing candidate generation to compute a precise, bounded impact list without re-parsing source. `Reach.Evidence.Impact` owns the reusable call-graph traversal consumed by both boundary candidates and target-local `Reach.Inspect.Impact`.
 
 ## Boundaries
 
