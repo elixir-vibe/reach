@@ -70,6 +70,18 @@ Reach.Evidence.external_data_boundaries(project)
 
 Raw facts include intentionally dynamic stores. The high-confidence `decoded_boundary_leakage` smell therefore requires downstream use of at least two distinct literal map keys in the same module. Generic decoded stores accessed only through dynamic keys remain evidence-only. Fixed-contract facts also retain the boundary function and matching literal-key consumer functions, allowing candidate generation to compute a precise, bounded impact list without re-parsing source. `Reach.Evidence.Impact` owns the reusable call-graph traversal consumed by both boundary candidates and target-local `Reach.Inspect.Impact`.
 
+## Return-contract evidence
+
+`Reach.Evidence.ReturnContract` collects terminal expressions across function clauses and explicit `case`, `cond`, `if`, `with`, `receive`, and `try` branches. Outcomes retain structural classes, exact tagged-tuple arity, source lines, nested identical tags, and whether the function is marked `@impl`.
+
+Unknown calls and implicit `with` fallthrough remain dynamic evidence rather than guessed return types. Function-level `rescue`, `catch`, and `else` are modeled as `try` semantics, so transformed successful values are not incorrectly counted as terminal returns. Collect project-level facts with:
+
+```elixir
+Reach.Evidence.return_contracts(project)
+```
+
+The smell policy promotes only high-confidence `:ok` contract conflicts: bare `:ok` versus `{:ok, value}`, `:ok` tuples mixed with known raw values, inconsistent `:ok` tuple arity, and nested `{:ok, {:ok, value}}`. Conventional `{:ok, value} | {:error, reason}`, sentinel failures, state-machine tuples, dynamic forwarding, and `@impl` callbacks stay clean.
+
 ## Boundaries
 
 Evidence providers must not emit `Reach.Smell.Finding` and must not depend on CLI rendering or command modules. User-facing policy belongs in:

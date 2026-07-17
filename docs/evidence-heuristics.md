@@ -95,6 +95,18 @@ Calibration notes:
 - Thirteen current local projects and the eight checksum-pinned Hex packages produce no findings or boundary-contract candidates.
 - Exograph structural search for `Poison.decode!(_)` returned a capped 100 candidates across 47 packages. A deterministic 25-package source sample produced one raw evidence fact in `country_data`, whose intentionally dynamic-key GenServer store remains evidence-only after the literal-consumer discriminator; no sampled package produced a smell.
 
+## Return-shape divergence
+
+`Reach.Evidence.ReturnContract` records terminal return structures per function across clauses and explicit branches. `return_shape_divergence` is intentionally narrower than general union-return analysis: it reports only conflicts around the success tag—bare `:ok` versus tagged `{:ok, value}`, tagged success mixed with a known raw value, or multiple arities for the `:ok` tag. `nested_return_tag` separately reports duplicate success wrappers such as `{:ok, {:ok, value}}`.
+
+Dynamic forwarding, implicit `with` fallthrough, conventional error/sentinel alternatives, untagged state-machine tuples, and `@impl` callbacks suppress promotion. Raising paths do not count as returns, and function-level `else` replaces the successful `try` body when determining terminal shapes.
+
+Calibration notes:
+
+- The broad prototype produced seventy-three findings across thirteen source corpora, dominated by intentional compiler state tuples, callback returns, rich error tuples, and transformed `try` values.
+- Restricting policy to `:ok`, excluding untagged tuples and dynamic outcomes, honoring `@impl`, and fixing `try`/`else` semantics reduced the same corpus to one reviewed finding: Elixir's private `Mix.Utils.do_symlink_or_copy/3` returns bare `:ok` after linking but `{:ok, files}` after copying.
+- The eight checksum-pinned Hex packages produce no findings. No corpus project produced a nested-success-tag finding.
+
 ## Module-level facades
 
 `Reach.Evidence.Facade` aggregates public `defdelegate` declarations and exact same-argument public forwarders by module. `mix reach.check --candidates` emits `:review_facade` only when the forwarded share, minimum public-function count, and target concentration pass named candidate thresholds.

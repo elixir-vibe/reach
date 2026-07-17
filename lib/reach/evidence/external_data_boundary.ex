@@ -119,7 +119,7 @@ defmodule Reach.Evidence.ExternalDataBoundary do
     ast
     |> AST.collect(fn
       {:defmodule, _meta, [module_ast, block]}, modules when is_list(block) ->
-        with {:ok, module} <- module_name(module_ast),
+        with {:ok, module} <- Reach.AST.module_name(module_ast),
              {:ok, body} <- Keyword.fetch(block, :do) do
           [{module, body} | modules]
         else
@@ -172,19 +172,13 @@ defmodule Reach.Evidence.ExternalDataBoundary do
 
   defp empty_profile, do: %{keys: [], functions: []}
 
-  defp module_name({:__aliases__, _meta, parts}) when is_list(parts) do
-    if Enum.all?(parts, &is_atom/1), do: {:ok, Module.concat(parts)}, else: :error
-  end
-
-  defp module_name(_module_ast), do: :error
-
   defp module_statements({:__block__, _meta, statements}), do: statements
   defp module_statements(body), do: [body]
 
   defp function_body({kind, _meta, [head, block]}, module, genserver?)
        when kind in [:def, :defp] and is_list(block) do
     with {:ok, body} <- Keyword.fetch(block, :do),
-         {:ok, name, arity} <- function_identity(head) do
+         {:ok, name, arity} <- Reach.AST.function_identity(head) do
       state_callback = if genserver? and state_callback?(name, arity), do: {name, arity}
       %{body: body, function: {module, name, arity}, state_callback: state_callback}
     else
@@ -193,15 +187,6 @@ defmodule Reach.Evidence.ExternalDataBoundary do
   end
 
   defp function_body(_node, _module, _genserver?), do: nil
-
-  defp function_identity({:when, _meta, [head | _guards]}), do: function_identity(head)
-
-  defp function_identity({name, _meta, nil}) when is_atom(name), do: {:ok, name, 0}
-
-  defp function_identity({name, _meta, args}) when is_atom(name) and is_list(args),
-    do: {:ok, name, length(args)}
-
-  defp function_identity(_head), do: :error
 
   defp genserver_use?({:use, _meta, [{:__aliases__, _, [:GenServer]} | _args]}), do: true
 

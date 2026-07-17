@@ -65,6 +65,8 @@ mix reach.check --candidates
 
 `decoded_boundary_leakage` reports plugin-owned decoded data stored or sent without explicit normalization when fixed literal-key consumers show that the payload behaves as an implicit contract. Normalize at the reported storage/process boundary rather than adding defensive defaults downstream. `--candidates` turns the same evidence into an `introduce_boundary_contract` proposal with a draft contract, proof checklist, and graph-backed blast radius.
 
+`return_shape_divergence` reports incompatible success contracts within one function, including bare `:ok` mixed with `{:ok, value}`, raw values mixed with tagged success, and inconsistent success-tuple arity. `nested_return_tag` reports duplicate success wrappers. Messages include every proven terminal shape and source line.
+
 Changed-code output reports **risk** and **assessment confidence** separately. Risk is derived from the functions Reach could analyze plus high-confidence contract-erosion events; confidence describes how much of the diff mapped to current function definitions:
 
 - `high` — every changed line unit was assessed;

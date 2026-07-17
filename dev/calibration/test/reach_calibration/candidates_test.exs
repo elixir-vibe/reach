@@ -25,6 +25,13 @@ defmodule ReachCalibration.CandidatesTest do
            ]
   end
 
+  test "uses tagged result prefilters for return contract checks" do
+    assert Candidates.patterns(MapSet.new([:return_shape_divergence, :nested_return_tag])) == [
+             "{:ok, _}",
+             "{:ok, {:ok, _}}"
+           ]
+  end
+
   test "falls back to package-version selection when any kind lacks a safe prefilter" do
     assert Candidates.patterns(MapSet.new([:dual_key_fallback, :unmapped_kind])) == :all
     assert Candidates.patterns(nil) == :all

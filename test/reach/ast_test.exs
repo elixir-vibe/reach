@@ -12,6 +12,18 @@ defmodule Reach.ASTTest do
     assert wrapped_value == Reach.AST.keyword_value(wrapped_keyword, :do)
   end
 
+  test "extracts static module and function identities" do
+    assert {:ok, MyApp.Parser} = Reach.AST.module_name({:__aliases__, [], [:MyApp, :Parser]})
+    assert :error = Reach.AST.module_name({:__aliases__, [], [:MyApp, {:dynamic, [], nil}]})
+
+    assert {:ok, :parse, 2} = Reach.AST.function_identity({:parse, [], [{:x, [], nil}, 1]})
+
+    assert {:ok, :parse, 1} =
+             Reach.AST.function_identity(
+               {:when, [], [{:parse, [], [{:x, [], nil}]}, {:is_binary, [], [{:x, [], nil}]}]}
+             )
+  end
+
   test "returns missing values without raising" do
     assert :error = Reach.AST.keyword_fetch([], :do)
     assert is_nil(Reach.AST.keyword_value([], :do))

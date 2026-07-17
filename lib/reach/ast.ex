@@ -15,6 +15,24 @@ defmodule Reach.AST do
     Enum.reverse(modules)
   end
 
+  @doc "Returns a static module name represented by alias AST."
+  @spec module_name(Macro.t()) :: {:ok, module()} | :error
+  def module_name({:__aliases__, _meta, parts}) when is_list(parts) do
+    if Enum.all?(parts, &is_atom/1), do: {:ok, Module.concat(parts)}, else: :error
+  end
+
+  def module_name(_ast), do: :error
+
+  @doc "Returns the name and arity represented by a function head."
+  @spec function_identity(Macro.t()) :: {:ok, atom(), non_neg_integer()} | :error
+  def function_identity({:when, _meta, [head | _guards]}), do: function_identity(head)
+  def function_identity({name, _meta, nil}) when is_atom(name), do: {:ok, name, 0}
+
+  def function_identity({name, _meta, args}) when is_atom(name) and is_list(args),
+    do: {:ok, name, length(args)}
+
+  def function_identity(_head), do: :error
+
   @doc "Returns the module, function, and arguments represented by an Elixir call AST node."
   @spec call(Macro.t()) :: {module() | nil, atom(), [Macro.t()]} | nil
   def call({{:., _dot_meta, [module_ast, name]}, _meta, args})

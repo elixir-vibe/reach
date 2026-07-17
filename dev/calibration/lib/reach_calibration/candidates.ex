@@ -19,6 +19,8 @@ defmodule ReachCalibration.Candidates do
       "Poison.decode!(_)",
       "Poison.decode(_)"
     ],
+    return_shape_divergence: ["{:ok, _}"],
+    nested_return_tag: ["{:ok, {:ok, _}}"],
     total_function_laundering: ["_ when _ in [_, _]", "defp _(_), do: _"]
   }
 
