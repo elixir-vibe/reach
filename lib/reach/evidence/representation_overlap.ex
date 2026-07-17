@@ -137,16 +137,27 @@ defmodule Reach.Evidence.RepresentationOverlap do
     end
   end
 
+  defp nested_module_name(
+         {:__aliases__, _meta, [{:__MODULE__, _module_meta, _context} | parts]},
+         parent
+       )
+       when is_atom(parent) and not is_nil(parent),
+       do: concat_module([parent | parts])
+
   defp nested_module_name({:__aliases__, _meta, [:"Elixir" | parts]}, _parent),
-    do: {:ok, Module.concat(parts)}
+    do: concat_module(parts)
 
   defp nested_module_name({:__aliases__, _meta, parts}, nil),
-    do: {:ok, Module.concat(parts)}
+    do: concat_module(parts)
 
   defp nested_module_name({:__aliases__, _meta, parts}, parent),
-    do: {:ok, Module.concat([parent | parts])}
+    do: concat_module([parent | parts])
 
   defp nested_module_name(_dynamic, _parent), do: :error
+
+  defp concat_module(parts) do
+    if Enum.all?(parts, &is_atom/1), do: {:ok, Module.concat(parts)}, else: :error
+  end
 
   defp direct_defstruct(body) do
     body

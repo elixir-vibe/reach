@@ -66,6 +66,23 @@ defmodule Reach.Evidence.RepresentationOverlapTest do
     assert [%{struct: %{module: Container.Entry}}] = facts
   end
 
+  test "resolves __MODULE__ nested struct modules" do
+    facts =
+      collect("""
+      defmodule Container do
+        defmodule __MODULE__.Resolution do
+          defstruct [:id, :name, :value]
+        end
+      end
+
+      defmodule ResolutionBuilder do
+        def build_resolution(attrs), do: %{id: attrs.id, name: attrs.name, value: attrs.value}
+      end
+      """)
+
+    assert [%{struct: %{module: Container.Resolution}}] = facts
+  end
+
   test "requires near-equivalent shapes and excludes map patterns" do
     facts =
       collect("""
