@@ -27,6 +27,7 @@ defmodule Reach.Map.Analysis do
   }
 
   alias Reach.Project.Query
+  alias Reach.Source.Suppression
 
   @xref_variable_sample_limit 5
 
@@ -42,7 +43,8 @@ defmodule Reach.Map.Analysis do
       call_graph_edges: Graph.num_edges(project.call_graph),
       graph_nodes: map_size(project.nodes),
       graph_edges: Graph.num_edges(project.graph),
-      effects: Map.new(effects, fn {effect, count} -> {to_string(effect), count} end)
+      effects: Map.new(effects, fn {effect, count} -> {to_string(effect), count} end),
+      suppressions: Suppression.project_summary(project, path)
     )
   end
 

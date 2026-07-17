@@ -31,4 +31,15 @@ defmodule Reach.Check.Changed.Range do
 
   @spec change_line_count(t()) :: non_neg_integer()
   def change_line_count(%__MODULE__{} = range), do: max(range.old_count, range.new_count)
+
+  @spec contains_line?(t(), :old | :new, pos_integer()) :: boolean()
+  def contains_line?(%__MODULE__{old_count: 0}, :old, _line), do: false
+
+  def contains_line?(%__MODULE__{} = range, :old, line),
+    do: line >= range.old_start and line < range.old_start + range.old_count
+
+  def contains_line?(%__MODULE__{new_count: 0}, :new, _line), do: false
+
+  def contains_line?(%__MODULE__{} = range, :new, line),
+    do: line >= range.new_start and line < range.new_start + range.new_count
 end

@@ -74,6 +74,20 @@ defmodule Reach.Smell.SuppressionsTest do
     refute Enum.any?(Smells.run(project, []), &(&1.kind == :redundant_traversal))
   end
 
+  test "concise disable source comment suppresses the next line" do
+    path =
+      fixture("concise", """
+      defmodule Generated.Concise do
+        # reach:disable redundant_traversal -- generated compatibility layer
+        def run(items), do: items |> Enum.reverse() |> Enum.reverse()
+      end
+      """)
+
+    project = Project.from_sources([path])
+
+    refute Enum.any?(Smells.run(project, []), &(&1.kind == :redundant_traversal))
+  end
+
   test "disable-for-this-file suppresses all findings in the file" do
     path =
       fixture("this_file", """

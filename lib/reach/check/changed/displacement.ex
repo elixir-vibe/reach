@@ -228,20 +228,10 @@ defmodule Reach.Check.Changed.Displacement do
       changed_ranges
       |> Map.get(location.file, [])
       |> Enum.map(&Range.normalize/1)
-      |> Enum.any?(&line_in_range?(location.line, &1, side))
+      |> Enum.any?(&Range.contains_line?(&1, side, location.line))
     end)
     |> Enum.sort_by(&location_sort_key/1)
   end
-
-  defp line_in_range?(_line, %Range{old_count: 0}, :old), do: false
-
-  defp line_in_range?(line, %Range{} = range, :old),
-    do: line >= range.old_start and line < range.old_start + range.old_count
-
-  defp line_in_range?(_line, %Range{new_count: 0}, :new), do: false
-
-  defp line_in_range?(line, %Range{} = range, :new),
-    do: line >= range.new_start and line < range.new_start + range.new_count
 
   defp complete_access?(access) do
     access.function && access.logical_key && access_map_variable(access) &&

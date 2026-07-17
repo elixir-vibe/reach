@@ -10,6 +10,7 @@
 - Smell analysis now detects private multi-clause domain parsers that silently coerce unsupported input to an accepted constant, while excluding serializers and presentation mappings.
 - Changed-code analysis now reports strict field, fetch, and map-pattern access replaced by lenient `Map.get`, including malformed map-literal callers when available.
 - Changed-code analysis now classifies moved dual-key/default-drift evidence and exact whole-function clones as displaced when occurrence counts do not improve.
+- Changed-code analysis now inventories added and removed source suppressions and raises risk for additions without reasons, while project maps expose total and reasonless suppression counts.
 
 ### Fixed
 

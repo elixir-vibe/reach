@@ -8,7 +8,8 @@ defmodule Reach.Map.Summary do
     :call_graph_edges,
     :graph_nodes,
     :graph_edges,
-    :effects
+    :effects,
+    suppressions: %{total: 0, reasonless: 0}
   ]
 
   def new(attrs), do: struct!(__MODULE__, attrs)

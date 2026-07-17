@@ -107,6 +107,16 @@ Calibration notes:
 - A source-only pass over thirteen local projects initially found four intentional display/log-level defaults. Requiring every constrained clause to preserve the logical domain removed all four while retaining the LLM Proxy specimen.
 - The eight checksum-pinned Hex corpus packages produce no findings.
 
+## Source-suppression ratchet
+
+`Reach.Source.Suppression` parses `reach:disable`, `reach:disable-next-line`, and `reach:disable-for-this-file` directives into scope, sorted tokens, source/target lines, and an optional justification following ` -- `. The smell suppression filter consumes the same representation, so reporting and enforcement cannot drift apart.
+
+`Reach.Check.Changed.SuppressionRatchet` compares directive multisets across old/new changed-file snapshots. Stable identities exclude line numbers, preventing a moved unchanged comment from appearing new. Added and removed directives must occur on their corresponding changed hunk side. Added reasonless directives raise aggregate changed-code risk to at least medium; reasoned additions remain visible but do not alter risk.
+
+`mix reach.map` reports project-wide source-suppression and reasonless-suppression counts. This is inventory rather than smell policy: justified suppressions still count, so gradual growth remains observable.
+
+Calibration across thirteen local projects found one existing source suppression, a reasonless `bare_rescue` file suppression in HostKit. Historical search found its introduction in commit `031cdc1`, and the changed-code ratchet classifies that exact addition as reasonless. The eight checksum-pinned Hex corpus packages contain no Reach source suppressions.
+
 ## Fact displacement in changed code
 
 `Reach.Check.Changed.Displacement` builds parse-only old and new snapshots for changed Elixir files and compares location-independent evidence fingerprints. The initial families are atom/string dual-key contracts, conflicting literal-default sets, and ExDNA exact Type-I whole-function clones. Clone fingerprints are encoded as stable hexadecimal hashes at the evidence boundary.

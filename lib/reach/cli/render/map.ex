@@ -54,6 +54,10 @@ defmodule Reach.CLI.Render.Map do
 
       IO.puts("  dependence_graph=#{summary.graph_nodes} nodes/#{summary.graph_edges} edges")
 
+      IO.puts(
+        "  suppressions=#{summary.suppressions.total} reasonless=#{summary.suppressions.reasonless}"
+      )
+
       Enum.each(ordered_sections(sections), fn {key, data} ->
         IO.puts(Format.section(section_title(key)))
         render_text_section(key, data)
@@ -63,7 +67,7 @@ defmodule Reach.CLI.Render.Map do
 
   defp render_oneline_map(%{summary: summary, sections: sections}) do
     IO.puts(
-      "summary modules=#{summary.modules} functions=#{summary.functions} call_edges=#{summary.call_graph_edges} graph_edges=#{summary.graph_edges}"
+      "summary modules=#{summary.modules} functions=#{summary.functions} call_edges=#{summary.call_graph_edges} graph_edges=#{summary.graph_edges} suppressions=#{summary.suppressions.total} reasonless_suppressions=#{summary.suppressions.reasonless}"
     )
 
     Enum.each(ordered_sections(sections), fn

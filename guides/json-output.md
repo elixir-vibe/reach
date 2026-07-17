@@ -21,6 +21,23 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
   "command": "reach.check",
   "risk": "low",
   "confidence": "partial",
+  "suppression_report": {
+    "added": [
+      {
+        "scope": "next_line",
+        "tokens": ["default_drift"],
+        "reason": "legacy boundary",
+        "file": "lib/model.ex",
+        "line": 12,
+        "target_line": 13
+      }
+    ],
+    "removed": [],
+    "reasonless_added": [],
+    "unchanged_count": 1,
+    "total_before": 1,
+    "total_after": 2
+  },
   "displaced_facts": [
     {
       "family": "dual_key_contract",
@@ -59,4 +76,4 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
 }
 ```
 
-Risk summarizes assessed functions and high-confidence changed-code erosion events. `strictness_downgrades` reports required field access, `Map.fetch!/2`, or required map patterns replaced by lenient `Map.get/2,3`. `displaced_facts` reports stable evidence identities that moved without reducing their occurrence count. Check `confidence`, `coverage_percent`, and `unassessed_files` before using risk in automation.
+Risk summarizes assessed functions and high-confidence changed-code erosion events. `strictness_downgrades` reports required field access, `Map.fetch!/2`, or required map patterns replaced by lenient `Map.get/2,3`. `displaced_facts` reports stable evidence identities that moved without reducing their occurrence count. `suppression_report` distinguishes added, removed, unchanged, and reasonless source directives. Check `confidence`, `coverage_percent`, and `unassessed_files` before using risk in automation.

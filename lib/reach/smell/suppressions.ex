@@ -2,10 +2,9 @@ defmodule Reach.Smell.Suppressions do
   @moduledoc "Filters smell findings using config and source-level suppressions."
 
   alias Reach.Check.Architecture
+  alias Reach.Source.Suppression
 
   @all_tokens MapSet.new(["all", "smells"])
-  @next_line_prefix "# reach:disable-next-line"
-  @this_file_prefix "# reach:disable-for-this-file"
 
   def filter(findings, project, config) do
     source_suppressions = source_suppressions(findings)
@@ -96,38 +95,23 @@ defmodule Reach.Smell.Suppressions do
   end
 
   defp parse_file(file) do
-    if File.regular?(file) do
-      file
-      |> File.stream!(:line, [])
-      |> Stream.with_index(1)
-      |> Enum.reduce(%{file: MapSet.new(), lines: %{}}, &parse_line/2)
-    else
-      %{file: MapSet.new(), lines: %{}}
-    end
-  end
+    file
+    |> Suppression.parse_file()
+    |> Enum.reduce(%{file: MapSet.new(), lines: %{}}, fn directive, acc ->
+      tokens = MapSet.new(directive.tokens)
 
-  defp parse_line({line, number}, acc) do
-    trimmed = String.trim_leading(line)
+      case directive.scope do
+        :file ->
+          %{acc | file: MapSet.union(acc.file, tokens)}
 
-    cond do
-      String.starts_with?(trimmed, @this_file_prefix) ->
-        %{acc | file: MapSet.union(acc.file, tokens(trimmed, @this_file_prefix))}
-
-      String.starts_with?(trimmed, @next_line_prefix) ->
-        tokens = tokens(trimmed, @next_line_prefix)
-        %{acc | lines: Map.update(acc.lines, number + 1, tokens, &MapSet.union(&1, tokens))}
-
-      true ->
-        acc
-    end
-  end
-
-  defp tokens(line, prefix) do
-    line
-    |> String.trim()
-    |> String.replace_prefix(prefix, "")
-    |> String.split([",", " ", "\t"], trim: true)
-    |> MapSet.new()
+        :next_line ->
+          %{
+            acc
+            | lines:
+                Map.update(acc.lines, directive.target_line, tokens, &MapSet.union(&1, tokens))
+          }
+      end
+    end)
   end
 
   defp token_allowed?(tokens, kind) do

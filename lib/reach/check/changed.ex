@@ -8,6 +8,8 @@ defmodule Reach.Check.Changed do
   alias Reach.Check.Changed.Function, as: ChangedFunction
   alias Reach.Check.Changed.Range
   alias Reach.Check.Changed.Result
+  alias Reach.Check.Changed.SuppressionRatchet
+  alias Reach.Check.Changed.SuppressionReport
   alias Reach.Config
   alias Reach.Evidence.CloneAnalysis
   alias Reach.IR
@@ -30,6 +32,7 @@ defmodule Reach.Check.Changed do
     coverage = Coverage.analyze(files, changed_ranges, function_nodes)
     strictness_downgrades = AccessStrictness.analyze(project, base, changed_ranges, opts)
     displaced_facts = Displacement.analyze(project, base, changed_ranges, normalized_config, opts)
+    suppression_report = SuppressionRatchet.analyze(base, changed_ranges, opts)
 
     result(
       base,
@@ -38,13 +41,14 @@ defmodule Reach.Check.Changed do
       coverage,
       strictness_downgrades,
       displaced_facts,
+      suppression_report,
       normalized_config
     )
   end
 
   def empty_result(base, config, files \\ []) do
     coverage = Coverage.analyze(files, %{}, [])
-    result(base, files, [], coverage, [], [], Config.normalize(config))
+    result(base, files, [], coverage, [], [], %SuppressionReport{}, Config.normalize(config))
   end
 
   defp result(
@@ -54,6 +58,7 @@ defmodule Reach.Check.Changed do
          coverage,
          strictness_downgrades,
          displaced_facts,
+         suppression_report,
          config
        ) do
     tests = suggested_tests(files, functions, config.tests.hints)
@@ -63,6 +68,7 @@ defmodule Reach.Check.Changed do
       |> aggregate_change_risk()
       |> add_strictness_downgrade_risk(strictness_downgrades)
       |> add_displacement_risk(displaced_facts)
+      |> add_suppression_risk(suppression_report)
 
     Result.new(
       base: base,
@@ -75,6 +81,7 @@ defmodule Reach.Check.Changed do
       public_api_changes: Enum.filter(functions, & &1.public_api),
       strictness_downgrades: strictness_downgrades,
       displaced_facts: displaced_facts,
+      suppression_report: suppression_report,
       suggested_tests: tests
     )
   end
@@ -214,6 +221,14 @@ defmodule Reach.Check.Changed do
   defp add_displacement_risk({risk, reasons}, displaced_facts) do
     risk = if risk == :high, do: :high, else: :medium
     reason = "evidence displaced rather than resolved (#{length(displaced_facts)})"
+    {risk, reasons ++ [reason]}
+  end
+
+  defp add_suppression_risk(result, %{reasonless_added: []}), do: result
+
+  defp add_suppression_risk({risk, reasons}, report) do
+    risk = if risk == :high, do: :high, else: :medium
+    reason = "reasonless suppressions added (#{length(report.reasonless_added)})"
     {risk, reasons ++ [reason]}
   end
 

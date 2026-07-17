@@ -127,6 +127,8 @@ defmodule Reach.CLI.Render.Check do
       IO.puts("  reasons=#{Enum.join(result.risk_reasons, ", ")}")
     end
 
+    render_suppression_report(result.suppression_report)
+
     []
     |> add_omitted(
       render_limited_section("Changed files", result.changed_files, &IO.puts("  #{&1}"))
@@ -174,6 +176,35 @@ defmodule Reach.CLI.Render.Check do
       )
     )
     |> render_omitted_summary()
+  end
+
+  defp render_suppression_report(%{total_before: 0, total_after: 0}), do: :ok
+
+  defp render_suppression_report(report) do
+    IO.puts(
+      "\n#{Text.subsection("Suppression changes (#{length(report.added)} added, #{length(report.removed)} removed, #{report.unchanged_count} unchanged)")}"
+    )
+
+    directives =
+      Enum.map(report.added, &{"added", &1}) ++ Enum.map(report.removed, &{"removed", &1})
+
+    directives
+    |> Enum.take(@text_limit)
+    |> Enum.each(fn {status, directive} -> render_suppression_directive(status, directive) end)
+
+    omitted = length(directives) - @text_limit
+
+    if omitted > 0 do
+      IO.puts("  " <> Format.omitted("#{omitted} suppression changes omitted; use --format json"))
+    end
+  end
+
+  defp render_suppression_directive(status, directive) do
+    reason = directive.reason || Format.red("missing reason")
+
+    IO.puts(
+      "  #{status}: #{Format.loc(directive.file, directive.line)} #{Enum.join(directive.tokens, ",")} -- #{reason}"
+    )
   end
 
   defp render_displaced_fact(fact) do
