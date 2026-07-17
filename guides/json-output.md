@@ -65,6 +65,17 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
       "malformed_callers": []
     }
   ],
+  "shape_entropy_regressions": [
+    {
+      "target": "MyApp.Processor.process/1",
+      "parameter": "entity",
+      "old_entropy": 0.0,
+      "new_entropy": 0.8,
+      "delta": 0.8,
+      "old_variants": [["email", "id", "name"]],
+      "new_variants": [["email", "id", "name"], ["id", "role", "status"]]
+    }
+  ],
   "coverage": {
     "coverage_percent": 72.5,
     "changed_line_count": 40,
@@ -78,4 +89,4 @@ Changed-code results include top-level `risk` and `confidence` fields plus a det
 }
 ```
 
-Risk summarizes assessed functions and high-confidence changed-code erosion events. `strictness_downgrades` reports required field access, `Map.fetch!/2`, or required map patterns replaced by lenient `Map.get/2,3`. `displaced_facts` reports stable evidence identities that moved without reducing their occurrence count. `suppression_report` distinguishes added, removed, unchanged, and reasonless source directives. Check `confidence`, `coverage_percent`, and `unassessed_files` before using risk in automation.
+Risk summarizes assessed functions and high-confidence changed-code erosion events. `strictness_downgrades` reports required field access, `Map.fetch!/2`, or required map patterns replaced by lenient `Map.get/2,3`. `shape_entropy_regressions` reports changed callers that widen a consumed parameter's fixed-map contract. `displaced_facts` reports stable evidence identities that moved without reducing their occurrence count. `suppression_report` distinguishes added, removed, unchanged, and reasonless source directives. Check `confidence`, `coverage_percent`, and `unassessed_files` before using risk in automation.

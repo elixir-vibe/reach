@@ -36,6 +36,10 @@ defmodule ReachCalibration.CandidatesTest do
     assert Candidates.patterns(MapSet.new([:same_entity_representation])) == ["defstruct _"]
   end
 
+  test "uses fixed map reads to prefilter parameter entropy checks" do
+    assert Candidates.patterns(MapSet.new([:parameter_shape_entropy])) == ["Map.get(_, _)"]
+  end
+
   test "uses nil-argument prefilters for nil guard checks" do
     patterns = Candidates.patterns(MapSet.new([:nil_parameter_without_guard]))
 

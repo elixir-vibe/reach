@@ -1,0 +1,13 @@
+defmodule Reach.Smell.ParameterShapePolicy do
+  @moduledoc "Shared promotion policy for absolute and changed parameter-shape entropy."
+
+  @spec eligible?(Reach.Evidence.ParameterShape.Fact.t(), map()) :: boolean()
+  def eligible?(fact, config) do
+    fact.role == :domain and not fact.intentional_dispatch? and not fact.tagged_variants? and
+      length(fact.callers) >= config.min_callers and
+      length(fact.variants) >= config.min_variants and
+      length(fact.union_keys) >= config.min_union_keys and
+      length(fact.consumed_keys) >= config.min_consumed_keys and
+      fact.entropy >= config.min_entropy
+  end
+end

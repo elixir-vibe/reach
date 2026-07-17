@@ -70,6 +70,16 @@ Reach.Evidence.external_data_boundaries(project)
 
 Raw facts include intentionally dynamic stores. The high-confidence `decoded_boundary_leakage` smell therefore requires downstream use of at least two distinct literal map keys in the same module. Generic decoded stores accessed only through dynamic keys remain evidence-only. Fixed-contract facts also retain the boundary function and matching literal-key consumer functions, allowing candidate generation to compute a precise, bounded impact list without re-parsing source. `Reach.Evidence.Impact` owns the reusable call-graph traversal consumed by both boundary candidates and target-local `Reach.Inspect.Impact`.
 
+## Parameter-shape evidence
+
+`Reach.Evidence.ParameterShape` follows literal fixed-shape maps through assignments and statically resolved project calls, then groups the observed key sets by target parameter. Facts include callers, shape variants, core/union/optional keys, a normalized key entropy (`1 - core/union`), keys consumed by the callee, parameter role, literal variant tags, and explicit multi-clause dispatch.
+
+```elixir
+Reach.Evidence.parameter_shapes(project)
+```
+
+Lineage is deliberately transparent-only: map literals flow through variables and assignments, but Reach does not descend through arbitrary calls or containers where a nested map could be mistaken for the whole argument. The `parameter_shape_entropy` smell requires multiple callers and variants, domain-role naming, multiple consumed contract keys, and excludes tagged or clause-dispatched unions.
+
 ## Representation-overlap evidence
 
 `Reach.Evidence.RepresentationOverlap` compares source-declared `defstruct` fields with bare atom-key map constructions in other modules. Facts retain both locations, shared and exclusive keys, Jaccard similarity, entity-name evidence, direct projection sources, map role, and immediate normalization targets.

@@ -16,6 +16,7 @@
 - Smell analysis now detects incompatible success return structures and nested duplicate `:ok` tags across function clauses and branches.
 - Smell analysis now reports proven nil-capable parameters that reach strict uses without a dominating non-nil guard.
 - Smell analysis now identifies cross-module bare maps that duplicate an existing canonical struct entity while excluding projections and boundary representations.
+- Smell analysis now reports consumed domain parameters receiving divergent fixed map shapes, while changed-code checks flag entropy increases.
 
 ### Fixed
 

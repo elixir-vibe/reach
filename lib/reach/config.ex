@@ -111,7 +111,8 @@ defmodule Reach.Config do
               dsl_macros: [],
               fixed_shape_map: nil,
               behaviour_candidate: nil,
-              representation_overlap: nil
+              representation_overlap: nil,
+              parameter_shape_entropy: nil
   end
 
   defmodule Smells.FixedShapeMap do
@@ -136,6 +137,17 @@ defmodule Reach.Config do
     defstruct min_shared_keys: 3,
               min_similarity: 0.8,
               require_name_match: true,
+              evidence_limit: 8
+  end
+
+  defmodule Smells.ParameterShapeEntropy do
+    @moduledoc false
+    defstruct min_callers: 2,
+              min_variants: 2,
+              min_union_keys: 3,
+              min_consumed_keys: 2,
+              min_entropy: 0.5,
+              min_entropy_delta: 0.25,
               evidence_limit: 8
   end
 
@@ -363,6 +375,21 @@ defmodule Reach.Config do
             nested(config, [:smells, :representation_overlap, :require_name_match], nil, true),
           evidence_limit:
             nested(config, [:smells, :representation_overlap, :evidence_limit], nil, 8)
+        },
+        parameter_shape_entropy: %Smells.ParameterShapeEntropy{
+          min_callers: nested(config, [:smells, :parameter_shape_entropy, :min_callers], nil, 2),
+          min_variants:
+            nested(config, [:smells, :parameter_shape_entropy, :min_variants], nil, 2),
+          min_union_keys:
+            nested(config, [:smells, :parameter_shape_entropy, :min_union_keys], nil, 3),
+          min_consumed_keys:
+            nested(config, [:smells, :parameter_shape_entropy, :min_consumed_keys], nil, 2),
+          min_entropy:
+            nested(config, [:smells, :parameter_shape_entropy, :min_entropy], nil, 0.5),
+          min_entropy_delta:
+            nested(config, [:smells, :parameter_shape_entropy, :min_entropy_delta], nil, 0.25),
+          evidence_limit:
+            nested(config, [:smells, :parameter_shape_entropy, :evidence_limit], nil, 8)
         }
       }
     }
@@ -409,7 +436,8 @@ defmodule Reach.Config do
       smells
       | fixed_shape_map: smells.fixed_shape_map || %Smells.FixedShapeMap{},
         behaviour_candidate: smells.behaviour_candidate || %Smells.BehaviourCandidate{},
-        representation_overlap: smells.representation_overlap || %Smells.RepresentationOverlap{}
+        representation_overlap: smells.representation_overlap || %Smells.RepresentationOverlap{},
+        parameter_shape_entropy: smells.parameter_shape_entropy || %Smells.ParameterShapeEntropy{}
     }
   end
 
@@ -417,7 +445,8 @@ defmodule Reach.Config do
     %Smells{
       fixed_shape_map: %Smells.FixedShapeMap{},
       behaviour_candidate: %Smells.BehaviourCandidate{},
-      representation_overlap: %Smells.RepresentationOverlap{}
+      representation_overlap: %Smells.RepresentationOverlap{},
+      parameter_shape_entropy: %Smells.ParameterShapeEntropy{}
     }
   end
 
@@ -650,6 +679,12 @@ defmodule Reach.Config do
     |> check(config, [:smells, :representation_overlap], &valid_group?/1, "expected keyword list")
     |> check(
       config,
+      [:smells, :parameter_shape_entropy],
+      &valid_group?/1,
+      "expected keyword list"
+    )
+    |> check(
+      config,
       [:smells, :fixed_shape_map, :min_keys],
       &valid_positive_integer?/1,
       "expected positive integer"
@@ -723,6 +758,48 @@ defmodule Reach.Config do
     |> check(
       config,
       [:smells, :representation_overlap, :evidence_limit],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:smells, :parameter_shape_entropy, :min_callers],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:smells, :parameter_shape_entropy, :min_variants],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:smells, :parameter_shape_entropy, :min_union_keys],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:smells, :parameter_shape_entropy, :min_consumed_keys],
+      &valid_positive_integer?/1,
+      "expected positive integer"
+    )
+    |> check(
+      config,
+      [:smells, :parameter_shape_entropy, :min_entropy],
+      &valid_positive_similarity?/1,
+      "expected number greater than zero and at most one"
+    )
+    |> check(
+      config,
+      [:smells, :parameter_shape_entropy, :min_entropy_delta],
+      &valid_positive_similarity?/1,
+      "expected number greater than zero and at most one"
+    )
+    |> check(
+      config,
+      [:smells, :parameter_shape_entropy, :evidence_limit],
       &valid_positive_integer?/1,
       "expected positive integer"
     )
@@ -929,7 +1006,8 @@ defmodule Reach.Config do
       :dsl_macros,
       :fixed_shape_map,
       :behaviour_candidate,
-      :representation_overlap
+      :representation_overlap,
+      :parameter_shape_entropy
     ])
     |> unknown_nested_key_errors(config, [:smells, :ignore], [:paths, :modules])
     |> unknown_nested_key_errors(config, [:smells, :fixed_shape_map], [
@@ -954,6 +1032,15 @@ defmodule Reach.Config do
       :min_shared_keys,
       :min_similarity,
       :require_name_match,
+      :evidence_limit
+    ])
+    |> unknown_nested_key_errors(config, [:smells, :parameter_shape_entropy], [
+      :min_callers,
+      :min_variants,
+      :min_union_keys,
+      :min_consumed_keys,
+      :min_entropy,
+      :min_entropy_delta,
       :evidence_limit
     ])
   end

@@ -100,6 +100,15 @@ The file must evaluate to a keyword list. Start from [`examples/reach.exs`](../e
       min_similarity: 0.8,
       require_name_match: true,
       evidence_limit: 8
+    ],
+    parameter_shape_entropy: [
+      min_callers: 2,
+      min_variants: 2,
+      min_union_keys: 3,
+      min_consumed_keys: 2,
+      min_entropy: 0.5,
+      min_entropy_delta: 0.25,
+      evidence_limit: 8
     ]
   ],
   tests: [
@@ -473,6 +482,15 @@ smells: [
     min_similarity: 0.8,
     require_name_match: true,
     evidence_limit: 8
+  ],
+  parameter_shape_entropy: [
+    min_callers: 2,
+    min_variants: 2,
+    min_union_keys: 3,
+    min_consumed_keys: 2,
+    min_entropy: 0.5,
+    min_entropy_delta: 0.25,
+    evidence_limit: 8
   ]
 ]
 ```
@@ -605,6 +623,8 @@ Use `smells[:fixed_shape_map]` and `smells[:behaviour_candidate]` when a codebas
 
 `smells[:representation_overlap]` controls cross-module bare maps that resemble an existing struct. `min_similarity` is Jaccard key similarity, `min_shared_keys` prevents generic tiny shapes, and `require_name_match` keeps promotion tied to entity-bearing variable/function/module names. Keep name matching enabled unless reviewing broad evidence manually.
 
+`smells[:parameter_shape_entropy]` controls divergent fixed maps reaching one parameter. `min_consumed_keys` requires the callee to use the map as a contract rather than merely transport it. `min_entropy_delta` controls changed-code regression reporting independently of the absolute `min_entropy` gate.
+
 ### `tests[:hints]`
 
 Suggest tests for changed paths.
@@ -656,6 +676,7 @@ Reach validates `.reach.exs` shape and reports `config_error` entries for:
 - invalid `smells[:fixed_shape_map]`
 - invalid `smells[:behaviour_candidate]`
 - invalid `smells[:representation_overlap]`
+- invalid `smells[:parameter_shape_entropy]`
 - invalid `clone_analysis`
 - invalid `tests[:hints]`
 

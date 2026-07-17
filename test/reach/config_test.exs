@@ -85,6 +85,15 @@ defmodule Reach.ConfigTest do
                    min_similarity: 0.9,
                    require_name_match: false,
                    evidence_limit: 5
+                 ],
+                 parameter_shape_entropy: [
+                   min_callers: 3,
+                   min_variants: 3,
+                   min_union_keys: 5,
+                   min_consumed_keys: 3,
+                   min_entropy: 0.7,
+                   min_entropy_delta: 0.2,
+                   evidence_limit: 6
                  ]
                ],
                clone_analysis: [
@@ -160,6 +169,13 @@ defmodule Reach.ConfigTest do
     assert config.smells.representation_overlap.min_similarity == 0.9
     assert config.smells.representation_overlap.require_name_match == false
     assert config.smells.representation_overlap.evidence_limit == 5
+    assert config.smells.parameter_shape_entropy.min_callers == 3
+    assert config.smells.parameter_shape_entropy.min_variants == 3
+    assert config.smells.parameter_shape_entropy.min_union_keys == 5
+    assert config.smells.parameter_shape_entropy.min_consumed_keys == 3
+    assert config.smells.parameter_shape_entropy.min_entropy == 0.7
+    assert config.smells.parameter_shape_entropy.min_entropy_delta == 0.2
+    assert config.smells.parameter_shape_entropy.evidence_limit == 6
     assert config.clone_analysis.provider == :ex_dna
     assert config.clone_analysis.min_mass == 12
     assert config.clone_analysis.min_occurrences == 3
@@ -300,7 +316,8 @@ defmodule Reach.ConfigTest do
                candidates: [thresholds: [mixed_effect_count: "many"]],
                smells: [
                  fixed_shape_map: [min_keys: 0],
-                 representation_overlap: [min_similarity: 2.0]
+                 representation_overlap: [min_similarity: 2.0],
+                 parameter_shape_entropy: [min_entropy: 0.0, min_entropy_delta: 2.0]
                ],
                clone_analysis: [provider: :unknown]
              )
@@ -324,6 +341,15 @@ defmodule Reach.ConfigTest do
 
     assert %{key: "smells.representation_overlap.min_similarity"} =
              Enum.find(violations, &(&1.key == "smells.representation_overlap.min_similarity"))
+
+    assert %{key: "smells.parameter_shape_entropy.min_entropy"} =
+             Enum.find(violations, &(&1.key == "smells.parameter_shape_entropy.min_entropy"))
+
+    assert %{key: "smells.parameter_shape_entropy.min_entropy_delta"} =
+             Enum.find(
+               violations,
+               &(&1.key == "smells.parameter_shape_entropy.min_entropy_delta")
+             )
 
     assert %{key: "clone_analysis.provider"} =
              Enum.find(violations, &(&1.key == "clone_analysis.provider"))

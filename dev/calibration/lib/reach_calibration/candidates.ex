@@ -22,6 +22,7 @@ defmodule ReachCalibration.Candidates do
     return_shape_divergence: ["{:ok, _}"],
     nested_return_tag: ["{:ok, {:ok, _}}"],
     same_entity_representation: ["defstruct _"],
+    parameter_shape_entropy: ["Map.get(_, _)"],
     nil_parameter_without_guard: [
       "_(nil)",
       "_(nil, _)",

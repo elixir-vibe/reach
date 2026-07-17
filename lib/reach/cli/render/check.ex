@@ -165,6 +165,13 @@ defmodule Reach.CLI.Render.Check do
     )
     |> add_omitted(
       render_limited_section(
+        "Parameter shape entropy regressions",
+        result.shape_entropy_regressions,
+        &render_entropy_regression/1
+      )
+    )
+    |> add_omitted(
+      render_limited_section(
         "Access strictness downgrades",
         result.strictness_downgrades,
         &render_strictness_downgrade/1
@@ -225,6 +232,14 @@ defmodule Reach.CLI.Render.Check do
     IO.puts("    #{fact.message}")
     IO.puts("    suggestion=#{fact.suggestion}")
   end
+
+  defp render_entropy_regression(regression) do
+    IO.puts(
+      "  #{Format.loc(regression.file, regression.line)} #{regression.target} parameter=#{regression.parameter} entropy=#{format_entropy(regression.old_entropy)} -> #{format_entropy(regression.new_entropy)} delta=+#{format_entropy(regression.delta)}"
+    )
+  end
+
+  defp format_entropy(value), do: :erlang.float_to_binary(value, decimals: 2)
 
   defp render_strictness_downgrade(downgrade) do
     IO.puts(

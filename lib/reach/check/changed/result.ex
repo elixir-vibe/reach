@@ -14,6 +14,7 @@ defmodule Reach.Check.Changed.Result do
     :suggested_tests,
     strictness_downgrades: [],
     displaced_facts: [],
+    shape_entropy_regressions: [],
     suppression_report: %Reach.Check.Changed.SuppressionReport{}
   ]
 
@@ -28,6 +29,7 @@ defmodule Reach.Check.Changed.Result do
           public_api_changes: [Reach.Check.Changed.Function.t()],
           strictness_downgrades: [Reach.Check.Changed.StrictnessDowngrade.t()],
           displaced_facts: [Reach.Check.Changed.DisplacedFact.t()],
+          shape_entropy_regressions: [Reach.Check.Changed.EntropyRegression.t()],
           suppression_report: Reach.Check.Changed.SuppressionReport.t(),
           suggested_tests: [Path.t()]
         }

@@ -8,6 +8,7 @@ defmodule Reach.Check.Changed do
   alias Reach.Check.Changed.Function, as: ChangedFunction
   alias Reach.Check.Changed.Range
   alias Reach.Check.Changed.Result
+  alias Reach.Check.Changed.ShapeEntropy
   alias Reach.Check.Changed.SuppressionRatchet
   alias Reach.Check.Changed.SuppressionReport
   alias Reach.Config
@@ -32,42 +33,48 @@ defmodule Reach.Check.Changed do
     coverage = Coverage.analyze(files, changed_ranges, function_nodes)
     strictness_downgrades = AccessStrictness.analyze(project, base, changed_ranges, opts)
     displaced_facts = Displacement.analyze(project, base, changed_ranges, normalized_config, opts)
+
+    entropy_regressions =
+      ShapeEntropy.analyze(project, base, changed_ranges, normalized_config, opts)
+
     suppression_report = SuppressionRatchet.analyze(base, changed_ranges, opts)
 
-    result(
-      base,
-      files,
-      functions,
-      coverage,
-      strictness_downgrades,
-      displaced_facts,
-      suppression_report,
-      normalized_config
-    )
+    events = %{
+      strictness_downgrades: strictness_downgrades,
+      displaced_facts: displaced_facts,
+      entropy_regressions: entropy_regressions,
+      suppression_report: suppression_report
+    }
+
+    result(base, files, functions, coverage, events, normalized_config)
   end
 
   def empty_result(base, config, files \\ []) do
     coverage = Coverage.analyze(files, %{}, [])
-    result(base, files, [], coverage, [], [], %SuppressionReport{}, Config.normalize(config))
+
+    events = %{
+      strictness_downgrades: [],
+      displaced_facts: [],
+      entropy_regressions: [],
+      suppression_report: %SuppressionReport{}
+    }
+
+    result(base, files, [], coverage, events, Config.normalize(config))
   end
 
-  defp result(
-         base,
-         files,
-         functions,
-         coverage,
-         strictness_downgrades,
-         displaced_facts,
-         suppression_report,
-         config
-       ) do
+  defp result(base, files, functions, coverage, events, config) do
     tests = suggested_tests(files, functions, config.tests.hints)
+    strictness_downgrades = events.strictness_downgrades
+    displaced_facts = events.displaced_facts
+    entropy_regressions = events.entropy_regressions
+    suppression_report = events.suppression_report
 
     {risk, risk_reasons} =
       functions
       |> aggregate_change_risk()
       |> add_strictness_downgrade_risk(strictness_downgrades)
       |> add_displacement_risk(displaced_facts)
+      |> add_entropy_regression_risk(entropy_regressions)
       |> add_suppression_risk(suppression_report)
 
     Result.new(
@@ -81,6 +88,7 @@ defmodule Reach.Check.Changed do
       public_api_changes: Enum.filter(functions, & &1.public_api),
       strictness_downgrades: strictness_downgrades,
       displaced_facts: displaced_facts,
+      shape_entropy_regressions: entropy_regressions,
       suppression_report: suppression_report,
       suggested_tests: tests
     )
@@ -221,6 +229,14 @@ defmodule Reach.Check.Changed do
   defp add_displacement_risk({risk, reasons}, displaced_facts) do
     risk = if risk == :high, do: :high, else: :medium
     reason = "evidence displaced rather than resolved (#{length(displaced_facts)})"
+    {risk, reasons ++ [reason]}
+  end
+
+  defp add_entropy_regression_risk(result, []), do: result
+
+  defp add_entropy_regression_risk({risk, reasons}, regressions) do
+    risk = if risk == :high, do: :high, else: :medium
+    reason = "parameter shape entropy increased (#{length(regressions)})"
     {risk, reasons ++ [reason]}
   end
 

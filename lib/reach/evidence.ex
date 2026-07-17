@@ -10,6 +10,7 @@ defmodule Reach.Evidence do
     CloneAnalysis,
     ExternalDataBoundary,
     NilParameter,
+    ParameterShape,
     RepresentationOverlap,
     ReturnContract
   }
@@ -45,6 +46,9 @@ defmodule Reach.Evidence do
   @doc "Returns near-equivalent struct and bare-map representations across modules."
   def representation_overlaps(project, opts \\ []),
     do: RepresentationOverlap.collect_project(project, opts)
+
+  @doc "Returns map-shape variation flowing into function parameters."
+  def parameter_shapes(project), do: ParameterShape.collect_project(project)
 
   @doc "Returns generic project-to-dependency reimplementation evidence."
   def dependency_bypass(project, config \\ []) do
