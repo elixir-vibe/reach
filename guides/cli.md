@@ -67,6 +67,8 @@ mix reach.check --candidates
 
 `return_shape_divergence` reports incompatible success contracts within one function, including bare `:ok` mixed with `{:ok, value}`, raw values mixed with tagged success, and inconsistent success-tuple arity. `nested_return_tag` reports duplicate success wrappers. Messages include every proven terminal shape and source line.
 
+`nil_parameter_without_guard` reports a parameter proven nil-capable by a call, default, or matching clause when a strict use has no dominating non-nil proof. The finding identifies both the nil source and unsafe use; fix the contract with a clause-head guard or normalize before every reported path rather than rescuing the eventual crash.
+
 Changed-code output reports **risk** and **assessment confidence** separately. Risk is derived from the functions Reach could analyze plus high-confidence contract-erosion events; confidence describes how much of the diff mapped to current function definitions:
 
 - `high` — every changed line unit was assessed;

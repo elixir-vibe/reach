@@ -70,6 +70,18 @@ Reach.Evidence.external_data_boundaries(project)
 
 Raw facts include intentionally dynamic stores. The high-confidence `decoded_boundary_leakage` smell therefore requires downstream use of at least two distinct literal map keys in the same module. Generic decoded stores accessed only through dynamic keys remain evidence-only. Fixed-contract facts also retain the boundary function and matching literal-key consumer functions, allowing candidate generation to compute a precise, bounded impact list without re-parsing source. `Reach.Evidence.Impact` owns the reusable call-graph traversal consumed by both boundary candidates and target-local `Reach.Inspect.Impact`.
 
+## Nil-parameter evidence
+
+`Reach.Evidence.NilParameter` combines call evidence with per-function control flow. A parameter becomes nil-capable only when Reach observes a literal nil argument, a nil default, or a matching nil clause. Nil-clause evidence retains the other parameter patterns, so a clause for `(:with_cte, nil)` does not make the same parameter nullable in an unrelated `(:from, value)` clause.
+
+For each applicable clause, the provider records field/dynamic receiver uses, strict `Map` operations, and calls into project functions whose corresponding parameter rejects nil in every clause. Default-arity wrappers inherit the full function's proven parameter requirement. Reach then builds the existing `Reach.ControlFlow` graph and uses `Reach.Dominator` to verify that a non-nil pattern, guard, branch, or prior exhaustive nil clause dominates each use. Short-circuit boolean guards, source-path feasibility through literal/defaulted companion arguments, and nested callback shadowing are modeled separately to avoid impossible paths or treating a different lexical binding as the parameter.
+
+```elixir
+Reach.Evidence.nil_parameters(project)
+```
+
+Facts retain nil source locations, exact use locations, and dominating guard vertices. The provider intentionally does not infer nilability from unknown callers or infer external library contracts beyond a small platform-level strict-map set.
+
 ## Return-contract evidence
 
 `Reach.Evidence.ReturnContract` collects terminal expressions across function clauses and explicit `case`, `cond`, `if`, `with`, `receive`, and `try` branches. Outcomes retain structural classes, exact tagged-tuple arity, source lines, nested identical tags, and whether the function is marked `@impl`.

@@ -6,7 +6,7 @@ defmodule Reach.Evidence do
   something is a user-facing finding; smell and check modules own that policy.
   """
 
-  alias Reach.Evidence.{CloneAnalysis, ExternalDataBoundary, ReturnContract}
+  alias Reach.Evidence.{CloneAnalysis, ExternalDataBoundary, NilParameter, ReturnContract}
 
   @ast_providers [
     Reach.Evidence.StandardLibraryBypass,
@@ -32,6 +32,9 @@ defmodule Reach.Evidence do
 
   @doc "Returns terminal return-shape evidence grouped by function."
   def return_contracts(project), do: ReturnContract.collect_project(project)
+
+  @doc "Returns nil-capable parameter uses and guard-dominance evidence."
+  def nil_parameters(project), do: NilParameter.collect_project(project)
 
   @doc "Returns generic project-to-dependency reimplementation evidence."
   def dependency_bypass(project, config \\ []) do

@@ -21,6 +21,14 @@ defmodule ReachCalibration.Candidates do
     ],
     return_shape_divergence: ["{:ok, _}"],
     nested_return_tag: ["{:ok, {:ok, _}}"],
+    nil_parameter_without_guard: [
+      "_(nil)",
+      "_(nil, _)",
+      "_(_, nil)",
+      "_(nil, _, _)",
+      "_(_, nil, _)",
+      "_(_, _, nil)"
+    ],
     total_function_laundering: ["_ when _ in [_, _]", "defp _(_), do: _"]
   }
 

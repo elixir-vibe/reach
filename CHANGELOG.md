@@ -14,6 +14,7 @@
 - Smell analysis now detects decoded external fixed-shape payloads crossing storage or process boundaries without explicit normalization.
 - Fixed decoded-boundary evidence now produces advisory contract-normalization candidates with draft structs/schemas and graph-backed blast radii.
 - Smell analysis now detects incompatible success return structures and nested duplicate `:ok` tags across function clauses and branches.
+- Smell analysis now reports proven nil-capable parameters that reach strict uses without a dominating non-nil guard.
 
 ### Fixed
 

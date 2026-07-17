@@ -32,6 +32,20 @@ defmodule ReachCalibration.CandidatesTest do
            ]
   end
 
+  test "uses nil-argument prefilters for nil guard checks" do
+    patterns = Candidates.patterns(MapSet.new([:nil_parameter_without_guard]))
+
+    assert MapSet.new(patterns) ==
+             MapSet.new([
+               "_(nil)",
+               "_(nil, _)",
+               "_(_, nil)",
+               "_(nil, _, _)",
+               "_(_, nil, _)",
+               "_(_, _, nil)"
+             ])
+  end
+
   test "falls back to package-version selection when any kind lacks a safe prefilter" do
     assert Candidates.patterns(MapSet.new([:dual_key_fallback, :unmapped_kind])) == :all
     assert Candidates.patterns(nil) == :all

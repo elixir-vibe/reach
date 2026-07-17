@@ -95,6 +95,20 @@ Calibration notes:
 - Thirteen current local projects and the eight checksum-pinned Hex packages produce no findings or boundary-contract candidates.
 - Exograph structural search for `Poison.decode!(_)` returned a capped 100 candidates across 47 packages. A deterministic 25-package source sample produced one raw evidence fact in `country_data`, whose intentionally dynamic-key GenServer store remains evidence-only after the literal-consumer discriminator; no sampled package produced a smell.
 
+## Nil-capable parameters without dominating guards
+
+`nil_parameter_without_guard` requires two independent facts: a literal nil reaches a parameter (or the definition explicitly supplies/accepts nil), and a strict use is reachable without a dominating non-nil proof. Strict uses are limited to field/dynamic receiver access, strict platform map operations, and calls into project functions whose parameter patterns reject nil in every clause. The finding points at the unsafe use while retaining the nil-producing call/default/clause as evidence.
+
+Guard proof uses `Reach.ControlFlow` plus `Reach.Dominator`. Clause-head patterns, `when` guards, positive and reversed `if` checks, exhaustive prior nil clauses, matching multi-parameter dispatch, and short-circuit boolean evaluation clear the use. Definition-level nil evidence is scoped to one IR definition, and nil clauses retain their other patterns; these two constraints avoid conditional-compilation and unrelated-dispatch false positives. Anonymous-function and case-clause bindings that shadow the parameter are not attributed to it.
+
+Calibration notes:
+
+- The first broad pass produced twenty-four findings across thirteen source corpora. Every one was intentional: matching multi-parameter nil dispatch, callback-variable shadowing, short-circuit receiver guards, or conditional-compilation definitions.
+- Context-sensitive nil sources, pattern coverage, lexical binding isolation, short-circuit proof, and source-path feasibility reduced the same corpus to one reviewed finding: `Plausible.Teams.Billing.monthly_pageview_usage(nil, _)` calls `usage_cycle(nil, ...)`, which preloads nil and then reads `team.subscription`.
+- The eight checksum-pinned Hex packages produce zero findings.
+- The historical LLM Proxy `07ed32b~1` response-handler source produces both intended findings when the two nil calls from the regression specimen are included: the two- and three-argument handlers pass nil to the struct-restricted token-pool function. Revision `07ed32b` is clean because `not is_nil(token)` moved into the helper clause head.
+- Hex-wide `_(nil)` prefilters by argument position were registered for arities one through three. The live Exograph structural endpoint returned HTTP 500 during the 2026-07-13 calibration, so no unsupported prevalence count is claimed.
+
 ## Return-shape divergence
 
 `Reach.Evidence.ReturnContract` records terminal return structures per function across clauses and explicit branches. `return_shape_divergence` is intentionally narrower than general union-return analysis: it reports only conflicts around the success tag—bare `:ok` versus tagged `{:ok, value}`, tagged success mixed with a known raw value, or multiple arities for the `:ok` tag. `nested_return_tag` separately reports duplicate success wrappers such as `{:ok, {:ok, value}}`.
