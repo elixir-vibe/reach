@@ -50,6 +50,17 @@ defmodule Reach.Evidence.ReturnContractTest do
     assert Enum.any?(dynamic.outcomes, &(&1.class == :dynamic))
   end
 
+  test "classifies nested __MODULE__ struct aliases without crashing" do
+    [fact] =
+      collect("""
+      defmodule DynamicStructReturn do
+        def build, do: %__MODULE__.Result{}
+      end
+      """)
+
+    assert [%{class: :struct, shape: {:struct, "__MODULE__.Result"}}] = fact.outcomes
+  end
+
   test "marks @impl functions for policy filtering" do
     [fact] =
       collect("""

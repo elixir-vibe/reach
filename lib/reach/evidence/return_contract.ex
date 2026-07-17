@@ -304,8 +304,12 @@ defmodule Reach.Evidence.ReturnContract do
   defp expression_meta({_form, meta, _args}) when is_list(meta), do: meta
   defp expression_meta(_expression), do: nil
 
-  defp module_label({:__aliases__, _meta, parts}) when is_list(parts),
-    do: Enum.map_join(parts, ".", &to_string/1)
+  defp module_label({:__aliases__, _meta, _parts} = alias_ast) do
+    case Reach.AST.module_name(alias_ast) do
+      {:ok, module} -> inspect(module)
+      :error -> Macro.to_string(alias_ast)
+    end
+  end
 
   defp module_label(module) when is_atom(module), do: inspect(module)
   defp module_label(_dynamic), do: "struct"
