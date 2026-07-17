@@ -41,7 +41,12 @@ defmodule Reach.Scripts.MacroFactScanTest do
   defp scan(args) do
     System.cmd("mix", ["run", "--no-compile", "scripts/macro_fact_scan.exs", "--" | args],
       stderr_to_stdout: true,
-      env: [{"NO_COLOR", "1"}, {"CLICOLOR", "0"}, {"TERM", "dumb"}]
+      env: [
+        {"MIX_ENV", Atom.to_string(Mix.env())},
+        {"NO_COLOR", "1"},
+        {"CLICOLOR", "0"},
+        {"TERM", "dumb"}
+      ]
     )
   end
 end
