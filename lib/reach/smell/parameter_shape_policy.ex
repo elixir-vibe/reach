@@ -8,6 +8,12 @@ defmodule Reach.Smell.ParameterShapePolicy do
       length(fact.variants) >= config.min_variants and
       length(fact.union_keys) >= config.min_union_keys and
       length(fact.consumed_keys) >= config.min_consumed_keys and
-      fact.entropy >= config.min_entropy
+      consumes_variant_key?(fact) and fact.entropy >= config.min_entropy
+  end
+
+  defp consumes_variant_key?(fact) do
+    consumed = MapSet.new(fact.consumed_keys)
+    optional = MapSet.new(fact.optional_keys)
+    not MapSet.disjoint?(consumed, optional)
   end
 end

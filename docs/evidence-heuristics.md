@@ -97,7 +97,7 @@ Calibration notes:
 
 ## Parameter-shape entropy
 
-`Reach.Evidence.ParameterShape` groups fixed map shapes flowing into each resolved project parameter. Entropy is the fraction of union keys absent from the intersection: zero means every observed caller supplies the same keys, while one means no key is universal. `parameter_shape_entropy` requires multiple distinct callers and variants, a domain-role parameter, at least two keys actually consumed by the callee, and configurable minimum union size and entropy.
+`Reach.Evidence.ParameterShape` groups fixed map shapes flowing into each resolved project parameter. Entropy is the fraction of union keys absent from the intersection: zero means every observed caller supplies the same keys, while one means no key is universal. `parameter_shape_entropy` requires multiple distinct callers and variants, a domain-role parameter, at least two keys actually consumed by the callee, at least one consumed key that varies between shapes, and configurable minimum union size and entropy.
 
 Options/config/external/transport parameter names remain evidence-only. Explicit multi-clause map dispatch and common literal variant tags such as `:type`, `:kind`, or `:status` are treated as intentional unions. Lineage follows only maps that are the whole argument through variables/assignments; it stops at calls and containers to avoid attributing nested metadata maps to an enclosing struct or query.
 
@@ -108,6 +108,7 @@ Calibration notes:
 - The first broad policy produced thirty-three candidates across thirteen source corpora. They were dominated by changeset attributes, query/update maps, event payloads, telemetry metadata, generic repository APIs, and explicit tagged dispatch.
 - Transparent-only lineage, non-contract roles, consumed-key proof, and dispatch/tag exclusions reduced the current thirteen-project corpus to zero default findings while retaining 182 reusable parameter-shape facts.
 - The eight checksum-pinned Hex packages produce no findings.
+- A 2,000-package download-ranked Hex scan initially produced two candidates. Both were compatible supersets whose varying keys were not consumed by the callee (one also shadowed the parameter later); requiring a consumed variant key removed both.
 - A deterministic regression fixture that changes one caller from `%{id, name, email}` to `%{id, status, role}` raises entropy from `0.0` to `0.8` and produces both the smell and changed-code regression.
 - Exograph structural prefilter `Map.get(_, _)` returned HTTP 500 on 2026-07-13, so no unsupported Hex-wide prevalence count is claimed.
 

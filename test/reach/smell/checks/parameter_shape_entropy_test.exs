@@ -51,6 +51,23 @@ defmodule Reach.Smell.Checks.ParameterShapeEntropyTest do
     assert by_kind(findings) == []
   end
 
+  test "requires the callee to consume keys that vary between shapes" do
+    findings =
+      smells("""
+      defmodule CompatibleSupersets do
+        def first, do: process(%{line: 1, column: 2})
+        def second, do: process(%{line: 3, column: 4, tag_name: "div", inner_location: 5})
+
+        def process(meta) do
+          Map.get(meta, :line)
+          Map.get(meta, :column)
+        end
+      end
+      """)
+
+    assert by_kind(findings) == []
+  end
+
   test "requires distinct calling functions rather than repeated calls in one caller" do
     findings =
       smells("""

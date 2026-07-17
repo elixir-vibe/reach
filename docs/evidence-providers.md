@@ -78,7 +78,7 @@ Raw facts include intentionally dynamic stores. The high-confidence `decoded_bou
 Reach.Evidence.parameter_shapes(project)
 ```
 
-Lineage is deliberately transparent-only: map literals flow through variables and assignments, but Reach does not descend through arbitrary calls or containers where a nested map could be mistaken for the whole argument. The `parameter_shape_entropy` smell requires multiple callers and variants, domain-role naming, multiple consumed contract keys, and excludes tagged or clause-dispatched unions.
+Lineage is deliberately transparent-only: map literals flow through variables and assignments, but Reach does not descend through arbitrary calls or containers where a nested map could be mistaken for the whole argument. The `parameter_shape_entropy` smell requires multiple callers and variants, domain-role naming, multiple consumed contract keys including one that differs between variants, and excludes tagged or clause-dispatched unions.
 
 ## Representation-overlap evidence
 
