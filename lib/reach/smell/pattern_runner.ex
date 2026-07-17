@@ -28,7 +28,14 @@ defmodule Reach.Smell.PatternRunner do
       []
     end
   rescue
-    _error in [ArgumentError, File.Error, MatchError, Protocol.UndefinedError] -> []
+    _error in [
+      ArgumentError,
+      File.Error,
+      FunctionClauseError,
+      MatchError,
+      Protocol.UndefinedError
+    ] ->
+      []
   end
 
   defp same_source_file?({_module, %{source: source}}, file) do

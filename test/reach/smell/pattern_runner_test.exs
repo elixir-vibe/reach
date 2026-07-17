@@ -4,6 +4,30 @@ defmodule Reach.Smell.PatternRunnerTest do
   alias Reach.Project
   alias Reach.Smell.{Checks.CollectionIdioms, SourceRunner}
 
+  test "isolates source files with dynamically unquoted import options" do
+    source = """
+    defmodule DynamicImport do
+      defmacro __using__(opts) do
+        quote do
+          import DynamicImport, unquote(Keyword.drop(opts, [:fill]))
+        end
+      end
+    end
+    """
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "reach-dynamic-import-#{System.unique_integer([:positive])}.ex"
+      )
+
+    File.write!(path, source)
+    on_exit(fn -> File.rm(path) end)
+
+    project = Project.from_sources([path])
+    assert SourceRunner.run(project, [CollectionIdioms]) == []
+  end
+
   test "isolates source files whose import metadata is not enumerable" do
     source = """
     defmodule UnusualImport do
