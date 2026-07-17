@@ -464,55 +464,13 @@ defmodule Reach.Frontend.Elixir do
     }
   end
 
-  # for comprehension
-  defp translate({:for, meta, args}, counter, file) do
-    {clauses, opts} = split_for_clauses(args)
-    opts = List.flatten(opts)
-
-    clause_nodes =
-      Enum.map(clauses, fn
-        {:<-, clause_meta, [pattern, enumerable]} ->
-          pat_node = translate(pattern, counter, file) |> mark_as_definitions()
-          enum_node = translate(enumerable, counter, file)
-
-          %Node{
-            id: Counter.next(counter),
-            type: :generator,
-            meta: origin_meta(clause_meta),
-            children: [pat_node, enum_node],
-            source_span: span_from_meta(clause_meta, file)
-          }
-
-        {:<<>>, _, [{:<-, clause_meta, [pattern, enumerable]}]} ->
-          pat_node = translate(pattern, counter, file)
-          enum_node = translate(enumerable, counter, file)
-
-          %Node{
-            id: Counter.next(counter),
-            type: :generator,
-            meta: Map.merge(%{kind: :binary}, origin_meta(clause_meta)),
-            children: [pat_node, enum_node],
-            source_span: span_from_meta(clause_meta, file)
-          }
-
-        filter_expr ->
-          %Node{
-            id: Counter.next(counter),
-            type: :filter,
-            children: [translate(filter_expr, counter, file)]
-          }
-      end)
-
-    body_node = translate(Keyword.get(opts, :do), counter, file)
-    children = clause_nodes ++ [body_node]
-
-    %Node{
-      id: Counter.next(counter),
-      type: :comprehension,
-      meta: Map.merge(Map.new(Keyword.drop(opts, [:do])), origin_meta(meta)),
-      children: children,
-      source_span: span_from_meta(meta, file) || Enum.find_value(children, &first_child_span/1)
-    }
+  # for comprehension or an ordinary local function named `for`
+  defp translate({:for, meta, args} = ast, counter, file) do
+    if for_comprehension?(args) do
+      translate_for(meta, args, counter, file)
+    else
+      translate_local_call(ast, counter, file)
+    end
   end
 
   # Match operator
@@ -826,8 +784,69 @@ defmodule Reach.Frontend.Elixir do
   end
 
   # Local call: function(args) — check if imported
-  defp translate({fun_name, meta, args} = ast, counter, file)
-       when is_atom(fun_name) and is_list(args) do
+  defp translate({fun_name, _meta, args} = ast, counter, file)
+       when is_atom(fun_name) and is_list(args),
+       do: translate_local_call(ast, counter, file)
+
+  # Catch-all for unhandled AST forms
+  defp translate(ast, counter, _file) do
+    %Node{
+      id: Counter.next(counter),
+      type: :literal,
+      meta: %{value: ast, raw: true}
+    }
+  end
+
+  defp translate_for(meta, args, counter, file) do
+    {clauses, [opts]} = split_for_clauses(args)
+
+    clause_nodes =
+      Enum.map(clauses, fn
+        {:<-, clause_meta, [pattern, enumerable]} ->
+          pat_node = translate(pattern, counter, file) |> mark_as_definitions()
+          enum_node = translate(enumerable, counter, file)
+
+          %Node{
+            id: Counter.next(counter),
+            type: :generator,
+            meta: origin_meta(clause_meta),
+            children: [pat_node, enum_node],
+            source_span: span_from_meta(clause_meta, file)
+          }
+
+        {:<<>>, _, [{:<-, clause_meta, [pattern, enumerable]}]} ->
+          pat_node = translate(pattern, counter, file)
+          enum_node = translate(enumerable, counter, file)
+
+          %Node{
+            id: Counter.next(counter),
+            type: :generator,
+            meta: Map.merge(%{kind: :binary}, origin_meta(clause_meta)),
+            children: [pat_node, enum_node],
+            source_span: span_from_meta(clause_meta, file)
+          }
+
+        filter_expr ->
+          %Node{
+            id: Counter.next(counter),
+            type: :filter,
+            children: [translate(filter_expr, counter, file)]
+          }
+      end)
+
+    body_node = translate(Keyword.get(opts, :do), counter, file)
+    children = clause_nodes ++ [body_node]
+
+    %Node{
+      id: Counter.next(counter),
+      type: :comprehension,
+      meta: Map.merge(Map.new(Keyword.drop(opts, [:do])), origin_meta(meta)),
+      children: children,
+      source_span: span_from_meta(meta, file) || Enum.find_value(children, &first_child_span/1)
+    }
+  end
+
+  defp translate_local_call({fun_name, meta, args} = ast, counter, file) do
     case lower_elixir_ast(ast, file) do
       {:ok, lowered_ast} ->
         translate(lowered_ast, counter, file)
@@ -848,15 +867,6 @@ defmodule Reach.Frontend.Elixir do
           source_span: span_from_meta(meta, file)
         }
     end
-  end
-
-  # Catch-all for unhandled AST forms
-  defp translate(ast, counter, _file) do
-    %Node{
-      id: Counter.next(counter),
-      type: :literal,
-      meta: %{value: ast, raw: true}
-    }
   end
 
   defp group_function_clauses(%Node{type: :block, children: children} = block) do
@@ -1066,6 +1076,13 @@ defmodule Reach.Frontend.Elixir do
       expr when not is_list(expr) -> true
       _ -> false
     end)
+  end
+
+  defp for_comprehension?(args) do
+    case List.last(args) do
+      opts when is_list(opts) -> Keyword.keyword?(opts) and Keyword.has_key?(opts, :do)
+      _other -> false
+    end
   end
 
   defp fun_name_arity({:when, _, [{name, _, args} | _]}) when is_list(args),

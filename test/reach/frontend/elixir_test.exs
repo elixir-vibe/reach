@@ -452,6 +452,12 @@ defmodule Reach.Frontend.ElixirTest do
       filters = Enum.filter(node.children, &(&1.type == :filter))
       assert length(filters) == 1
     end
+
+    test "local function named for is not treated as a comprehension" do
+      [node] = IR.from_string!("for(builder, event_type, [struct()])")
+
+      assert %Node{type: :call, meta: %{function: :for, arity: 3}} = node
+    end
   end
 
   describe "data structures" do
