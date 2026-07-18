@@ -71,7 +71,7 @@ mix reach.check --candidates
 
 `same_entity_representation` reports cross-module bare maps whose keys and entity-bearing names closely match an existing struct. Source patterns, explicit struct values, nested projections, adapter/presentation maps, accumulators, and maps normalized directly or by consistently struct-building callers are excluded. Findings name the canonical struct and every retained bare-map location.
 
-`parameter_shape_entropy` reports domain parameters that strictly consume varying keys while receiving divergent fixed map shapes from distinct callers. Options/payload roles, defensive optional fields, partial caller patterns, companion-selected shapes, tagged unions, and explicit or guarded dispatch are excluded. `--changed` separately reports qualifying entropy increases with old/new values and raises aggregate risk to medium.
+`parameter_shape_entropy` reports domain parameters that strictly consume varying keys while receiving divergent fixed map shapes from distinct callers. Options/payload roles, defensive optional fields, function-head map patterns, companion-selected shapes, tagged unions, and explicit or guarded dispatch are excluded. `--changed` separately reports qualifying entropy increases with old/new values and raises aggregate risk to medium.
 
 Changed-code output reports **risk** and **assessment confidence** separately. Risk is derived from the functions Reach could analyze plus high-confidence contract-erosion events; confidence describes how much of the diff mapped to current function definitions:
 

@@ -80,6 +80,17 @@ defmodule Reach.Evidence.ParameterShapeTest do
              """)
   end
 
+  test "does not treat literal-only function-head maps as exact origins" do
+    assert [] =
+             collect("""
+             defmodule LiteralPatterns do
+               def first(%{kind: :first, id: 1, name: "A"} = input), do: consume(input)
+               def second(%{kind: :second, id: 2, status: :done} = input), do: consume(input)
+               def consume(input), do: {input.id, input.name, input.status}
+             end
+             """)
+  end
+
   test "marks struct and guarded-map clause dispatch" do
     [fact] =
       collect("""

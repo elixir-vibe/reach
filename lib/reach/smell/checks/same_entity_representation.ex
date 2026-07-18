@@ -4,10 +4,10 @@ defmodule Reach.Smell.Checks.SameEntityRepresentation do
   @behaviour Reach.Smell.Check
 
   alias Reach.Evidence.RepresentationOverlap
+  alias Reach.Evidence.RepresentationOverlap.Semantics
   alias Reach.Smell.Finding
 
   @ambiguous_entity_names ~w(context item list message request response result state)
-  @constructor_functions [:build, :from_map, :from_map!, :new, :new!]
 
   @impl true
   def kinds, do: [:same_entity_representation]
@@ -60,12 +60,12 @@ defmodule Reach.Smell.Checks.SameEntityRepresentation do
          struct: %{module: struct_module},
          map: %{normalized_into: {:call, module, function}}
        }) do
-    module == struct_module or function in @constructor_functions or
+    module == struct_module or Semantics.constructor_function?(function) or
       canonical_factory?(struct_module, module, function)
   end
 
   defp canonical_factory?(struct_module, module, function) do
-    if module |> Atom.to_string() |> String.starts_with?("Elixir.") do
+    if Semantics.elixir_module?(module) do
       struct_parts = Module.split(struct_module)
       module_parts = Module.split(module)
 

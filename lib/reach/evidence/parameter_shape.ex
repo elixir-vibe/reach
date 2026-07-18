@@ -1,17 +1,53 @@
 defmodule Reach.Evidence.ParameterShape do
   @moduledoc "Collects map-shape variation flowing into function parameters."
 
+  alias Reach.IR.Helpers
   alias Reach.Project.Query
 
   defmodule Occurrence do
     @moduledoc false
-    @type t :: %__MODULE__{}
+
+    @type function_id :: {module() | nil, atom(), non_neg_integer()}
+    @type key :: atom() | String.t()
+    @type t :: %__MODULE__{
+            caller: function_id() | nil,
+            file: Path.t() | nil,
+            line: pos_integer() | nil,
+            column: pos_integer() | nil,
+            keys: [key()],
+            literals: %{optional(key()) => term()},
+            companion_literals: %{optional(non_neg_integer()) => term()}
+          }
+
     defstruct [:caller, :file, :line, :column, keys: [], literals: %{}, companion_literals: %{}]
   end
 
   defmodule Fact do
     @moduledoc false
-    @type t :: %__MODULE__{}
+
+    @type key :: atom() | String.t()
+    @type function_id :: {module() | nil, atom(), non_neg_integer()}
+    @type t :: %__MODULE__{
+            target: function_id(),
+            parameter: atom() | String.t(),
+            parameter_index: non_neg_integer(),
+            role: :domain | :non_contract,
+            file: Path.t() | nil,
+            line: pos_integer() | nil,
+            entropy: float(),
+            intentional_dispatch?: boolean(),
+            companion_dispatch?: boolean(),
+            tagged_variants?: boolean(),
+            callers: [function_id()],
+            consumed_keys: [key()],
+            strict_consumed_keys: [key()],
+            defensive_consumed_keys: [key()],
+            core_keys: [key()],
+            union_keys: [key()],
+            optional_keys: [key()],
+            variants: [[key()]],
+            occurrences: [Reach.Evidence.ParameterShape.Occurrence.t()]
+          }
     defstruct [
       :target,
       :parameter,
@@ -58,15 +94,21 @@ defmodule Reach.Evidence.ParameterShape do
   @spec collect_project(Reach.Project.t()) :: [Fact.t()]
   def collect_project(%{nodes: nodes, call_graph: %Graph{}} = project) when is_map(nodes) do
     index = Query.function_index(project)
-    predecessor_index = Query.value_predecessor_index(project)
     targets = call_targets(project.call_graph)
 
-    project.nodes
+    lineage = %{
+      predecessors: Query.value_predecessor_index(project),
+      nodes: nodes,
+      functions: index,
+      parents: Helpers.direct_parent_index(nodes)
+    }
+
+    nodes
     |> Map.values()
     |> Enum.filter(&(&1.type == :call))
-    |> Enum.flat_map(&call_occurrences(&1, project, index, predecessor_index, targets))
+    |> Enum.flat_map(&call_occurrences(&1, project, index, lineage, targets))
     |> Enum.group_by(fn {target, parameter_index, _occurrence} -> {target, parameter_index} end)
-    |> Enum.map(&parameter_fact(&1, project))
+    |> Enum.map(&parameter_fact(&1, project, index))
     |> Enum.reject(&is_nil/1)
     |> Enum.sort_by(&{&1.file || "", &1.line || 0, &1.target, &1.parameter_index})
   end
@@ -82,7 +124,7 @@ defmodule Reach.Evidence.ParameterShape do
     end)
   end
 
-  defp call_occurrences(node, project, index, predecessor_index, targets) do
+  defp call_occurrences(node, project, index, lineage, targets) do
     with target when not is_nil(target) <- Map.get(targets, node.id),
          function when not is_nil(function) <- find_target_function(project, index, target) do
       canonical_target = function_id(function)
@@ -93,7 +135,7 @@ defmodule Reach.Evidence.ParameterShape do
       |> Enum.with_index()
       |> Enum.flat_map(fn {argument, parameter_index} ->
         argument
-        |> map_origins(project, predecessor_index)
+        |> map_origins(lineage)
         |> Enum.map(
           &{canonical_target, parameter_index, occurrence(&1, caller, node, parameter_index)}
         )
@@ -103,78 +145,61 @@ defmodule Reach.Evidence.ParameterShape do
     end
   end
 
-  defp map_origins(argument, project, predecessor_index) do
-    predecessor_index
-    |> collect_map_origins(
-      [argument.id],
-      project.nodes,
-      MapSet.new(),
-      [],
-      @default_max_lineage_nodes
-    )
+  defp map_origins(argument, lineage) do
+    lineage
+    |> collect_map_origins([argument.id], MapSet.new(), [], @default_max_lineage_nodes)
     |> Enum.uniq_by(& &1.id)
   end
 
-  defp collect_map_origins(_index, [], _nodes, _visited, maps, _remaining),
+  defp collect_map_origins(_lineage, [], _visited, maps, _remaining),
     do: Enum.reverse(maps)
 
-  defp collect_map_origins(_index, _pending, _nodes, _visited, maps, 0),
+  defp collect_map_origins(_lineage, _pending, _visited, maps, 0),
     do: Enum.reverse(maps)
 
-  defp collect_map_origins(index, [node_id | pending], nodes, visited, maps, remaining) do
+  defp collect_map_origins(lineage, [node_id | pending], visited, maps, remaining) do
+    if MapSet.member?(visited, node_id) do
+      collect_map_origins(lineage, pending, visited, maps, remaining)
+    else
+      collect_unvisited_origin(lineage, node_id, pending, visited, maps, remaining)
+    end
+  end
+
+  defp collect_unvisited_origin(lineage, node_id, pending, visited, maps, remaining) do
+    node = Map.get(lineage.nodes, node_id)
+    visited = MapSet.put(visited, node_id)
+
     cond do
-      MapSet.member?(visited, node_id) ->
-        collect_map_origins(index, pending, nodes, visited, maps, remaining)
+      literal_map?(node, lineage) ->
+        collect_map_origins(lineage, pending, visited, [node | maps], remaining - 1)
 
-      literal_map?(Map.get(nodes, node_id)) ->
-        collect_map_origins(
-          index,
-          pending,
-          nodes,
-          MapSet.put(visited, node_id),
-          [Map.fetch!(nodes, node_id) | maps],
-          remaining - 1
-        )
-
-      transparent_lineage?(Map.get(nodes, node_id)) ->
-        predecessors = Map.get(index, node_id, [])
+      transparent_lineage?(node) ->
+        predecessors = Map.get(lineage.predecessors, node_id, [])
 
         collect_map_origins(
-          index,
+          lineage,
           Enum.reverse(predecessors, pending),
-          nodes,
-          MapSet.put(visited, node_id),
+          visited,
           maps,
           remaining - 1
         )
 
       true ->
-        collect_map_origins(
-          index,
-          pending,
-          nodes,
-          MapSet.put(visited, node_id),
-          maps,
-          remaining - 1
-        )
+        collect_map_origins(lineage, pending, visited, maps, remaining - 1)
     end
   end
 
   defp transparent_lineage?(%{type: type}) when type in [:block, :match, :var], do: true
   defp transparent_lineage?(_node), do: false
 
-  defp literal_map?(%{type: :map, children: children} = map) do
+  defp literal_map?(%{type: :map, children: children} = map, lineage) do
     keys = Enum.flat_map(children, &map_field_key/1)
-    keys != [] and length(keys) == length(children) and not pattern_map?(map)
+
+    keys != [] and length(keys) == length(children) and
+      not Helpers.function_pattern?(map, lineage.functions, lineage.parents)
   end
 
-  defp literal_map?(_node), do: false
-
-  defp pattern_map?(map) do
-    map
-    |> Reach.IR.all_nodes()
-    |> Enum.any?(&match?(%{type: :var, meta: %{binding_role: :definition}}, &1))
-  end
+  defp literal_map?(_node, _lineage), do: false
 
   defp occurrence(map, caller, call, parameter_index) do
     span = call.source_span || map.source_span || %{}
@@ -206,8 +231,8 @@ defmodule Reach.Evidence.ParameterShape do
     end)
   end
 
-  defp parameter_fact({{target, parameter_index}, entries}, project) do
-    case find_target_function(project, Query.function_index(project), target) do
+  defp parameter_fact({{target, parameter_index}, entries}, project, index) do
+    case find_target_function(project, index, target) do
       nil -> nil
       function -> parameter_fact(function, target, parameter_index, entries)
     end
@@ -278,13 +303,8 @@ defmodule Reach.Evidence.ParameterShape do
   end
 
   defp parameter_dispatch?(function, parameter_index) do
-    clauses = function_clauses(function)
-
-    (length(clauses) >= 2 and
-       Enum.count(
-         clauses,
-         &restrictive_clause_parameter?(&1, parameter_index, function.meta.arity)
-       ) >= 2) or case_dispatches_on_parameter?(function, parameter_index)
+    clause_dispatch?(function, parameter_index) or
+      case_dispatches_on_parameter?(function, parameter_index)
   end
 
   defp case_dispatches_on_parameter?(function, parameter_index) do
@@ -369,7 +389,10 @@ defmodule Reach.Evidence.ParameterShape do
   defp intersect_sets([first | rest]), do: Enum.reduce(rest, first, &MapSet.intersection/2)
   defp union_sets(sets), do: Enum.reduce(sets, MapSet.new(), &MapSet.union/2)
 
-  defp intentional_dispatch?(function, parameter_index) do
+  defp intentional_dispatch?(function, parameter_index),
+    do: clause_dispatch?(function, parameter_index)
+
+  defp clause_dispatch?(function, parameter_index) do
     clauses = function_clauses(function)
 
     length(clauses) >= 2 and

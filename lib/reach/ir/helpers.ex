@@ -27,6 +27,51 @@ defmodule Reach.IR.Helpers do
     Enum.any?(children, &var_used_in_subtree?(&1, target))
   end
 
+  @doc "Builds a child-node id to direct-parent index."
+  @spec direct_parent_index(%{optional(term()) => Node.t()}) :: %{optional(term()) => Node.t()}
+  def direct_parent_index(nodes) do
+    Enum.reduce(nodes, %{}, fn {_id, node}, parents ->
+      Enum.reduce(node.children, parents, &Map.put_new(&2, &1.id, node))
+    end)
+  end
+
+  @doc "Returns whether a node belongs to a function-clause pattern."
+  @spec function_pattern?(Node.t(), map(), map()) :: boolean()
+  def function_pattern?(node, function_index, parents) do
+    definition_in_subtree?(node) or function_head_pattern?(node, function_index, parents)
+  end
+
+  defp definition_in_subtree?(node) do
+    node
+    |> Reach.IR.all_nodes()
+    |> Enum.any?(&(&1.meta[:binding_role] == :definition))
+  end
+
+  defp function_head_pattern?(node, function_index, parents) do
+    with {_module, _name, arity} <- Map.get(function_index.node_to_function, node.id),
+         %Node{type: :clause} = clause <- ancestor_of_type(node, parents, :clause) do
+      clause.children
+      |> Enum.take(arity)
+      |> Enum.any?(&contains_node?(&1, node.id))
+    else
+      _not_function_head -> false
+    end
+  end
+
+  defp contains_node?(node, target_id) do
+    node
+    |> Reach.IR.all_nodes()
+    |> Enum.any?(&(&1.id == target_id))
+  end
+
+  defp ancestor_of_type(node, parents, type) do
+    case Map.get(parents, node.id) do
+      %Node{type: ^type} = parent -> parent
+      nil -> nil
+      parent -> ancestor_of_type(parent, parents, type)
+    end
+  end
+
   def location(%Node{} = node) do
     case node.source_span do
       %{file: file, start_line: line} -> "#{file}:#{line}"
