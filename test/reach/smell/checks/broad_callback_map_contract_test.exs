@@ -91,7 +91,8 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContractTest do
     """
     defmodule #{name} do
       @behaviour Contract
-      def metadata(%{details: details}) do
+      def metadata(%{details: details} = payload) do
+        _source = Map.get(payload, :source)
         {Map.get(details, :id), Map.get(details, :name), Map.get(details, :type)}
       end
     end

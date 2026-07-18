@@ -75,6 +75,7 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
 
   defp implementation_shapes(project) do
     parameter_index = MapContract.parameter_origin_index(project)
+    nested_bindings = MapContract.nested_parameter_bindings(project)
 
     project
     |> MapContract.collect_key_accesses()
@@ -86,7 +87,9 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
         |> Enum.reject(&is_nil/1)
         |> Enum.uniq()
 
-      Enum.map(indexes, fn index ->
+      indexes
+      |> Enum.reject(&MapContract.nested_parameter_access?(access, &1, nested_bindings))
+      |> Enum.map(fn index ->
         %{
           function: access.function,
           parameter_index: index,

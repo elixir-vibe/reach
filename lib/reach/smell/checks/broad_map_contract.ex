@@ -24,11 +24,12 @@ defmodule Reach.Smell.Checks.BroadMapContract do
 
   defp observed_shapes(project) do
     parameter_index = MapContract.parameter_origin_index(project)
+    nested_bindings = MapContract.nested_parameter_bindings(project)
 
     project
     |> MapContract.collect_key_accesses()
     |> Enum.filter(&match?({:literal, _key}, &1.logical_key))
-    |> Enum.flat_map(&parameter_access(&1, parameter_index))
+    |> Enum.flat_map(&parameter_access(&1, parameter_index, nested_bindings))
     |> Enum.group_by(&{&1.function, &1.parameter_index, &1.map_origins})
     |> Enum.flat_map(fn {{function, parameter_index, _origins}, parameter_accesses} ->
       accesses = Enum.map(parameter_accesses, & &1.access)
@@ -50,21 +51,25 @@ defmodule Reach.Smell.Checks.BroadMapContract do
     end)
   end
 
-  defp parameter_access(access, parameter_index) do
+  defp parameter_access(access, parameter_index, nested_bindings) do
     indexes =
       access.map_origins
       |> Enum.map(&Map.get(parameter_index, {access.function, &1}))
 
     case Enum.uniq(indexes) do
       [index] when is_integer(index) ->
-        [
-          %{
-            function: access.function,
-            parameter_index: index,
-            map_origins: access.map_origins,
-            access: access
-          }
-        ]
+        if MapContract.nested_parameter_access?(access, index, nested_bindings) do
+          []
+        else
+          [
+            %{
+              function: access.function,
+              parameter_index: index,
+              map_origins: access.map_origins,
+              access: access
+            }
+          ]
+        end
 
       _mixed_or_derived ->
         []

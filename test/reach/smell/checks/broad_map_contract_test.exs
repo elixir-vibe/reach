@@ -64,7 +64,8 @@ defmodule Reach.Smell.Checks.BroadMapContractTest do
       project_from_source("""
       defmodule Contract do
         @spec execute(map()) :: tuple()
-        def execute(%{config: config}) do
+        def execute(%{config: config} = node) do
+          _node_id = Map.get(node, :id)
           {Map.fetch!(config, :id), Map.fetch!(config, :name), Map.fetch!(config, :type)}
         end
       end

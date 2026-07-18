@@ -139,6 +139,28 @@ defmodule Reach.Evidence.MapContract do
 
   def parameter_origin_index(_project), do: %{}
 
+  @doc "Returns names bound inside nested function-parameter patterns."
+  @spec nested_parameter_bindings(map()) ::
+          MapSet.t({{module() | nil, atom(), non_neg_integer()}, non_neg_integer(), atom()})
+  def nested_parameter_bindings(%{nodes: nodes}) when is_map(nodes) do
+    nodes
+    |> Map.values()
+    |> Enum.filter(&(&1.type == :function_def))
+    |> Enum.reduce(MapSet.new(), &index_nested_parameter_bindings/2)
+  end
+
+  def nested_parameter_bindings(_project), do: MapSet.new()
+
+  def nested_parameter_access?(access, parameter_index, nested_bindings) do
+    case access.node.children do
+      [%{type: :var, meta: %{name: name}} | _children] ->
+        MapSet.member?(nested_bindings, {access.function, parameter_index, name})
+
+      _children ->
+        false
+    end
+  end
+
   def collect_key_normalizations(%{nodes: nodes, call_graph: _call_graph} = project)
       when is_map(nodes) do
     parent_index = parent_index(nodes)
@@ -398,18 +420,38 @@ defmodule Reach.Evidence.MapContract do
   defp index_function_parameters(function, index) do
     function_id = {function.meta[:module], function.meta[:name], function.meta[:arity]}
 
-    function.children
-    |> Enum.filter(&(&1.type == :clause))
-    |> Enum.reduce(index, fn clause, index ->
-      clause.children
-      |> Enum.take(function.meta[:arity])
-      |> Stream.with_index()
-      |> Enum.reduce(index, fn {parameter, parameter_index}, index ->
-        parameter
-        |> direct_parameter_origins()
-        |> Enum.reduce(index, &Map.put(&2, {function_id, &1.id}, parameter_index))
+    function
+    |> indexed_parameters()
+    |> Enum.reduce(index, fn {parameter, parameter_index}, index ->
+      parameter
+      |> direct_parameter_origins()
+      |> Enum.reduce(index, &Map.put(&2, {function_id, &1.id}, parameter_index))
+    end)
+  end
+
+  defp index_nested_parameter_bindings(function, index) do
+    function_id = {function.meta[:module], function.meta[:name], function.meta[:arity]}
+
+    function
+    |> indexed_parameters()
+    |> Enum.reduce(index, fn {parameter, parameter_index}, index ->
+      direct_ids = MapSet.new(direct_parameter_origins(parameter), & &1.id)
+
+      parameter
+      |> descendants()
+      |> Enum.filter(&(&1.type == :var and not MapSet.member?(direct_ids, &1.id)))
+      |> Enum.reduce(index, fn variable, index ->
+        MapSet.put(index, {function_id, parameter_index, variable.meta.name})
       end)
     end)
+  end
+
+  defp indexed_parameters(function) do
+    for clause <- function.children,
+        clause.type == :clause,
+        {parameter, parameter_index} <-
+          clause.children |> Enum.take(function.meta[:arity]) |> Enum.with_index(),
+        do: {parameter, parameter_index}
   end
 
   defp direct_parameter_origins(parameter) do
