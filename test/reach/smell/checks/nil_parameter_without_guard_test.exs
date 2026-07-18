@@ -73,6 +73,37 @@ defmodule Reach.Smell.Checks.NilParameterWithoutGuardTest do
     assert by_kind(findings) == []
   end
 
+  test "promotes direct defaults and late fallbacks but keeps routed collection paths as evidence" do
+    findings =
+      smells("""
+      defmodule NilPromotionPolicy do
+        def default_bug(options \\\\ nil), do: options.id
+
+        def late_fallback(value), do: consume(value)
+        def late_fallback(nil), do: :missing
+        def consume(%{id: id}), do: id
+
+        def collection_caller, do: render_fields(nil, [])
+
+        def render_fields(view, fields) do
+          for field <- fields, do: view.render(field)
+        end
+
+        def recursive_caller, do: recursive_default()
+
+        defp recursive_default(value \\\\ nil, depth \\\\ 0) do
+          if depth > 0, do: value.id, else: recursive_default(%{id: 1}, depth + 1)
+        end
+      end
+      """)
+
+    labels = Enum.map(by_kind(findings), & &1.message)
+    assert Enum.any?(labels, &String.contains?(&1, "default_bug/1"))
+    assert Enum.any?(labels, &String.contains?(&1, "late_fallback/1"))
+    refute Enum.any?(labels, &String.contains?(&1, "render_fields/2"))
+    refute Enum.any?(labels, &String.contains?(&1, "recursive_default/2"))
+  end
+
   test "supports source suppression at the unsafe use" do
     findings =
       smells("""

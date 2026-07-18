@@ -67,7 +67,7 @@ mix reach.check --candidates
 
 `return_shape_divergence` reports incompatible success contracts only when backed by a closed `@spec` mismatch, an unwrapped raw error beside tagged errors, or a tagged nil/empty edge case beside raw successful values. Optional success payloads, parser/callback tuple arities, and explicit or open unions remain evidence-only. `nested_return_tag` reports duplicate success wrappers. Messages include every proven terminal shape and source line.
 
-`nil_parameter_without_guard` reports a parameter proven nil-capable by a call, default, or matching clause when a strict use has no dominating non-nil proof. The finding identifies both the nil source and unsafe use; fix the contract with a clause-head guard or normalize before every reported path rather than rescuing the eventual crash.
+`nil_parameter_without_guard` reports a parameter proven nil-capable by a call, default, or matching clause when a strict use has no dominating non-nil proof. It accounts for clause order, companion arguments, `if`/`unless`/`cond`/`case` paths, `with` and body rebinding, comprehensions, default wrappers, and private recursive helpers before promotion. The finding identifies both the nil source and unsafe use; fix the contract with a clause-head guard or normalize before every reported path rather than rescuing the eventual crash.
 
 `same_entity_representation` reports cross-module bare maps whose keys and entity-bearing names closely match an existing struct. Source patterns, explicit struct values, nested projections, adapter/presentation maps, accumulators, and maps normalized directly or by consistently struct-building callers are excluded. Findings name the canonical struct and every retained bare-map location.
 

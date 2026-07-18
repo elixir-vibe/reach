@@ -19,6 +19,12 @@ defmodule Reach.Evidence.NilParameter do
       :line,
       :column,
       :safe?,
+      :bare_parameter?,
+      :parameter_guarded?,
+      :companion_restricted?,
+      :conditional?,
+      :project_target?,
+      :literal_companion_gate?,
       dominating_guards: [],
       nil_sources: []
     ]
@@ -33,6 +39,8 @@ defmodule Reach.Evidence.NilParameter do
       :arity,
       :parameter,
       :parameter_index,
+      :visibility,
+      :recursive?,
       :file,
       :line,
       nil_sources: [],
@@ -168,6 +176,8 @@ defmodule Reach.Evidence.NilParameter do
       arity: function.meta.arity,
       parameter: parameter_label(clauses, parameter_index, function.meta.arity),
       parameter_index: parameter_index,
+      visibility: if(function.meta[:kind] == :defp, do: :private, else: :public),
+      recursive?: recursive_function?(function),
       file: span[:file],
       line: span[:start_line],
       nil_sources: Enum.sort_by(sources, &{&1.file || "", &1.line || 0, &1.kind}),
@@ -178,7 +188,9 @@ defmodule Reach.Evidence.NilParameter do
   defp clause_uses({clause, clause_index}, parameter_index, sources, context) do
     parameters = clause_parameters(clause, context.arity)
     parameter = Enum.at(parameters, parameter_index)
-    applicable_sources = Enum.filter(sources, &source_applies?(&1, parameters, parameter_index))
+
+    applicable_sources =
+      applicable_sources(sources, parameters, parameter_index, clause_index, context)
 
     case {parameter_name(parameter), applicable_sources} do
       {_name, []} ->
@@ -187,52 +199,163 @@ defmodule Reach.Evidence.NilParameter do
       {nil, _sources} ->
         []
 
-      {name, applicable_sources} ->
-        safe_vertices =
-          clause
-          |> safe_vertices(
-            name,
-            parameter,
-            clause_index,
-            context.clauses,
-            parameter_index,
-            context.arity
-          )
-          |> Enum.filter(&Graph.has_vertex?(context.cfg, &1))
-          |> Enum.uniq()
-
-        clause
-        |> collect_uses(name, context.requirements, context.project, context.index)
-        |> Enum.map(fn {node, operation, target} ->
-          use_sources =
-            sources_reaching_use(applicable_sources, node, parameters, context)
-
-          vertex = nearest_cfg_vertex(node.id, context.parents, context.cfg)
-
-          guards =
-            safe_vertices
-            |> Enum.filter(&dominates?(context.idom, &1, vertex))
-            |> Enum.concat(
-              lexical_guard_ids(node.id, name, context.parents, context.project.nodes)
-            )
-            |> Enum.uniq()
-
-          span = node.source_span || %{}
-
-          %Use{
-            operation: operation,
-            target: target,
-            file: span[:file],
-            line: span[:start_line],
-            column: span[:start_col],
-            safe?: guards != [],
-            dominating_guards: guards,
-            nil_sources: if(guards == [], do: use_sources, else: applicable_sources)
-          }
-        end)
-        |> Enum.reject(&(&1.nil_sources == []))
-        |> Enum.uniq_by(&{&1.operation, &1.target, &1.line, &1.column})
+      {name, sources} ->
+        analyzed_clause_uses(
+          clause,
+          clause_index,
+          parameter_index,
+          parameter,
+          name,
+          parameters,
+          sources,
+          context
+        )
     end
+  end
+
+  defp applicable_sources(sources, parameters, parameter_index, clause_index, context) do
+    prior_clauses = Enum.take(context.clauses, clause_index)
+
+    Enum.filter(sources, fn source ->
+      source_applies?(source, parameters, parameter_index) and
+        not source_shadowed_by_prior_clause?(
+          source,
+          parameters,
+          parameter_index,
+          prior_clauses,
+          context.arity
+        )
+    end)
+  end
+
+  defp analyzed_clause_uses(
+         clause,
+         clause_index,
+         parameter_index,
+         parameter,
+         name,
+         parameters,
+         sources,
+         context
+       ) do
+    analysis = %{
+      clause: clause,
+      context: context,
+      name: name,
+      parameter: parameter,
+      parameter_index: parameter_index,
+      parameters: parameters,
+      prior_nil_clause?: prior_nil_clause?(clause, clause_index, parameter_index, context),
+      rebindings:
+        clause
+        |> body_rebindings(name, context.arity)
+        |> Enum.filter(&Graph.has_vertex?(context.cfg, &1)),
+      safe_vertices:
+        safe_vertices(
+          clause,
+          name,
+          parameter,
+          clause_index,
+          context.clauses,
+          parameter_index,
+          context.arity
+        ),
+      sources: sources
+    }
+
+    clause
+    |> collect_uses(name, context.requirements, context.project, context.index)
+    |> Enum.flat_map(&build_use(&1, analysis))
+    |> Enum.reject(&(&1.nil_sources == []))
+    |> Enum.uniq_by(&{&1.operation, &1.target, &1.line, &1.column})
+  end
+
+  defp prior_nil_clause?(clause, clause_index, parameter_index, context) do
+    context.clauses
+    |> Enum.take(clause_index)
+    |> Enum.any?(&total_nil_clause?(&1, clause, parameter_index, context.arity))
+  end
+
+  defp build_use({node, operation, target}, analysis) do
+    vertex = nearest_cfg_vertex(node.id, analysis.context.parents, analysis.context.cfg)
+
+    if ignored_use?(node, vertex, analysis) do
+      []
+    else
+      guards = guarding_vertices(node, vertex, analysis)
+
+      use_sources =
+        sources_reaching_use(analysis.sources, node, analysis.parameters, analysis.context)
+
+      span = node.source_span || %{}
+      safe? = analysis.prior_nil_clause? or guards != []
+
+      [
+        %Use{
+          operation: operation,
+          target: target,
+          file: span[:file],
+          line: span[:start_line],
+          column: span[:start_col],
+          safe?: safe?,
+          bare_parameter?: analysis.parameter.type == :var,
+          parameter_guarded?: clause_guarded?(analysis.clause, analysis.name),
+          companion_restricted?:
+            companion_restricted?(
+              analysis.clause,
+              analysis.parameters,
+              analysis.parameter_index,
+              analysis.name
+            ),
+          conditional?:
+            conditional_use?(
+              node.id,
+              analysis.clause.id,
+              analysis.context.parents,
+              analysis.context.project.nodes
+            ),
+          project_target?:
+            not is_nil(target) and Map.has_key?(analysis.context.index.by_module, target),
+          literal_companion_gate?:
+            literal_companion_gate?(
+              node.id,
+              analysis.clause.id,
+              analysis.name,
+              analysis.context.parents,
+              analysis.context.project.nodes
+            ),
+          dominating_guards: guards,
+          nil_sources: if(safe?, do: analysis.sources, else: use_sources)
+        }
+      ]
+    end
+  end
+
+  defp ignored_use?(node, vertex, analysis) do
+    rebound_before_use?(node.id, vertex, analysis.rebindings, analysis.context) or
+      with_rebound_before_use?(
+        node.id,
+        analysis.name,
+        analysis.context.parents,
+        analysis.context.project.nodes
+      ) or
+      inside_guard?(node.id, analysis.context.parents, analysis.context.project.nodes)
+  end
+
+  defp guarding_vertices(node, vertex, analysis) do
+    analysis.safe_vertices
+    |> Enum.filter(&Graph.has_vertex?(analysis.context.cfg, &1))
+    |> Enum.uniq()
+    |> Enum.filter(&dominates?(analysis.context.idom, &1, vertex))
+    |> Enum.concat(
+      lexical_guard_ids(
+        node.id,
+        analysis.name,
+        analysis.context.parents,
+        analysis.context.project.nodes
+      )
+    )
+    |> Enum.uniq()
   end
 
   defp sources_reaching_use(sources, node, parameters, context) do
@@ -284,15 +407,39 @@ defmodule Reach.Evidence.NilParameter do
        )
        when kind in [:if, :unless] do
     case Enum.find(clauses, &(&1.id == child_id)) do
-      %{meta: %{kind: :true_branch}} -> {condition, kind == :if}
-      %{meta: %{kind: :false_branch}} -> {condition, kind == :unless}
+      %{meta: %{kind: :true_branch}} -> {condition, true}
+      %{meta: %{kind: :false_branch}} -> {condition, false}
       _not_a_direct_branch -> nil
+    end
+  end
+
+  defp path_constraint(%{type: :case, children: [subject | clauses]}, child_id) do
+    case Enum.find_index(clauses, &(&1.id == child_id)) do
+      nil ->
+        nil
+
+      index ->
+        clause = Enum.at(clauses, index)
+        pattern = List.first(clause.children)
+        prior_patterns = clauses |> Enum.take(index) |> Enum.map(&List.first(&1.children))
+        {:case_clause, subject, pattern, prior_patterns}
     end
   end
 
   defp path_constraint(_parent, _child_id), do: nil
 
   defp constraint_satisfied?(nil, _bindings), do: true
+
+  defp constraint_satisfied?({:case_clause, subject, pattern, prior_patterns}, bindings) do
+    case bound_value(subject, bindings) do
+      :unknown ->
+        true
+
+      value ->
+        pattern_accepts_value?(pattern, value) and
+          Enum.all?(prior_patterns, &(not pattern_accepts_value?(&1, value)))
+    end
+  end
 
   defp constraint_satisfied?({expression, required}, bindings) do
     case evaluate_boolean(expression, bindings) do
@@ -384,6 +531,19 @@ defmodule Reach.Evidence.NilParameter do
 
   defp bound_value(_argument, _bindings), do: :unknown
 
+  defp pattern_accepts_value?(%{type: :literal, meta: %{value: pattern}}, value),
+    do: pattern == value
+
+  defp pattern_accepts_value?(%{type: :var}, _value), do: true
+
+  defp pattern_accepts_value?(%{type: :match, children: children}, value),
+    do: Enum.any?(children, &pattern_accepts_value?(&1, value))
+
+  defp pattern_accepts_value?(%{type: type}, nil) when type in @non_nil_pattern_types,
+    do: false
+
+  defp pattern_accepts_value?(_pattern, _value), do: true
+
   defp lexical_guard_ids(node_id, name, parents, nodes) do
     case Map.get(parents, node_id) do
       nil ->
@@ -391,7 +551,7 @@ defmodule Reach.Evidence.NilParameter do
 
       parent_id ->
         parent = Map.get(nodes, parent_id)
-        own = if short_circuit_guards?(parent, node_id, name), do: [parent_id], else: []
+        own = if lexical_non_nil_guard?(parent, node_id, name), do: [parent_id], else: []
         Enum.concat(own, lexical_guard_ids(parent_id, name, parents, nodes))
     end
   end
@@ -407,6 +567,70 @@ defmodule Reach.Evidence.NilParameter do
   end
 
   defp short_circuit_guards?(_parent, _child_id, _name), do: false
+
+  defp lexical_non_nil_guard?(parent, child_id, name) do
+    short_circuit_guards?(parent, child_id, name) or
+      conditional_branch_guards?(parent, child_id, name) or
+      cond_branch_guards?(parent, child_id, name) or
+      case_branch_guards?(parent, child_id, name)
+  end
+
+  defp conditional_branch_guards?(
+         %{type: :case, meta: %{desugared_from: kind}, children: [condition | clauses]},
+         child_id,
+         name
+       )
+       when kind in [:if, :unless] do
+    case Enum.find(clauses, &(&1.id == child_id)) do
+      %{meta: %{kind: :true_branch}} -> guarantees_non_nil?(condition, name, true)
+      %{meta: %{kind: :false_branch}} -> guarantees_non_nil?(condition, name, false)
+      _not_a_branch -> false
+    end
+  end
+
+  defp conditional_branch_guards?(_parent, _child_id, _name), do: false
+
+  defp cond_branch_guards?(
+         %{type: :case, meta: %{desugared_from: :cond}, children: clauses},
+         child_id,
+         name
+       ) do
+    case Enum.find_index(clauses, &(&1.id == child_id)) do
+      nil ->
+        false
+
+      index ->
+        selected = clauses |> Enum.at(index) |> then(&List.first(&1.children))
+
+        guarantees_non_nil?(selected, name, true) or
+          clauses
+          |> Enum.take(index)
+          |> Enum.any?(fn clause ->
+            condition = List.first(clause.children)
+            guarantees_non_nil?(condition, name, false)
+          end)
+    end
+  end
+
+  defp cond_branch_guards?(_parent, _child_id, _name), do: false
+
+  defp case_branch_guards?(
+         %{type: :case, meta: meta, children: [subject | clauses]},
+         child_id,
+         name
+       )
+       when not is_map_key(meta, :desugared_from) do
+    if variable?(subject, name) do
+      case Enum.find_index(clauses, &(&1.id == child_id)) do
+        nil -> false
+        index -> case_clause_safe?({Enum.at(clauses, index), index}, clauses)
+      end
+    else
+      false
+    end
+  end
+
+  defp case_branch_guards?(_parent, _child_id, _name), do: false
 
   defp dominates?(_idom, _guard, nil), do: false
   defp dominates?(idom, guard, vertex), do: Reach.Dominator.dominates?(idom, guard, vertex)
@@ -449,14 +673,13 @@ defmodule Reach.Evidence.NilParameter do
     Enum.concat(own, Enum.flat_map(node.children, &nested_safe_vertices(&1, name)))
   end
 
-  defp conditional_safe_vertices(kind, condition, clauses, name) do
+  defp conditional_safe_vertices(_kind, condition, clauses, name) do
     true_clause = Enum.find(clauses, &(&1.meta[:kind] == :true_branch))
     false_clause = Enum.find(clauses, &(&1.meta[:kind] == :false_branch))
-    {true_outcome, false_outcome} = if kind == :unless, do: {false, true}, else: {true, false}
 
     []
-    |> maybe_add_vertex(true_clause, guarantees_non_nil?(condition, name, true_outcome))
-    |> maybe_add_vertex(false_clause, guarantees_non_nil?(condition, name, false_outcome))
+    |> maybe_add_vertex(true_clause, guarantees_non_nil?(condition, name, true))
+    |> maybe_add_vertex(false_clause, guarantees_non_nil?(condition, name, false))
   end
 
   defp maybe_add_vertex(vertices, nil, _safe?), do: vertices
@@ -473,11 +696,14 @@ defmodule Reach.Evidence.NilParameter do
     end
   end
 
-  defp case_clause_safe_vertices({clause, index}, clauses) do
+  defp case_clause_safe_vertices({clause, _index} = indexed_clause, clauses) do
+    if case_clause_safe?(indexed_clause, clauses), do: [clause.id], else: []
+  end
+
+  defp case_clause_safe?({clause, index}, clauses) do
     pattern = List.first(clause.children)
     prior_nil? = clauses |> Enum.take(index) |> Enum.any?(&case_nil_clause?/1)
-
-    if pattern_excludes_nil?(pattern) or prior_nil?, do: [clause.id], else: []
+    pattern_excludes_nil?(pattern) or prior_nil?
   end
 
   defp case_nil_clause?(clause) do
@@ -535,6 +761,29 @@ defmodule Reach.Evidence.NilParameter do
 
   defp guarantees_non_nil?(_node, _name, _outcome), do: false
 
+  defp guarantees_nil?(
+         %{type: :call, meta: %{function: :is_nil, arity: 1}, children: [argument]},
+         name,
+         true
+       ),
+       do: variable?(argument, name)
+
+  defp guarantees_nil?(
+         %{type: :binary_op, meta: %{operator: operator}, children: [left, right]},
+         name,
+         outcome
+       )
+       when operator in [:==, :===, :!=, :!==] do
+    compares_nil? =
+      (variable?(left, name) and exact_nil_pattern?(right)) or
+        (variable?(right, name) and exact_nil_pattern?(left))
+
+    equality? = operator in [:==, :===]
+    compares_nil? and outcome == equality?
+  end
+
+  defp guarantees_nil?(_node, _name, _outcome), do: false
+
   defp nil_comparison_guarantees?(operator, left, right, name, outcome) do
     compares_nil? =
       (variable?(left, name) and exact_nil_pattern?(right)) or
@@ -578,6 +827,150 @@ defmodule Reach.Evidence.NilParameter do
     own ++ nested
   end
 
+  defp clause_guarded?(clause, name),
+    do: Enum.any?(clause_guards(clause), &variable_occurs?(&1, name))
+
+  defp companion_restricted?(clause, parameters, parameter_index, _name) do
+    parameters
+    |> Enum.with_index()
+    |> Enum.reject(fn {_parameter, index} -> index == parameter_index end)
+    |> Enum.any?(fn {parameter, _index} -> not catch_all_pattern?(parameter) end) or
+      clause_guards(clause) != []
+  end
+
+  defp variable_occurs?(%{type: :var, meta: %{name: name}}, name), do: true
+  defp variable_occurs?(node, name), do: Enum.any?(node.children, &variable_occurs?(&1, name))
+
+  defp conditional_use?(node_id, clause_id, parents, nodes) do
+    case Map.get(parents, node_id) do
+      nil ->
+        false
+
+      ^clause_id ->
+        false
+
+      parent_id ->
+        parent = Map.get(nodes, parent_id)
+
+        parent.type in [:case, :fn, :comprehension] or
+          conditional_use?(parent_id, clause_id, parents, nodes)
+    end
+  end
+
+  defp literal_companion_gate?(node_id, clause_id, name, parents, nodes) do
+    case Map.get(parents, node_id) do
+      nil ->
+        false
+
+      ^clause_id ->
+        false
+
+      parent_id ->
+        parent = Map.get(nodes, parent_id)
+
+        case parent do
+          %{type: :case, meta: %{desugared_from: kind}, children: [condition | _]}
+          when kind in [:if, :unless] ->
+            literal_comparison_on_other?(condition, name) or
+              literal_companion_gate?(parent_id, clause_id, name, parents, nodes)
+
+          _other ->
+            literal_companion_gate?(parent_id, clause_id, name, parents, nodes)
+        end
+    end
+  end
+
+  defp literal_comparison_on_other?(
+         %{type: :binary_op, meta: %{operator: operator}, children: [left, right]},
+         name
+       )
+       when operator in [:==, :===] do
+    (left.type == :var and left.meta[:name] != name and right.type == :literal) or
+      (right.type == :var and right.meta[:name] != name and left.type == :literal)
+  end
+
+  defp literal_comparison_on_other?(_condition, _name), do: false
+
+  defp body_rebindings(clause, name, arity) do
+    clause.children
+    |> Enum.drop(arity)
+    |> Enum.flat_map(&Reach.IR.all_nodes/1)
+    |> Enum.flat_map(fn
+      %{type: :match, children: [left, right]} = match ->
+        if defines_variable?(left, name) and not variable?(right, name),
+          do: [match.id],
+          else: []
+
+      _node ->
+        []
+    end)
+  end
+
+  defp rebound_before_use?(node_id, vertex, rebindings, context) do
+    Enum.any?(rebindings, fn rebind ->
+      dominates?(context.idom, rebind, vertex) and
+        not ancestor?(rebind, node_id, context.parents)
+    end)
+  end
+
+  defp with_rebound_before_use?(node_id, name, parents, nodes) do
+    case enclosing_with_child(node_id, parents, nodes) do
+      {_with_node, %{meta: %{kind: :else_clause}}} ->
+        false
+
+      {%{children: children}, child} ->
+        children
+        |> Enum.take_while(&(&1.id != child.id))
+        |> Enum.filter(&(&1.type == :clause and &1.meta[:kind] == :with_clause))
+        |> Enum.any?(fn clause ->
+          clause.children |> List.first() |> pattern_binds_name?(name)
+        end)
+
+      nil ->
+        false
+    end
+  end
+
+  defp enclosing_with_child(node_id, parents, nodes) do
+    case Map.get(parents, node_id) do
+      nil ->
+        nil
+
+      parent_id ->
+        case Map.get(nodes, parent_id) do
+          %{type: :case, meta: %{desugared_from: :with}} = with_node ->
+            {with_node, Map.get(nodes, node_id)}
+
+          _other ->
+            enclosing_with_child(parent_id, parents, nodes)
+        end
+    end
+  end
+
+  defp pattern_binds_name?(nil, _name), do: false
+  defp pattern_binds_name?(%{type: :var, meta: %{name: name}}, name), do: true
+
+  defp pattern_binds_name?(node, name),
+    do: Enum.any?(node.children, &pattern_binds_name?(&1, name))
+
+  defp inside_guard?(node_id, parents, nodes) do
+    case Map.get(parents, node_id) do
+      nil ->
+        false
+
+      parent_id ->
+        Map.get(nodes, parent_id).type == :guard or inside_guard?(parent_id, parents, nodes)
+    end
+  end
+
+  defp ancestor?(ancestor_id, node_id, parents) do
+    case Map.get(parents, node_id) do
+      ^ancestor_id -> true
+      nil -> false
+      parent_id -> ancestor?(ancestor_id, parent_id, parents)
+    end
+  end
+
   defp clause_binds_name?(clause, name) do
     clause.children
     |> Enum.take_while(&(&1.type not in [:block, :call, :case, :guard, :literal]))
@@ -590,14 +983,19 @@ defmodule Reach.Evidence.NilParameter do
   defp defines_variable?(node, name), do: Enum.any?(node.children, &defines_variable?(&1, name))
 
   defp unsafe_use(
-         %{type: :call, meta: %{module: module, function: function, kind: kind}} = node,
+         %{
+           type: :call,
+           meta: %{module: module, function: function, kind: kind, arity: arity},
+           children: [receiver | _] = children
+         } = node,
          name,
          _requirements,
          _project,
          _index
        )
        when module == name and kind in [:field_access, :remote] do
-    {node, "#{kind} #{name}.#{function}", nil}
+    if length(children) > arity and variable?(receiver, name),
+      do: {node, "#{kind} #{name}.#{function}", nil}
   end
 
   defp unsafe_use(%{type: :call} = node, name, requirements, project, index) do
@@ -847,8 +1245,7 @@ defmodule Reach.Evidence.NilParameter do
 
       target ->
         node
-        |> call_arguments()
-        |> Stream.with_index()
+        |> call_argument_pairs(target, index)
         |> Enum.reduce(sources, fn argument, sources ->
           add_call_argument_source(argument, node, target, index, sources)
         end)
@@ -873,30 +1270,82 @@ defmodule Reach.Evidence.NilParameter do
     end
   end
 
-  defp call_arguments(node), do: Enum.take(node.children, Map.get(node.meta, :arity, 0))
+  defp call_arguments(node) do
+    arity = Map.get(node.meta, :arity, 0)
+    Enum.take(node.children, -arity)
+  end
+
+  defp call_argument_pairs(node, target, index) do
+    arguments = call_arguments(node)
+
+    case Map.get(index.by_module, target, []) do
+      [function | _] ->
+        function
+        |> supplied_parameter_indices(length(arguments))
+        |> Enum.zip(arguments)
+        |> Enum.map(fn {parameter_index, argument} -> {argument, parameter_index} end)
+
+      _missing ->
+        Enum.with_index(arguments)
+    end
+  end
 
   defp call_context(node, target, index) do
     arguments = call_arguments(node)
 
     case Map.get(index.by_module, target, []) do
       [function | _] ->
-        Enum.concat(arguments, omitted_default_arguments(function, length(arguments)))
+        supplied =
+          function
+          |> supplied_parameter_indices(length(arguments))
+          |> Enum.zip(arguments)
+          |> Map.new()
+
+        defaults = default_arguments_by_index(function)
+
+        function.meta.arity
+        |> parameter_indices()
+        |> Enum.map(fn parameter_index ->
+          Map.get(supplied, parameter_index) || Map.get(defaults, parameter_index)
+        end)
 
       _missing ->
         arguments
     end
   end
 
-  defp omitted_default_arguments(function, argument_count) do
+  defp supplied_parameter_indices(function, argument_count) do
+    omitted_count = max(function.meta.arity - argument_count, 0)
+
+    defaults = default_arguments_by_index(function)
+
+    omitted =
+      function.meta.arity
+      |> parameter_indices()
+      |> Enum.reverse()
+      |> Stream.filter(&Map.has_key?(defaults, &1))
+      |> Enum.take(omitted_count)
+
+    function.meta.arity
+    |> parameter_indices()
+    |> Enum.reject(&(&1 in omitted))
+  end
+
+  defp default_arguments_by_index(function) do
     function
     |> function_clauses()
     |> List.first()
     |> case do
       nil -> []
-      clause -> clause |> clause_parameters(function.meta.arity) |> Enum.drop(argument_count)
+      clause -> clause_parameters(clause, function.meta.arity)
     end
-    |> Enum.map(&default_argument/1)
-    |> Enum.reject(&is_nil/1)
+    |> Stream.with_index()
+    |> Enum.reduce(%{}, fn {parameter, index}, defaults ->
+      case default_argument(parameter) do
+        nil -> defaults
+        default -> Map.put(defaults, index, default)
+      end
+    end)
   end
 
   defp default_argument(%{type: :call, meta: %{function: :\\}, children: [_parameter, default]}),
@@ -906,6 +1355,19 @@ defmodule Reach.Evidence.NilParameter do
 
   defp resolve_call_target(%{meta: %{function: function, arity: arity}} = node, project, index)
        when is_atom(function) and is_integer(arity) do
+    if dynamic_receiver_call?(node) do
+      nil
+    else
+      resolved_call_target(node, project, index)
+    end
+  end
+
+  defp resolve_call_target(_node, _project, _index), do: nil
+
+  defp dynamic_receiver_call?(%{children: children, meta: %{arity: arity}}),
+    do: length(children) > arity
+
+  defp resolved_call_target(node, project, index) do
     candidates =
       case Map.get(node.meta, :module) do
         nil -> local_candidates(node, index)
@@ -917,8 +1379,6 @@ defmodule Reach.Evidence.NilParameter do
       _ambiguous -> call_graph_target(node, project, index)
     end
   end
-
-  defp resolve_call_target(_node, _project, _index), do: nil
 
   defp local_candidates(node, index) do
     case Map.get(index.node_to_function, node.id) do
@@ -980,6 +1440,16 @@ defmodule Reach.Evidence.NilParameter do
     end)
   end
 
+  defp recursive_function?(function) do
+    Enum.any?(Reach.IR.all_nodes(function), fn
+      %{type: :call, meta: %{module: nil, function: name, arity: arity}} ->
+        name == function.meta.name and arity == function.meta.arity
+
+      _node ->
+        false
+    end)
+  end
+
   defp function_clauses(function), do: Enum.filter(function.children, &(&1.type == :clause))
   defp function_id(function), do: {function.meta.module, function.meta.name, function.meta.arity}
 
@@ -1022,8 +1492,11 @@ defmodule Reach.Evidence.NilParameter do
     current_parameters = clause_parameters(current_clause, arity)
     current_parameters_tuple = List.to_tuple(current_parameters)
 
-    exact_nil_pattern?(Enum.at(prior_parameters, parameter_index)) and
-      clause_guards(prior_clause) == [] and
+    nil_clause_parameter?(
+      Enum.at(prior_parameters, parameter_index),
+      prior_clause,
+      current_clause
+    ) and
       prior_parameters
       |> Enum.with_index()
       |> Enum.reject(fn {_pattern, index} -> index == parameter_index end)
@@ -1031,6 +1504,83 @@ defmodule Reach.Evidence.NilParameter do
         pattern_covers?(prior_pattern, elem(current_parameters_tuple, index))
       end)
   end
+
+  defp nil_clause_parameter?(parameter, prior_clause, current_clause) do
+    prior_guards = clause_guards(prior_clause)
+    current_guard_signatures = current_clause |> clause_guards() |> Enum.map(&pattern_signature/1)
+
+    cond do
+      exact_nil_pattern?(parameter) ->
+        prior_guards == [] or
+          Enum.all?(prior_guards, &(pattern_signature(&1) in current_guard_signatures))
+
+      name = parameter_name(parameter) ->
+        {nil_guards, companion_guards} =
+          Enum.split_with(prior_guards, &guarantees_nil?(&1, name, true))
+
+        nil_guards != [] and
+          Enum.all?(companion_guards, &(pattern_signature(&1) in current_guard_signatures))
+
+      true ->
+        false
+    end
+  end
+
+  defp source_shadowed_by_prior_clause?(
+         source,
+         current_parameters,
+         parameter_index,
+         prior_clauses,
+         arity
+       ) do
+    source_context = List.to_tuple(source.context)
+
+    forced_values =
+      current_parameters
+      |> Enum.with_index()
+      |> Enum.map(fn {current, index} ->
+        current_value = exact_pattern_value(current)
+        source_value = source_context |> tuple_element(index) |> exact_pattern_value()
+
+        cond do
+          index == parameter_index -> nil
+          current_value != :unknown -> current_value
+          source_value != :unknown -> source_value
+          true -> :unknown
+        end
+      end)
+
+    Enum.any?(prior_clauses, &clause_accepts_forced_values?(&1, forced_values, arity))
+  end
+
+  defp clause_accepts_forced_values?(clause, forced_values, arity) do
+    parameters = clause_parameters(clause, arity)
+
+    repeated_variables =
+      parameters
+      |> Enum.with_index()
+      |> Enum.group_by(fn {parameter, _index} -> parameter_name(parameter) end)
+      |> Enum.reject(fn {name, entries} -> is_nil(name) or length(entries) < 2 end)
+
+    forced_values_tuple = List.to_tuple(forced_values)
+
+    clause_guards(clause) == [] and repeated_variables != [] and
+      Enum.all?(Enum.zip(parameters, forced_values), fn
+        {%{type: :literal} = pattern, value} -> exact_pattern_value(pattern) == value
+        {%{type: :var}, _value} -> true
+        {_pattern, _value} -> false
+      end) and
+      Enum.all?(repeated_variables, fn {_name, entries} ->
+        values = Enum.map(entries, fn {_parameter, index} -> elem(forced_values_tuple, index) end)
+        :unknown not in values and Enum.uniq(values) |> length() == 1
+      end)
+  end
+
+  defp tuple_element(tuple, index) when index < tuple_size(tuple), do: elem(tuple, index)
+  defp tuple_element(_tuple, _index), do: nil
+
+  defp exact_pattern_value(%{type: :literal, meta: %{value: value}}), do: value
+  defp exact_pattern_value(_pattern), do: :unknown
 
   defp source_applies?(%Source{kind: :nil_default}, _parameters, _parameter_index), do: true
 
@@ -1110,6 +1660,8 @@ defmodule Reach.Evidence.NilParameter do
     end
   end
 
+  defp dynamic_argument?(nil), do: true
+
   defp dynamic_argument?(node) do
     node.type not in [:binary, :cons, :list, :literal, :map, :struct, :tuple, :var]
   end
@@ -1168,6 +1720,10 @@ defmodule Reach.Evidence.NilParameter do
   defp default_nil_pattern?(_pattern), do: false
 
   defp exact_nil_pattern?(%{type: :literal, meta: %{value: nil}}), do: true
+
+  defp exact_nil_pattern?(%{type: :match, children: children}),
+    do: Enum.any?(children, &exact_nil_pattern?/1)
+
   defp exact_nil_pattern?(_pattern), do: false
 
   defp variable?(%{type: :var, meta: %{name: name}}, name), do: true

@@ -19,8 +19,36 @@ defmodule Reach.Smell.Checks.NilParameterWithoutGuard do
   defp findings(fact) do
     fact.uses
     |> Enum.reject(& &1.safe?)
+    |> Enum.filter(&promoted?(fact, &1))
     |> Enum.map(&finding(fact, &1))
   end
+
+  defp promoted?(fact, use) do
+    Enum.any?(use.nil_sources, fn source ->
+      case source.kind do
+        :nil_default ->
+          not private_recursive_conditional?(fact, use)
+
+        :nil_clause ->
+          use.bare_parameter? and not use.parameter_guarded? and
+            source.file == use.file and source.line > use.line
+
+        :nil_argument ->
+          direct_argument_hazard?(use) or gated_project_hazard?(use)
+      end
+    end)
+  end
+
+  defp private_recursive_conditional?(fact, use),
+    do: fact.visibility == :private and fact.recursive? and use.conditional?
+
+  defp direct_argument_hazard?(use) do
+    use.bare_parameter? and not use.parameter_guarded? and
+      not use.companion_restricted? and not use.conditional?
+  end
+
+  defp gated_project_hazard?(use),
+    do: use.project_target? and use.literal_companion_gate?
 
   defp finding(fact, use) do
     parameter = to_string(fact.parameter)

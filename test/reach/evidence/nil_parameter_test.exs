@@ -205,6 +205,97 @@ defmodule Reach.Evidence.NilParameterTest do
     assert Enum.all?(facts, fn fact -> Enum.all?(fact.uses, & &1.safe?) end)
   end
 
+  test "stops parameter provenance after rebinding while retaining uses in the right-hand side" do
+    facts =
+      collect("""
+      defmodule ReboundParameter do
+        def normalized(options \\\\ nil) do
+          options = options || %{id: 1}
+          options.id
+        end
+
+        def strict_rhs(options \\\\ nil) do
+          options = Map.fetch!(options, :nested)
+          options.id
+        end
+      end
+      """)
+
+    normalized = Enum.find(facts, &(&1.function == :normalized))
+    strict_rhs = Enum.find(facts, &(&1.function == :strict_rhs))
+
+    assert normalized.uses == []
+    assert [%{safe?: false, target: {Map, :fetch!, 2}}] = strict_rhs.uses
+  end
+
+  test "recognizes cond guards, companion defaults, guarded nil clauses, and static modules" do
+    facts =
+      collect("""
+      defmodule AdditionalNilGuards do
+        def cond_guard(options \\\\ nil) do
+          cond do
+            is_map(options) -> options.id
+            true -> nil
+          end
+        end
+
+        def companion_default(metadata \\\\ nil, cursor \\\\ nil) do
+          case cursor do
+            :next -> metadata.id
+            _other -> nil
+          end
+        end
+
+        def guarded_caller, do: guarded_nil(nil)
+        def guarded_nil(value) when is_nil(value), do: :missing
+        def guarded_nil(value) when is_atom(value), do: value.render()
+
+        def static_module(ets \\\\ nil), do: :ets.new(:nil_parameter_test, [])
+      end
+      """)
+
+    for function <- [:cond_guard, :companion_default, :guarded_nil, :static_module] do
+      fact = Enum.find(facts, &(&1.function == function))
+      assert Enum.all?(fact.uses, & &1.safe?)
+    end
+  end
+
+  test "tracks unless paths, with bindings, repeated dispatch, and default wrappers precisely" do
+    facts =
+      collect("""
+      defmodule AdditionalNilFlow do
+        def unless_guard(options \\\\ nil),
+          do: unless(is_nil(options), do: Map.get(options, :id))
+
+        def with_binding(options \\\\ nil) do
+          with {:ok, options} <- normalize(options) do
+            Map.get(options, :id)
+          end
+        end
+
+        def normalize(options), do: {:ok, options || %{id: 1}}
+
+        def transition(same, same), do: same
+        def transition(nil, new), do: consume(new)
+        def transition(_old, nil), do: nil
+        def consume(%{id: id}), do: id
+
+        def wrapper, do: request(:pool, [], Handler, nil)
+
+        def request(pool, headers \\\\ [], body \\\\ "", module, init) do
+          {pool, headers, body, module.handle(init)}
+        end
+      end
+      """)
+
+    for function <- [:unless_guard, :with_binding, :transition] do
+      fact = Enum.find(facts, &(&1.function == function))
+      assert is_nil(fact) or Enum.all?(fact.uses, & &1.safe?)
+    end
+
+    refute Enum.any?(facts, &(&1.function == :request and &1.parameter == :module))
+  end
+
   test "treats calls into shape-restricted functions as strict uses" do
     facts =
       collect("""

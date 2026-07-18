@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- Nil-parameter analysis now models dominating normalization, `with` rebinding, conditional and collection paths, exact default-wrapper argument slots, dynamic receivers, and ordered multi-clause dispatch; smell promotion keeps companion-constrained and private recursive paths as evidence.
 - Return-shape divergence now requires a closed `@spec` mismatch, an asymmetric raw error wrapper, or a tagged nil/empty edge case, keeping intentional optional payloads, parser/callback tuples, and declared unions as evidence.
 - Same-entity representation analysis now excludes source map patterns, manually encoded structs, adapter and presentation boundaries, nested projections, and maps normalized by direct or consistently struct-building callers.
 - Parameter-shape entropy now excludes defensively consumed optional fields, literal companion-argument dispatch, guarded map/struct dispatch, and function-head map patterns that are not exact runtime shapes.

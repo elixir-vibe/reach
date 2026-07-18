@@ -94,13 +94,15 @@ The evidence layer keeps all overlaps above its configurable shape threshold. Th
 
 `Reach.Evidence.NilParameter` combines call evidence with per-function control flow. A parameter becomes nil-capable only when Reach observes a literal nil argument, a nil default, or a matching nil clause. Nil-clause evidence retains the other parameter patterns, so a clause for `(:with_cte, nil)` does not make the same parameter nullable in an unrelated `(:from, value)` clause.
 
-For each applicable clause, the provider records field/dynamic receiver uses, strict `Map` operations, and calls into project functions whose corresponding parameter rejects nil in every clause. Default-arity wrappers inherit the full function's proven parameter requirement. Reach then builds the existing `Reach.ControlFlow` graph and uses `Reach.Dominator` to verify that a non-nil pattern, guard, branch, or prior exhaustive nil clause dominates each use. Short-circuit boolean guards, source-path feasibility through literal/defaulted companion arguments, and nested callback shadowing and final wildcard fallbacks are modeled separately to avoid impossible paths or treating a different lexical binding as the parameter.
+For each applicable clause, the provider records field/dynamic receiver uses, strict `Map` operations, and calls into project functions whose corresponding parameter rejects nil in every clause. Default-arity wrappers inherit the full function's proven parameter requirement, while call evidence maps supplied arguments around the exact omitted default slots. Unknown dynamic receivers are not resolved to coincidentally named local functions.
+
+Reach then builds the existing `Reach.ControlFlow` graph and uses `Reach.Dominator` to verify that a non-nil pattern, guard, branch, prior exhaustive nil clause, or dominating normalization protects each use. Successful `with` patterns stop old provenance after the binding but not in its right-hand side. Short-circuit conditions, `if`/`unless`/`cond` and `case` paths, literal/defaulted companion arguments, comprehensions, repeated-variable dispatch, nested callback shadowing, and final wildcard fallbacks are modeled separately. Uses inside guards are safe under Elixir guard semantics, and static module calls are distinguished from dynamic receiver calls by IR arity.
 
 ```elixir
 Reach.Evidence.nil_parameters(project)
 ```
 
-Facts retain nil source locations, exact use locations, and dominating guard vertices. The provider intentionally does not infer nilability from unknown callers or infer external library contracts beyond a small platform-level strict-map set.
+Facts retain nil source locations, exact use locations, dominating guard vertices, clause/promotion context, function visibility, and recursive-helper provenance. The provider intentionally does not infer nilability from unknown callers or infer external library contracts beyond a small platform-level strict-map set. The smell layer promotes direct defaults, late nil fallbacks preempted by strict clauses, unconditional literal-call hazards, and literal-gated calls into project functions with proven non-nil parameters; weaker path-dependent facts remain queryable evidence.
 
 ## Return-contract evidence
 
