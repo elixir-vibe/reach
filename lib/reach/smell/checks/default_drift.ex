@@ -28,7 +28,11 @@ defmodule Reach.Smell.Checks.DefaultDrift do
   defp access_default(_access), do: []
 
   defp finding_for_group({_contract_key, accesses_and_defaults}, parent_index) do
-    defaults = accesses_and_defaults |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> Enum.sort()
+    defaults =
+      accesses_and_defaults
+      |> Enum.map(&elem(&1, 1))
+      |> Enum.uniq()
+      |> Enum.sort_by(&:erlang.term_to_binary/1)
 
     accesses =
       accesses_and_defaults

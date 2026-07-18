@@ -24,6 +24,28 @@ defmodule Reach.Smell.Checks.DefaultDriftTest do
     assert Enum.map(evidence, &(&1 |> String.split(":") |> List.last())) == ["3", "4"]
   end
 
+  test "orders numerically equal defaults by exact term representation" do
+    messages =
+      for {first, second} <- [{"0", "0.0"}, {"0.0", "0"}] do
+        findings =
+          project_from_string("""
+          defmodule Options do
+            def value(options) do
+              first = Map.get(options, :value, #{first})
+              second = Map.get(options, :value, #{second})
+              {first, second}
+            end
+          end
+          """)
+          |> Smells.run()
+
+        [finding] = Enum.filter(findings, &(&1.kind == :default_drift))
+        finding.message
+      end
+
+    assert [message, message] = messages
+  end
+
   test "flags conflicting defaults for a dynamic logical key" do
     findings =
       project_from_string("""
