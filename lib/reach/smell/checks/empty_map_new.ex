@@ -11,6 +11,7 @@ defmodule Reach.Smell.Checks.EmptyMapNew do
   def run(project) do
     project
     |> Source.module_files()
+    |> Enum.uniq()
     |> Enum.flat_map(&file_findings/1)
   end
 
@@ -20,6 +21,7 @@ defmodule Reach.Smell.Checks.EmptyMapNew do
       |> Source.cached_ast()
       |> walk(file, [])
       |> Enum.reverse()
+      |> Enum.uniq_by(& &1.location)
     else
       []
     end

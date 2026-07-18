@@ -58,6 +58,34 @@ defmodule Reach.Smell.Checks.MapKeyNormalizationTest do
     assert Enum.any?(findings, &(&1.kind == :key_normalization_collision))
   end
 
+  test "coalesces alternative conversion branches in one map normalization" do
+    findings =
+      """
+      defmodule Normalizer do
+        def atomize(map) do
+          Map.new(map, fn
+            {key, value} when is_binary(key) ->
+              try do
+                {String.to_existing_atom(key), value}
+              rescue
+                ArgumentError -> {String.to_atom(key), value}
+              end
+
+            {key, value} ->
+              {key, value}
+          end)
+        end
+      end
+      """
+      |> project_from_string()
+      |> Smells.run()
+
+    collisions = Enum.filter(findings, &(&1.kind == :key_normalization_collision))
+
+    assert length(collisions) == 1
+    assert length(hd(collisions).evidence) == 2
+  end
+
   test "flags opposite normalizers on one value-flow path" do
     findings =
       """

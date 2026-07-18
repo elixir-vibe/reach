@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- Empty-map and key-normalization checks now coalesce equivalent findings from the same source line or normalization operation while retaining all conversion-site evidence.
 - Default-drift and schema-contract findings now choose locations, keys, and evidence deterministically instead of depending on project-node map traversal order.
 - Broad-map contract findings now require strict access on the declared parameter, reject derived, mixed, or nested-pattern map origins and multi-shape dispatch, and identify the exact broad parameter; dual-key findings now group repeated literal fallbacks from distinct expression sites by function and map origin while one-off or single-chain compatibility helpers remain evidence and boolean cases coalesce with false-collapse findings.
 - Nil-parameter analysis now models dominating normalization, `with` rebinding, conditional and collection paths, exact default-wrapper argument slots, dynamic receivers, and ordered multi-clause dispatch; smell promotion keeps companion-constrained and private recursive paths as evidence.

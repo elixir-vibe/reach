@@ -1882,6 +1882,32 @@ defmodule Reach.SmellTest do
       assert Enum.any?(findings, &(&1.message =~ "%{} literal"))
     end
 
+    test "coalesces same-line empty Map.new calls" do
+      findings =
+        run_smell_task("""
+        defmodule A do
+          def empty_pair, do: {Map.new(), Map.new()}
+        end
+        """)
+
+      assert length(Enum.filter(findings, &(&1.message =~ "%{} literal"))) == 1
+    end
+
+    test "analyzes a shared multi-module source file once" do
+      findings =
+        run_smell_task("""
+        defmodule A do
+          def empty, do: Map.new()
+        end
+
+        defmodule B do
+          def value, do: :ok
+        end
+        """)
+
+      assert length(Enum.filter(findings, &(&1.message =~ "%{} literal"))) == 1
+    end
+
     test "does not flag piped Map.new, Map.new arity capture, or arrow-pattern DSL" do
       findings =
         run_smell_task("""

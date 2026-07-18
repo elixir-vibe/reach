@@ -16,7 +16,10 @@ defmodule Reach.Smell.Checks.MapKeyNormalization do
   end
 
   defp collision_findings(normalizations) do
-    Enum.map(normalizations, fn normalization ->
+    normalizations
+    |> Enum.group_by(&{&1.map_node.id, &1.direction})
+    |> Enum.map(fn {_identity, alternatives} ->
+      normalization = Enum.min_by(alternatives, &normalization_sort_key/1)
       {source, target} = representations(normalization.direction)
 
       Finding.new(
@@ -24,10 +27,19 @@ defmodule Reach.Smell.Checks.MapKeyNormalization do
         message:
           "map key normalization converts #{source} keys to #{target} keys while preserving existing #{target} keys; equivalent keys can silently overwrite each other",
         location: Helpers.location(normalization.node),
-        evidence: [Helpers.location(normalization.node)],
+        evidence:
+          alternatives
+          |> Enum.sort_by(&normalization_sort_key/1)
+          |> Enum.map(&Helpers.location(&1.node))
+          |> Enum.uniq(),
         confidence: :high
       )
     end)
+  end
+
+  defp normalization_sort_key(normalization) do
+    {normalization.node.meta[:line] || 0, normalization.node.meta[:column] || 0,
+     normalization.node.id}
   end
 
   defp churn_findings(project, normalizations) do
