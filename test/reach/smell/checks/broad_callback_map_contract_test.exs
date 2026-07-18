@@ -45,6 +45,22 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContractTest do
     assert Enum.any?(findings, &(&1.kind == :broad_callback_map_contract))
   end
 
+  test "does not treat nested pattern maps as callback parameter shapes" do
+    findings =
+      project_from_sources([
+        """
+        defmodule Contract do
+          @callback metadata(map()) :: tuple()
+        end
+        """,
+        nested_implementation("First"),
+        nested_implementation("Second")
+      ])
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :broad_callback_map_contract))
+  end
+
   test "does not promote weak evidence from one implementation" do
     findings =
       project_from_sources([
@@ -66,6 +82,17 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContractTest do
       @behaviour Contract
       def metadata(data) do
         {Map.get(data, :id), Map.get(data, :name), Map.get(data, :type)}
+      end
+    end
+    """
+  end
+
+  defp nested_implementation(name) do
+    """
+    defmodule #{name} do
+      @behaviour Contract
+      def metadata(%{details: details}) do
+        {Map.get(details, :id), Map.get(details, :name), Map.get(details, :type)}
       end
     end
     """

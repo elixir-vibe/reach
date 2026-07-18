@@ -127,7 +127,7 @@ defmodule Reach.Evidence.MapContract do
 
   def collect_key_accesses(_project), do: []
 
-  @doc "Indexes every function-parameter IR node by its zero-based parameter position."
+  @doc "Indexes direct function-parameter bindings by their zero-based parameter position."
   @spec parameter_origin_index(map()) ::
           %{{{module() | nil, atom(), non_neg_integer()}, term()} => non_neg_integer()}
   def parameter_origin_index(%{nodes: nodes}) when is_map(nodes) do
@@ -406,11 +406,25 @@ defmodule Reach.Evidence.MapContract do
       |> Stream.with_index()
       |> Enum.reduce(index, fn {parameter, parameter_index}, index ->
         parameter
-        |> descendants()
+        |> direct_parameter_origins()
         |> Enum.reduce(index, &Map.put(&2, {function_id, &1.id}, parameter_index))
       end)
     end)
   end
+
+  defp direct_parameter_origins(parameter) do
+    [parameter | direct_parameter_aliases(parameter)]
+  end
+
+  defp direct_parameter_aliases(%{type: :match, children: children}) do
+    Enum.flat_map(children, fn
+      %{type: :var} = variable -> [variable]
+      %{type: :match} = match -> [match | direct_parameter_aliases(match)]
+      _nested_pattern -> []
+    end)
+  end
+
+  defp direct_parameter_aliases(_parameter), do: []
 
   defp ancestor_parent(nil, _parent_index, _predicate), do: nil
 

@@ -59,6 +59,37 @@ defmodule Reach.Smell.Checks.BroadMapContractTest do
     refute Enum.any?(findings, &(&1.kind == :broad_map_contract))
   end
 
+  test "does not attribute a nested pattern binding to the outer broad parameter" do
+    findings =
+      project_from_source("""
+      defmodule Contract do
+        @spec execute(map()) :: tuple()
+        def execute(%{config: config}) do
+          {Map.fetch!(config, :id), Map.fetch!(config, :name), Map.fetch!(config, :type)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :broad_map_contract))
+  end
+
+  test "retains a direct alias around a map pattern" do
+    findings =
+      project_from_source("""
+      defmodule Contract do
+        @spec metadata(map()) :: tuple()
+        def metadata(%{kind: :record} = data) do
+          {Map.fetch!(data, :id), Map.fetch!(data, :name), Map.fetch!(data, :type)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    assert [%{kind: :broad_map_contract}] =
+             Enum.filter(findings, &(&1.kind == :broad_map_contract))
+  end
+
   test "matches strict accesses to the correct broad parameter" do
     findings =
       project_from_source("""
