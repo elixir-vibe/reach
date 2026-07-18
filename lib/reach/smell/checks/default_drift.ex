@@ -30,7 +30,10 @@ defmodule Reach.Smell.Checks.DefaultDrift do
   defp finding_for_group({_contract_key, accesses_and_defaults}, parent_index) do
     defaults = accesses_and_defaults |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> Enum.sort()
 
-    accesses = Enum.map(accesses_and_defaults, &elem(&1, 0))
+    accesses =
+      accesses_and_defaults
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.sort_by(&Helpers.source_sort_key(&1.node))
 
     if length(defaults) >= 2 and
          not mutually_exclusive_defaults?(accesses_and_defaults, parent_index) do

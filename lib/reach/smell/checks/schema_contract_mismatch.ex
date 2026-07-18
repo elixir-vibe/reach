@@ -69,6 +69,7 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
     undeclared =
       accesses
       |> Enum.reject(&MapSet.member?(declared, &1.key_label))
+      |> Enum.sort_by(&Helpers.source_sort_key(&1.node))
       |> Enum.uniq_by(& &1.key_label)
 
     grouped_finding(
@@ -86,6 +87,7 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
       accesses
       |> Enum.filter(&(&1.representation in [:atom, :string]))
       |> Enum.reject(&(&1.representation == fact.data.key_representation))
+      |> Enum.sort_by(&Helpers.source_sort_key(&1.node))
       |> Enum.uniq_by(& &1.key_label)
 
     grouped_finding(
@@ -102,6 +104,7 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
     defaulted =
       accesses
       |> Enum.filter(&(&1.default_node && MapSet.member?(required, &1.key_label)))
+      |> Enum.sort_by(&Helpers.source_sort_key(&1.node))
       |> Enum.uniq_by(& &1.key_label)
 
     grouped_finding(
@@ -115,6 +118,7 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
   defp grouped_finding(_fact, [], _kind, _message), do: []
 
   defp grouped_finding(fact, accesses, kind, message) do
+    accesses = Enum.sort_by(accesses, &{&1.key_label, Helpers.source_sort_key(&1.node)})
     keys = Enum.map(accesses, & &1.key_label)
 
     [

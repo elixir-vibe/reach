@@ -41,6 +41,36 @@ defmodule Reach.Smell.Checks.SchemaContractMismatchTest do
     assert Enum.any?(findings, &(&1.kind == :required_schema_key_default))
   end
 
+  test "sorts grouped schema keys and evidence deterministically" do
+    findings =
+      project_from_source(
+        """
+        defmodule Contract do
+          @schema [name: [type: :string]]
+
+          def validate(input) do
+            Map.get(input, :zeta)
+            Map.get(input, :alpha)
+            Map.get(input, :middle)
+            NimbleOptions.validate(input, @schema)
+          end
+        end
+        """,
+        [Reach.Plugins.NimbleOptions]
+      )
+      |> Smells.run()
+
+    assert [finding] = Enum.filter(findings, &(&1.kind == :schema_undeclared_key_access))
+    assert finding.keys == ["alpha", "middle", "zeta"]
+    assert finding.message =~ ~s("alpha", "middle", "zeta")
+
+    assert Enum.map(finding.evidence, &(&1 |> String.split(":") |> List.last())) == [
+             "6",
+             "7",
+             "5"
+           ]
+  end
+
   test "does not join access from a different value" do
     findings =
       project_from_source(

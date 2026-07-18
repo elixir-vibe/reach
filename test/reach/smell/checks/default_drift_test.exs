@@ -17,8 +17,11 @@ defmodule Reach.Smell.Checks.DefaultDriftTest do
       """)
       |> Smells.run()
 
-    assert [%{kind: :default_drift, keys: ["timeout"]}] =
+    assert [%{kind: :default_drift, keys: ["timeout"], location: location, evidence: evidence}] =
              Enum.filter(findings, &(&1.kind == :default_drift))
+
+    assert String.ends_with?(location, ":3")
+    assert Enum.map(evidence, &(&1 |> String.split(":") |> List.last())) == ["3", "4"]
   end
 
   test "flags conflicting defaults for a dynamic logical key" do

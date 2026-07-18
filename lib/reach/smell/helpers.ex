@@ -29,6 +29,17 @@ defmodule Reach.Smell.Helpers do
   def source_location(%{line: line}), do: "line #{line}"
   def source_location(_source), do: "unknown"
 
+  @doc "Returns a deterministic source-order key for an IR node."
+  def source_sort_key(node) do
+    case node.source_span do
+      %{file: file, start_line: line} = span ->
+        {file, line, Map.get(span, :start_col) || 0, node.id}
+
+      _span ->
+        {"", 0, 0, node.id}
+    end
+  end
+
   def ast_modules_in_file(ast), do: Reach.AST.modules_in_file(ast)
 
   @doc "Returns true if `node` is inside a loop body (reduce/map/for/recursion)."

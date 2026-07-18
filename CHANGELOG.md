@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- Default-drift and schema-contract findings now choose locations, keys, and evidence deterministically instead of depending on project-node map traversal order.
 - Broad-map contract findings now require strict access on the declared parameter, reject derived or mixed map origins and multi-shape dispatch, and identify the exact broad parameter; dual-key findings now group repeated literal fallbacks by function and map origin while one-off compatibility helpers remain evidence and boolean cases coalesce with false-collapse findings.
 - Nil-parameter analysis now models dominating normalization, `with` rebinding, conditional and collection paths, exact default-wrapper argument slots, dynamic receivers, and ordered multi-clause dispatch; smell promotion keeps companion-constrained and private recursive paths as evidence.
 - Return-shape divergence now requires a closed `@spec` mismatch, an asymmetric raw error wrapper, or a tagged nil/empty edge case, keeping intentional optional payloads, parser/callback tuples, and declared unions as evidence.
