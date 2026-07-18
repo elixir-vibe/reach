@@ -65,7 +65,7 @@ mix reach.check --candidates
 
 `decoded_boundary_leakage` reports plugin-owned decoded data stored or sent without explicit normalization when fixed literal-key consumers show that the payload behaves as an implicit contract. Normalize at the reported storage/process boundary rather than adding defensive defaults downstream. `--candidates` turns the same evidence into an `introduce_boundary_contract` proposal with a draft contract, proof checklist, and graph-backed blast radius.
 
-`return_shape_divergence` reports incompatible success contracts within one function, including bare `:ok` mixed with `{:ok, value}`, raw values mixed with tagged success, and inconsistent success-tuple arity. `nested_return_tag` reports duplicate success wrappers. Messages include every proven terminal shape and source line.
+`return_shape_divergence` reports incompatible success contracts only when backed by a closed `@spec` mismatch, an unwrapped raw error beside tagged errors, or a tagged nil/empty edge case beside raw successful values. Optional success payloads, parser/callback tuple arities, and explicit or open unions remain evidence-only. `nested_return_tag` reports duplicate success wrappers. Messages include every proven terminal shape and source line.
 
 `nil_parameter_without_guard` reports a parameter proven nil-capable by a call, default, or matching clause when a strict use has no dominating non-nil proof. The finding identifies both the nil source and unsafe use; fix the contract with a clause-head guard or normalize before every reported path rather than rescuing the eventual crash.
 

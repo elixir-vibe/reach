@@ -45,7 +45,13 @@ defmodule Reach.Evidence.ReturnContract do
   defmodule Outcome do
     @moduledoc false
     @type t :: %__MODULE__{}
-    defstruct [:class, :shape, :label, :line, :column, :nested_same_tag]
+    defstruct [:class, :shape, :label, :line, :column, :nested_same_tag, sentinel_clause?: false]
+  end
+
+  defmodule DeclaredContract do
+    @moduledoc false
+    @type t :: %__MODULE__{}
+    defstruct [:line, closed?: false, shapes: [], labels: []]
   end
 
   defmodule Fact do
@@ -59,6 +65,7 @@ defmodule Reach.Evidence.ReturnContract do
       :file,
       :line,
       :impl,
+      :declared_contract,
       outcomes: []
     ]
   end
@@ -93,13 +100,12 @@ defmodule Reach.Evidence.ReturnContract do
          {:ok, module_body} <- Reach.AST.keyword_fetch(body, :do) do
       statements = statements(module_body)
       callback_signatures = otp_callback_signatures(statements)
+      declared_contracts = declared_contracts(statements)
 
       statements
       |> clauses()
       |> Enum.group_by(&{&1.function, &1.arity})
       |> Enum.map(fn {{function, arity}, clauses} ->
-        outcomes = Enum.flat_map(clauses, &terminal_outcomes(&1.body, &1.meta))
-
         %Fact{
           module: module,
           function: function,
@@ -110,7 +116,8 @@ defmodule Reach.Evidence.ReturnContract do
           impl:
             Enum.any?(clauses, & &1.impl) or
               MapSet.member?(callback_signatures, {function, arity}),
-          outcomes: outcomes
+          declared_contract: Map.get(declared_contracts, {function, arity}),
+          outcomes: function_outcomes(clauses)
         }
       end)
     else
@@ -119,6 +126,14 @@ defmodule Reach.Evidence.ReturnContract do
   end
 
   defp module_facts(_module, _file), do: []
+
+  defp function_outcomes(clauses) do
+    Enum.flat_map(clauses, fn clause ->
+      clause.body
+      |> terminal_outcomes(clause.meta)
+      |> Enum.map(&%{&1 | sentinel_clause?: clause.sentinel_clause?})
+    end)
+  end
 
   defp clauses(statements) do
     {clauses, _impl} = Enum.reduce(statements, {[], false}, &collect_clause/2)
@@ -141,6 +156,99 @@ defmodule Reach.Evidence.ReturnContract do
   end
 
   defp collect_clause(_other, state), do: state
+
+  defp declared_contracts(statements) do
+    statements
+    |> Enum.flat_map(&declared_contract_entry/1)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Map.new(fn {function_id, entries} ->
+      alternatives = Enum.flat_map(entries, &flatten_spec_union(&1.return))
+      classified = Enum.map(alternatives, &classify_spec_shape/1)
+
+      contract = %DeclaredContract{
+        line: entries |> Enum.map(& &1.line) |> Enum.reject(&is_nil/1) |> Enum.min(fn -> nil end),
+        closed?: Enum.all?(classified, &match?({:known, _shape}, &1)),
+        shapes:
+          classified
+          |> Enum.flat_map(fn
+            {:known, shape} -> [shape]
+            :unknown -> []
+          end)
+          |> Enum.uniq(),
+        labels: entries |> Enum.map(&Macro.to_string(&1.return)) |> Enum.uniq()
+      }
+
+      {function_id, contract}
+    end)
+  end
+
+  defp declared_contract_entry({:@, meta, [{:spec, _spec_meta, [spec]}]}) do
+    case spec_signature(spec) do
+      {:ok, function, arity, return} ->
+        [{{function, arity}, %{line: meta[:line], return: return}}]
+
+      :error ->
+        []
+    end
+  end
+
+  defp declared_contract_entry(_statement), do: []
+
+  defp spec_signature({:"::", _meta, [head, return]}) do
+    case Reach.AST.function_identity(head) do
+      {:ok, function, arity} -> {:ok, function, arity, return}
+      :error -> :error
+    end
+  end
+
+  defp spec_signature({:when, _meta, [spec | _constraints]}), do: spec_signature(spec)
+  defp spec_signature(_dynamic), do: :error
+
+  defp flatten_spec_union(spec), do: do_flatten_spec_union(spec, [])
+
+  defp do_flatten_spec_union({:|, _meta, [left, right]}, acc),
+    do: do_flatten_spec_union(left, do_flatten_spec_union(right, acc))
+
+  defp do_flatten_spec_union(other, acc), do: [other | acc]
+
+  defp classify_spec_shape({:"::", _meta, [_name, type]}), do: classify_spec_shape(type)
+  defp classify_spec_shape(value) when is_boolean(value), do: {:known, :boolean}
+  defp classify_spec_shape(nil), do: {:known, nil}
+  defp classify_spec_shape(value) when is_atom(value), do: {:known, {:bare_atom, value}}
+  defp classify_spec_shape(value) when is_binary(value), do: {:known, :binary}
+  defp classify_spec_shape(value) when is_integer(value), do: {:known, :integer}
+  defp classify_spec_shape(value) when is_float(value), do: {:known, :float}
+  defp classify_spec_shape(value) when is_list(value), do: {:known, :list}
+
+  defp classify_spec_shape({:{}, _meta, elements}) when is_list(elements),
+    do: classify_spec_tuple(elements)
+
+  defp classify_spec_shape(tuple) when is_tuple(tuple) and tuple_size(tuple) == 2,
+    do: tuple |> Tuple.to_list() |> classify_spec_tuple()
+
+  defp classify_spec_shape({:%{}, _meta, _fields}), do: {:known, :map}
+
+  defp classify_spec_shape({:%, _meta, [module_ast, _fields]}),
+    do: {:known, {:struct, module_label(module_ast)}}
+
+  defp classify_spec_shape({type, _meta, _arguments}) when type in [:list, :nonempty_list],
+    do: {:known, :list}
+
+  defp classify_spec_shape({:map, _meta, _arguments}), do: {:known, :map}
+
+  defp classify_spec_shape({type, _meta, _arguments})
+       when type in [:binary, :bitstring],
+       do: {:known, :binary}
+
+  defp classify_spec_shape({:integer, _meta, _arguments}), do: {:known, :integer}
+  defp classify_spec_shape({:float, _meta, _arguments}), do: {:known, :float}
+  defp classify_spec_shape({:boolean, _meta, _arguments}), do: {:known, :boolean}
+  defp classify_spec_shape(_open_type), do: :unknown
+
+  defp classify_spec_tuple([tag | _rest] = elements) when is_atom(tag),
+    do: {:known, {:tagged, tag, length(elements)}}
+
+  defp classify_spec_tuple(elements), do: {:known, {:tuple, length(elements)}}
 
   defp otp_callback_signatures(statements) do
     statements
@@ -175,12 +283,32 @@ defmodule Reach.Evidence.ReturnContract do
         visibility: visibility,
         body: expression,
         meta: meta,
-        impl: impl
+        impl: impl,
+        sentinel_clause?: sentinel_clause?(head)
       }
     else
       _unsupported -> nil
     end
   end
+
+  defp sentinel_clause?(head) do
+    head
+    |> clause_arguments()
+    |> Enum.any?(&sentinel_pattern?/1)
+  end
+
+  defp clause_arguments({:when, _meta, [head | _guards]}), do: clause_arguments(head)
+  defp clause_arguments({_function, _meta, arguments}) when is_list(arguments), do: arguments
+  defp clause_arguments(_dynamic), do: []
+
+  defp sentinel_pattern?(nil), do: true
+  defp sentinel_pattern?(""), do: true
+  defp sentinel_pattern?([]), do: true
+
+  defp sentinel_pattern?({:=, _meta, patterns}),
+    do: Enum.any?(patterns, &sentinel_pattern?/1)
+
+  defp sentinel_pattern?(_pattern), do: false
 
   defp function_expression(body, meta) do
     with {:ok, expression} <- Reach.AST.keyword_fetch(body, :do) do

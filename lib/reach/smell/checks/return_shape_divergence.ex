@@ -7,6 +7,8 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergence do
   alias Reach.Smell.Finding
 
   @raw_classes [:list, :map, :scalar, :struct]
+  @raw_error_classes [:scalar, :struct]
+  @sentinel_raw_classes [:list, :map, :struct]
   @contract_tag :ok
 
   @impl true
@@ -47,23 +49,35 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergence do
   end
 
   defp divergence_findings(fact) do
-    if divergent?(fact.outcomes) do
-      [
-        Finding.new(
-          kind: :return_shape_divergence,
-          message:
-            "#{function_name(fact)} returns incompatible contracts #{shape_summary(fact.outcomes)}; choose one tagged return structure across every clause and branch",
-          location: fact_location(fact),
-          evidence: fact.outcomes |> known_outcomes() |> Enum.map(&outcome_evidence/1),
-          confidence: :high
-        )
-      ]
-    else
-      []
+    case divergence_reason(fact) do
+      nil ->
+        []
+
+      reason ->
+        [
+          Finding.new(
+            kind: :return_shape_divergence,
+            message: divergence_message(fact, reason),
+            location: fact_location(fact),
+            evidence: divergence_evidence(fact, reason),
+            confidence: :high
+          )
+        ]
     end
   end
 
-  defp divergent?(outcomes) do
+  defp divergence_reason(fact) do
+    if structurally_divergent?(fact.outcomes) do
+      cond do
+        declared_contract_mismatch?(fact) -> :declared_contract_mismatch
+        asymmetric_error_wrapper?(fact.outcomes) -> :asymmetric_error_wrapper
+        sentinel_success_shape?(fact.outcomes) -> :sentinel_success_shape
+        true -> nil
+      end
+    end
+  end
+
+  defp structurally_divergent?(outcomes) do
     if Enum.any?(outcomes, &(&1.class == :dynamic)) do
       false
     else
@@ -76,6 +90,31 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergence do
   end
 
   defp known_outcomes(outcomes), do: Enum.reject(outcomes, &(&1.class in [:dynamic, :no_return]))
+
+  defp declared_contract_mismatch?(%{
+         declared_contract: %{closed?: true, shapes: shapes},
+         outcomes: outcomes
+       }) do
+    outcomes
+    |> known_outcomes()
+    |> Enum.any?(&(&1.shape not in shapes))
+  end
+
+  defp declared_contract_mismatch?(_fact), do: false
+
+  defp asymmetric_error_wrapper?(outcomes) do
+    Enum.any?(outcomes, &match?(%{shape: {:tagged, :error, _arity}}, &1)) and
+      Enum.any?(outcomes, &(&1.class in @raw_error_classes))
+  end
+
+  defp sentinel_success_shape?(outcomes) do
+    Enum.any?(outcomes, fn outcome ->
+      outcome.sentinel_clause? and match?({:tagged, @contract_tag, _arity}, outcome.shape)
+    end) and
+      Enum.any?(outcomes, fn outcome ->
+        not outcome.sentinel_clause? and outcome.class in @sentinel_raw_classes
+      end)
+  end
 
   defp matching_bare_and_tagged?(outcomes) do
     tagged =
@@ -117,12 +156,37 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergence do
     |> Enum.map_join(" vs ", &"#{&1.label} (#{outcome_location(&1)})")
   end
 
+  defp divergence_message(fact, :declared_contract_mismatch) do
+    "#{function_name(fact)} returns #{shape_summary(fact.outcomes)} outside its declared contract #{declared_contract_summary(fact)}; align the implementation and @spec"
+  end
+
+  defp divergence_message(fact, _reason) do
+    "#{function_name(fact)} returns incompatible contracts #{shape_summary(fact.outcomes)}; choose one tagged return structure across every clause and branch"
+  end
+
+  defp divergence_evidence(fact, :declared_contract_mismatch) do
+    declared = fact.declared_contract
+
+    [
+      "declared #{Enum.join(declared.labels, " or ")} at line #{declared.line}"
+      | fact_outcome_evidence(fact)
+    ]
+  end
+
+  defp divergence_evidence(fact, _reason), do: fact_outcome_evidence(fact)
+
+  defp fact_outcome_evidence(fact) do
+    fact.outcomes |> known_outcomes() |> Enum.map(&outcome_evidence/1)
+  end
+
   defp outcome_evidence(outcome) do
     "#{outcome.label} at #{outcome_location(outcome)}"
   end
 
   defp outcome_location(%{line: nil}), do: "unknown line"
   defp outcome_location(%{line: line}), do: "line #{line}"
+
+  defp declared_contract_summary(fact), do: Enum.join(fact.declared_contract.labels, " or ")
 
   defp fact_location(fact), do: "#{fact.file}:#{fact.line}"
 

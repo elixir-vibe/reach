@@ -30,6 +30,38 @@ defmodule Reach.Evidence.ReturnContractTest do
     assert Enum.map(load.outcomes, & &1.line) == [7, 8]
   end
 
+  test "records declared contracts and sentinel-clause provenance" do
+    [fact] =
+      collect("""
+      defmodule DeclaredReturn do
+        @spec parse(atom()) :: {:ok, atom()} | {:error, term()}
+        def parse(nil), do: {:ok, :empty}
+        def parse(value), do: {:error, value}
+      end
+      """)
+
+    assert fact.declared_contract.closed?
+    assert fact.declared_contract.line == 2
+    assert fact.declared_contract.shapes == [{:tagged, :ok, 2}, {:tagged, :error, 2}]
+    assert fact.declared_contract.labels == ["{:ok, atom()} | {:error, term()}"]
+    assert Enum.map(fact.outcomes, & &1.sentinel_clause?) == [true, false]
+  end
+
+  test "keeps contracts containing project types open" do
+    [fact] =
+      collect("""
+      defmodule OpenReturn do
+        @type result :: %{value: term()}
+        @spec parse(atom()) :: {:ok, atom()} | result()
+        def parse(:ok), do: {:ok, :value}
+        def parse(:raw), do: %{value: :raw}
+      end
+      """)
+
+    refute fact.declared_contract.closed?
+    assert fact.declared_contract.shapes == [{:tagged, :ok, 2}]
+  end
+
   test "records nested identical tags and dynamic with fallthrough" do
     facts =
       collect("""

@@ -104,7 +104,7 @@ Facts retain nil source locations, exact use locations, and dominating guard ver
 
 ## Return-contract evidence
 
-`Reach.Evidence.ReturnContract` collects terminal expressions across function clauses and explicit `case`, `cond`, `if`, `with`, `receive`, and `try` branches. Outcomes retain structural classes, exact tagged-tuple arity, source lines, nested identical tags, and whether the function is marked `@impl` or recognized as a source-declared OTP callback.
+`Reach.Evidence.ReturnContract` collects terminal expressions across function clauses and explicit `case`, `cond`, `if`, `with`, `receive`, and `try` branches. Outcomes retain structural classes, exact tagged-tuple arity, source lines, nested identical tags, sentinel-clause provenance, closed direct `@spec` shapes, and whether the function is marked `@impl` or recognized as a source-declared OTP callback.
 
 Unknown calls and implicit `with` fallthrough remain dynamic evidence rather than guessed return types. Function-level `rescue`, `catch`, and `else` are modeled as `try` semantics, so transformed successful values are not incorrectly counted as terminal returns. Collect project-level facts with:
 
@@ -112,7 +112,7 @@ Unknown calls and implicit `with` fallthrough remain dynamic evidence rather tha
 Reach.Evidence.return_contracts(project)
 ```
 
-The smell policy promotes only high-confidence `:ok` contract conflicts: bare `:ok` versus `{:ok, value}`, `:ok` tuples mixed with known raw values, inconsistent `:ok` tuple arity, and nested `{:ok, {:ok, value}}`. Conventional `{:ok, value} | {:error, reason}`, sentinel failures, state-machine tuples, dynamic forwarding, and explicit or source-declared OTP callbacks stay clean.
+The smell policy promotes only high-confidence `:ok` contract conflicts backed by a closed-spec mismatch, an asymmetric raw error beside tagged errors, or a tagged nil/empty sentinel beside raw successful values. Bare/tagged optional payloads, tuple-arity differences, explicit/open unions, conventional `{:ok, value} | {:error, reason}`, custom sentinel failures, state-machine tuples, dynamic forwarding, and explicit or source-declared OTP callbacks remain evidence-only. Nested `{:ok, {:ok, value}}` remains an independently promoted finding.
 
 ## Boundaries
 

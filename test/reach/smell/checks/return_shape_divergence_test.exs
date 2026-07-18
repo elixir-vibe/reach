@@ -8,6 +8,7 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
     findings =
       smells("""
       defmodule MixedSuccess do
+        @spec parse(atom()) :: {:ok, atom()}
         def parse(:empty), do: :ok
         def parse(value), do: {:ok, value}
       end
@@ -15,16 +16,18 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
 
     assert [finding] = by_kind(findings, :return_shape_divergence)
     assert finding.confidence == :high
-    assert finding.location =~ ":2"
+    assert finding.location =~ ":3"
     assert finding.message =~ "MixedSuccess.parse/1"
-    assert finding.message =~ ":ok (line 2)"
-    assert finding.message =~ "{:ok, _} (line 3)"
+    assert finding.message =~ "outside its declared contract"
+    assert finding.message =~ ":ok (line 3)"
+    assert finding.message =~ "{:ok, _} (line 4)"
   end
 
   test "finds raw values mixed with tagged results inside branches" do
     findings =
       smells("""
       defmodule RawOrTagged do
+        @spec load(atom()) :: {:ok, atom()}
         def load(mode) do
           case mode do
             :raw -> %{status: :ready}
@@ -35,16 +38,63 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
       """)
 
     assert [finding] = by_kind(findings, :return_shape_divergence)
-    assert finding.message =~ "map (line 4)"
-    assert finding.message =~ "{:ok, _} (line 5)"
+    assert finding.message =~ "map (line 5)"
+    assert finding.message =~ "{:ok, _} (line 6)"
   end
 
   test "finds inconsistent arity for the same tag" do
     findings =
       smells("""
       defmodule TagArity do
+        @spec load(atom()) :: {:ok, atom()}
         def load(:plain), do: {:ok, :value}
         def load(:cached), do: {:ok, :value, :cached}
+      end
+      """)
+
+    assert [_finding] = by_kind(findings, :return_shape_divergence)
+  end
+
+  test "keeps declared or unproven mixed contracts as evidence" do
+    findings =
+      smells("""
+      defmodule IntentionalMixedReturns do
+        @spec parse(atom()) :: :ok | {:ok, atom()}
+        def parse(:empty), do: :ok
+        def parse(value), do: {:ok, value}
+
+        def undocumented(:empty), do: :ok
+        def undocumented(value), do: {:ok, value}
+
+        @type raw_result :: %{value: atom()}
+        @spec open(atom()) :: {:ok, atom()} | raw_result()
+        def open(:ok), do: {:ok, :value}
+        def open(value), do: %{value: value}
+      end
+      """)
+
+    assert by_kind(findings, :return_shape_divergence) == []
+  end
+
+  test "finds an unwrapped raw error beside tagged errors" do
+    findings =
+      smells("""
+      defmodule AsymmetricErrors do
+        def request(:ok), do: {:ok, :value}
+        def request(:bad), do: {:error, :bad}
+        def request(:offline), do: %RuntimeError{message: "offline"}
+      end
+      """)
+
+    assert [_finding] = by_kind(findings, :return_shape_divergence)
+  end
+
+  test "finds tagged sentinel clauses mixed with raw successful values" do
+    findings =
+      smells("""
+      defmodule SentinelShape do
+        def parse(nil), do: {:ok, []}
+        def parse(value), do: %{value: value}
       end
       """)
 
@@ -166,6 +216,7 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
     findings =
       smells("""
       defmodule SuppressedReturns do
+        @spec parse(atom()) :: {:ok, atom()}
         # reach:disable-next-line return_shape_divergence -- legacy callback contract
         def parse(:empty), do: :ok
         def parse(value), do: {:ok, value}

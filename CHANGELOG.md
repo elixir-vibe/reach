@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- Return-shape divergence now requires a closed `@spec` mismatch, an asymmetric raw error wrapper, or a tagged nil/empty edge case, keeping intentional optional payloads, parser/callback tuples, and declared unions as evidence.
 - Same-entity representation analysis now excludes source map patterns, manually encoded structs, adapter and presentation boundaries, nested projections, and maps normalized by direct or consistently struct-building callers.
 - Parameter-shape entropy now excludes defensively consumed optional fields, literal companion-argument dispatch, guarded map/struct dispatch, and function-head map patterns that are not exact runtime shapes.
 - Scanner integration tests now propagate the active Mix environment to child processes, keeping clean `mix ci` runs deterministic.

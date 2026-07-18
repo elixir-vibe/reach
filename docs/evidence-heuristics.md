@@ -143,9 +143,9 @@ Calibration notes:
 
 ## Return-shape divergence
 
-`Reach.Evidence.ReturnContract` records terminal return structures per function across clauses and explicit branches. `return_shape_divergence` is intentionally narrower than general union-return analysis: it reports only conflicts around the success tag—bare `:ok` versus tagged `{:ok, value}`, tagged success mixed with a known raw value, or multiple arities for the `:ok` tag. `nested_return_tag` separately reports duplicate success wrappers such as `{:ok, {:ok, value}}`.
+`Reach.Evidence.ReturnContract` records terminal return structures per function across clauses and explicit branches. `return_shape_divergence` is intentionally narrower than general union-return analysis: bare/tagged success differences and `:ok` tuple-arity changes remain evidence, but promotion additionally requires a closed direct `@spec` contradicted by the implementation, an unwrapped scalar/struct error beside tagged errors, or a tagged nil/empty sentinel clause beside raw successful values. `nested_return_tag` separately reports duplicate success wrappers such as `{:ok, {:ok, value}}`.
 
-Dynamic forwarding, implicit `with` fallthrough, conventional error/sentinel alternatives, untagged state-machine tuples, `@impl` callbacks, and source-declared OTP behaviour callbacks suppress promotion. Raising paths do not count as returns, and function-level `else` replaces the successful `try` body when determining terminal shapes.
+Explicit mixed unions and open project-defined return types establish intent rather than proving a mismatch. Dynamic forwarding, optional success payloads, mode/parser/callback tuples, custom raw error sentinels, implicit `with` fallthrough, conventional error/sentinel alternatives, untagged state-machine tuples, `@impl` callbacks, and source-declared OTP behaviour callbacks suppress promotion. Raising paths do not count as returns, and function-level `else` replaces the successful `try` body when determining terminal shapes.
 
 Calibration notes:
 
@@ -153,6 +153,7 @@ Calibration notes:
 - Restricting policy to `:ok`, excluding untagged tuples and dynamic outcomes, honoring `@impl`, and fixing `try`/`else` semantics reduced the same corpus to one reviewed finding: Elixir's private `Mix.Utils.do_symlink_or_copy/3` returns bare `:ok` after linking but `{:ok, files}` after copying.
 - The eight checksum-pinned Hex packages produce no findings. No corpus project produced a nested-success-tag finding.
 - A 2,000-package download-ranked Hex scan produced sixty-three initial return findings. It exposed legacy OTP implementations without `@impl` annotations, including a GenServer `init/1` timeout tuple and a `:gen_event` callback wrapper; source-declared OTP callback recognition keeps those contracts out of smell policy.
+- Full-corpus review labeled all 379 findings across 247 package versions: 24 true positives and 355 false positives (6.3% initial precision). The false-positive queue consisted of 137 optional-success/pass-through contracts, 128 mode/parser/callback contracts, 70 declared or open unions, and 20 custom error-sentinel/overload contracts. Closed-spec mismatches, asymmetric error wrappers, and tagged sentinel edge cases retain all 24 reviewed positives while removing all 355 reviewed false positives.
 
 ## Module-level facades
 
