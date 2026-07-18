@@ -127,6 +127,18 @@ defmodule Reach.Evidence.MapContract do
 
   def collect_key_accesses(_project), do: []
 
+  @doc "Indexes every function-parameter IR node by its zero-based parameter position."
+  @spec parameter_origin_index(map()) ::
+          %{{{module() | nil, atom(), non_neg_integer()}, term()} => non_neg_integer()}
+  def parameter_origin_index(%{nodes: nodes}) when is_map(nodes) do
+    nodes
+    |> Map.values()
+    |> Enum.filter(&(&1.type == :function_def))
+    |> Enum.reduce(%{}, &index_function_parameters/2)
+  end
+
+  def parameter_origin_index(_project), do: %{}
+
   def collect_key_normalizations(%{nodes: nodes, call_graph: _call_graph} = project)
       when is_map(nodes) do
     parent_index = parent_index(nodes)
@@ -382,6 +394,23 @@ defmodule Reach.Evidence.MapContract do
   end
 
   defp descendants(node), do: [node | Enum.flat_map(node.children, &descendants/1)]
+
+  defp index_function_parameters(function, index) do
+    function_id = {function.meta[:module], function.meta[:name], function.meta[:arity]}
+
+    function.children
+    |> Enum.filter(&(&1.type == :clause))
+    |> Enum.reduce(index, fn clause, index ->
+      clause.children
+      |> Enum.take(function.meta[:arity])
+      |> Stream.with_index()
+      |> Enum.reduce(index, fn {parameter, parameter_index}, index ->
+        parameter
+        |> descendants()
+        |> Enum.reduce(index, &Map.put(&2, {function_id, &1.id}, parameter_index))
+      end)
+    end)
+  end
 
   defp ancestor_parent(nil, _parent_index, _predicate), do: nil
 

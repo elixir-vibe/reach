@@ -74,7 +74,7 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
   end
 
   defp implementation_shapes(project) do
-    parameter_index = parameter_index(project)
+    parameter_index = MapContract.parameter_origin_index(project)
 
     project
     |> MapContract.collect_key_accesses()
@@ -97,32 +97,6 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
       end)
     end)
   end
-
-  defp parameter_index(project) do
-    project.nodes
-    |> Map.values()
-    |> Enum.filter(&(&1.type == :function_def))
-    |> Enum.reduce(%{}, &index_function_parameters/2)
-  end
-
-  defp index_function_parameters(function, index) do
-    function_id = {function.meta[:module], function.meta[:name], function.meta[:arity]}
-
-    function.children
-    |> Enum.filter(&(&1.type == :clause))
-    |> Enum.reduce(index, fn clause, index ->
-      clause.children
-      |> Enum.take(function.meta[:arity])
-      |> Stream.with_index()
-      |> Enum.reduce(index, fn {parameter, parameter_index}, index ->
-        parameter
-        |> descendants()
-        |> Enum.reduce(index, &Map.put(&2, {function_id, &1.id}, parameter_index))
-      end)
-    end)
-  end
-
-  defp descendants(node), do: [node | Enum.flat_map(node.children, &descendants/1)]
 
   defp merge_implementation_shapes(shapes) do
     shapes

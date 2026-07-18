@@ -4,7 +4,31 @@ defmodule Reach.Smell.Checks.BroadMapContractTest do
   alias Reach.Check.Smells
   alias Reach.Project
 
-  test "flags map specs whose implementation reads a fixed shape" do
+  test "flags broad map parameters with a strict fixed shape" do
+    findings =
+      project_from_source("""
+      defmodule Contract do
+        @spec metadata(map()) :: tuple()
+        def metadata(data) do
+          {Map.fetch!(data, :id), Map.fetch!(data, :name), Map.fetch!(data, :type)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    assert [
+             %{
+               kind: :broad_map_contract,
+               keys: ["id", "name", "type"],
+               message: message
+             }
+           ] = Enum.filter(findings, &(&1.kind == :broad_map_contract))
+
+    assert message =~ "parameter 1"
+    assert message =~ "uses strict access"
+  end
+
+  test "does not promote a lenient fixed shape" do
     findings =
       project_from_source("""
       defmodule Contract do
@@ -16,8 +40,60 @@ defmodule Reach.Smell.Checks.BroadMapContractTest do
       """)
       |> Smells.run()
 
-    assert [%{kind: :broad_map_contract, keys: ["id", "name", "type"]}] =
+    refute Enum.any?(findings, &(&1.kind == :broad_map_contract))
+  end
+
+  test "does not attribute keys from a derived nested map to the broad parameter" do
+    findings =
+      project_from_source("""
+      defmodule Contract do
+        @spec metadata(map()) :: tuple()
+        def metadata(data) do
+          nested = Map.fetch!(data, :nested)
+          {Map.fetch!(nested, :id), Map.fetch!(nested, :name), Map.fetch!(nested, :type)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :broad_map_contract))
+  end
+
+  test "matches strict accesses to the correct broad parameter" do
+    findings =
+      project_from_source("""
+      defmodule Contract do
+        @spec metadata(term(), map()) :: tuple()
+        def metadata(_context, data) do
+          {Map.fetch!(data, :id), Map.fetch!(data, :name), Map.fetch!(data, :type)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    assert [%{kind: :broad_map_contract, message: message}] =
              Enum.filter(findings, &(&1.kind == :broad_map_contract))
+
+    assert message =~ "parameter 2"
+  end
+
+  test "does not promote a strict clause when the parameter has another observed shape" do
+    findings =
+      project_from_source("""
+      defmodule Contract do
+        @spec metadata(map()) :: tuple()
+        def metadata(%{kind: :person} = data) do
+          {Map.fetch!(data, :id), Map.fetch!(data, :name), Map.fetch!(data, :email)}
+        end
+
+        def metadata(%{kind: :event} = data) do
+          {Map.get(data, :id), Map.get(data, :name), Map.get(data, :time)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :broad_map_contract))
   end
 
   test "does not flag broad maps without enough observed shape evidence" do
@@ -25,7 +101,7 @@ defmodule Reach.Smell.Checks.BroadMapContractTest do
       project_from_source("""
       defmodule Contract do
         @spec value(map()) :: term()
-        def value(data), do: Map.get(data, :value)
+        def value(data), do: Map.fetch!(data, :value)
       end
       """)
       |> Smells.run()
@@ -39,7 +115,7 @@ defmodule Reach.Smell.Checks.BroadMapContractTest do
       defmodule Contract do
         @spec metadata(%{id: term(), name: term(), type: term()}) :: tuple()
         def metadata(data) do
-          {Map.get(data, :id), Map.get(data, :name), Map.get(data, :type)}
+          {Map.fetch!(data, :id), Map.fetch!(data, :name), Map.fetch!(data, :type)}
         end
       end
       """)

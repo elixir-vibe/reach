@@ -7,8 +7,9 @@ defmodule ReachCalibration.AnalyzerTest do
     snapshot =
       snapshot("lib/demo.ex", """
       defmodule Demo do
-        def fetch(map, key, default) do
-          Map.get(map, key) || Map.get(map, Atom.to_string(key)) || default
+        def fetch(map) do
+          Map.get(map, :id) || Map.get(map, "id") ||
+            Map.get(map, :name) || Map.get(map, "name")
         end
       end
       """)

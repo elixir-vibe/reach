@@ -95,6 +95,14 @@ Calibration notes:
 - Thirteen current local projects and the eight checksum-pinned Hex packages produce no findings or boundary-contract candidates.
 - Exograph structural search for `Poison.decode!(_)` returned a capped 100 candidates across 47 packages. A deterministic 25-package source sample produced one raw evidence fact in `country_data`, whose intentionally dynamic-key GenServer store remains evidence-only after the literal-consumer discriminator; no sampled package produced a smell.
 
+## Broad map contracts and dual-key fallbacks
+
+`Reach.Evidence.MapContract` retains literal key accesses, parameter origins, access strictness, and atom/string fallback structure as reusable facts. Smell promotion is intentionally narrower than the evidence.
+
+`broad_map_contract` requires at least three literal keys from one direct broad-map parameter origin and at least one strict `Map.fetch!/2` access. Derived maps, paths that mix the parameter with another map origin, lenient-only access, and functions with multiple observed shapes remain evidence. Parameter-origin indexing also distinguishes multiple `map()` arguments in one spec, so keys from one input cannot be attributed to another.
+
+`dual_key_fallback` is grouped by function and map origin and requires at least two returned literal atom/string fallback groups. Dynamic compatibility accessors and one-off literal fallbacks remain evidence. A fallback node that can collapse an explicit boolean `false` into a terminal default emits only the higher-confidence `false_collapsing_lookup` finding rather than duplicate normalization advice.
+
 ## Parameter-shape entropy
 
 `Reach.Evidence.ParameterShape` groups fixed map shapes flowing into each resolved project parameter. Entropy is the fraction of union keys absent from the intersection: zero means every observed caller supplies the same keys, while one means no key is universal. `parameter_shape_entropy` requires multiple distinct callers and variants, a domain-role parameter, at least two keys consumed by the callee, at least one strictly consumed key that varies between shapes, and configurable minimum union size and entropy. Defensive `Map.get`/bracket access, function-head map patterns, literal companion-argument dispatch, and explicit clause or guarded map/struct dispatch remain evidence-only.

@@ -4,7 +4,7 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
   alias Reach.Check.Smells
   alias Reach.Project
 
-  test "flags dynamic atom/string fallback helpers and false collapse" do
+  test "coalesces a dynamic fallback helper into its false-collapse finding" do
     findings =
       """
       defmodule LooseContract do
@@ -16,7 +16,7 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       |> project_from_string()
       |> Smells.run()
 
-    assert Enum.any?(findings, &(&1.kind == :dual_key_fallback))
+    refute Enum.any?(findings, &(&1.kind == :dual_key_fallback))
     assert Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
   end
 
@@ -33,9 +33,10 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       |> Smells.run()
 
     assert Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
+    refute Enum.any?(findings, &(&1.kind == :dual_key_fallback))
   end
 
-  test "flags a two-access literal fallback without lowering the density rule" do
+  test "keeps a one-off two-access literal fallback as evidence only" do
     findings =
       """
       defmodule LooseContract do
@@ -47,8 +48,33 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       |> project_from_string()
       |> Smells.run()
 
-    assert Enum.any?(findings, &(&1.kind == :dual_key_fallback))
+    refute Enum.any?(findings, &(&1.kind == :dual_key_fallback))
     refute Enum.any?(findings, &(&1.kind == :dual_key_access))
+    refute Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
+  end
+
+  test "groups repeated literal fallbacks into one normalization finding" do
+    findings =
+      """
+      defmodule LooseContract do
+        def get(map) do
+          Map.get(map, :id) || Map.get(map, "id") ||
+            Map.get(map, :name) || Map.get(map, "name")
+        end
+      end
+      """
+      |> project_from_string()
+      |> Smells.run()
+
+    assert [
+             %{
+               kind: :dual_key_fallback,
+               keys: ["id", "name"],
+               occurrences: 2,
+               confidence: :medium
+             }
+           ] = Enum.filter(findings, &(&1.kind == :dual_key_fallback))
+
     refute Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
   end
 
@@ -65,8 +91,8 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       |> project_from_string()
       |> Smells.run()
 
-    assert Enum.count(findings, &(&1.kind == :dual_key_fallback)) == 2
-    assert Enum.count(findings, &(&1.kind == :false_collapsing_lookup)) == 1
+    refute Enum.any?(findings, &(&1.kind == :dual_key_fallback))
+    assert [_finding] = Enum.filter(findings, &(&1.kind == :false_collapsing_lookup))
   end
 
   test "requires boolean-domain evidence for false collapse" do
@@ -81,11 +107,10 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       |> project_from_string()
       |> Smells.run()
 
-    assert Enum.any?(findings, &(&1.kind == :dual_key_fallback))
-    refute Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
+    refute Enum.any?(findings, &(&1.kind in [:dual_key_fallback, :false_collapsing_lookup]))
   end
 
-  test "recognizes nested defaults without reporting false collapse" do
+  test "keeps a one-off nested default as evidence only" do
     findings =
       """
       defmodule LooseContract do
@@ -97,8 +122,7 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       |> project_from_string()
       |> Smells.run()
 
-    assert Enum.any?(findings, &(&1.kind == :dual_key_fallback))
-    refute Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
+    refute Enum.any?(findings, &(&1.kind in [:dual_key_fallback, :false_collapsing_lookup]))
   end
 
   test "does not flag a fallback nested inside a broader operation" do
@@ -107,6 +131,25 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
       defmodule RequestBuilder do
         def body(map) do
           encode(%{enabled: Map.get(map, :enabled) || Map.get(map, "enabled")})
+        end
+      end
+      """
+      |> project_from_string()
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind in [:dual_key_fallback, :false_collapsing_lookup]))
+  end
+
+  test "does not group repeated fallbacks from different map parameters" do
+    findings =
+      """
+      defmodule SeparateContracts do
+        def get(left, _right, :left) do
+          Map.get(left, :id) || Map.get(left, "id")
+        end
+
+        def get(_left, right, :right) do
+          Map.get(right, :name) || Map.get(right, "name")
         end
       end
       """
