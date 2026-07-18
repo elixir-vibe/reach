@@ -53,13 +53,31 @@ defmodule Reach.Smell.Checks.DualKeyFallbackTest do
     refute Enum.any?(findings, &(&1.kind == :false_collapsing_lookup))
   end
 
-  test "groups repeated literal fallbacks into one normalization finding" do
+  test "keeps semantic aliases in one fallback expression as evidence only" do
     findings =
       """
       defmodule LooseContract do
         def get(map) do
           Map.get(map, :id) || Map.get(map, "id") ||
             Map.get(map, :name) || Map.get(map, "name")
+        end
+      end
+      """
+      |> project_from_string()
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind in [:dual_key_fallback, :false_collapsing_lookup]))
+  end
+
+  test "groups distinct literal fallback sites into one normalization finding" do
+    findings =
+      """
+      defmodule LooseContract do
+        def get(map, field) do
+          case field do
+            :id -> Map.get(map, :id) || Map.get(map, "id")
+            :name -> Map.get(map, :name) || Map.get(map, "name")
+          end
         end
       end
       """

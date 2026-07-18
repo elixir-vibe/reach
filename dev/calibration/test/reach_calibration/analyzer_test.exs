@@ -7,9 +7,11 @@ defmodule ReachCalibration.AnalyzerTest do
     snapshot =
       snapshot("lib/demo.ex", """
       defmodule Demo do
-        def fetch(map) do
-          Map.get(map, :id) || Map.get(map, "id") ||
-            Map.get(map, :name) || Map.get(map, "name")
+        def fetch(map, field) do
+          case field do
+            :id -> Map.get(map, :id) || Map.get(map, "id")
+            :name -> Map.get(map, :name) || Map.get(map, "name")
+          end
         end
       end
       """)

@@ -101,7 +101,7 @@ Calibration notes:
 
 `broad_map_contract` requires at least three literal keys from one direct broad-map parameter origin and at least one strict `Map.fetch!/2` access. Derived maps, nested function-head pattern bindings, paths that mix the parameter with another map origin, lenient-only access, and functions with multiple observed shapes remain evidence. Parameter-origin indexing also distinguishes multiple `map()` arguments in one spec, so keys from one input cannot be attributed to another.
 
-`dual_key_fallback` is grouped by function and map origin and requires at least two returned literal atom/string fallback groups. Dynamic compatibility accessors and one-off literal fallbacks remain evidence. A fallback node that can collapse an explicit boolean `false` into a terminal default emits only the higher-confidence `false_collapsing_lookup` finding rather than duplicate normalization advice.
+`dual_key_fallback` is grouped by function and map origin and requires at least two distinct returned literal atom/string fallback expression sites. Dynamic compatibility accessors, one-off fallbacks, and a single chain of semantic key aliases remain evidence. A fallback node that can collapse an explicit boolean `false` into a terminal default emits only the higher-confidence `false_collapsing_lookup` finding rather than duplicate normalization advice.
 
 ## Parameter-shape entropy
 

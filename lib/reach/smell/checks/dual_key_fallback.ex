@@ -6,7 +6,7 @@ defmodule Reach.Smell.Checks.DualKeyFallback do
   alias Reach.Evidence.MapContract
   alias Reach.Smell.{Finding, Helpers}
 
-  @minimum_repeated_fallbacks 2
+  @minimum_fallback_sites 2
 
   @impl true
   def kinds, do: [:dual_key_fallback, :false_collapsing_lookup]
@@ -27,7 +27,7 @@ defmodule Reach.Smell.Checks.DualKeyFallback do
     |> Enum.filter(&literal_key_fallback?/1)
     |> Enum.group_by(&{&1.function, fallback_map_origins(&1)})
     |> Enum.filter(fn {_function_origin, function_fallbacks} ->
-      length(function_fallbacks) >= @minimum_repeated_fallbacks
+      fallback_site_count(function_fallbacks) >= @minimum_fallback_sites
     end)
     |> Enum.map(fn {_function_origin, function_fallbacks} ->
       dual_key_finding(function_fallbacks)
@@ -58,9 +58,13 @@ defmodule Reach.Smell.Checks.DualKeyFallback do
       location: Helpers.location(fallback.node),
       evidence: Enum.flat_map(fallbacks, &evidence/1) |> Enum.uniq(),
       keys: keys,
-      occurrences: length(fallbacks),
+      occurrences: fallback_site_count(fallbacks),
       confidence: :medium
     )
+  end
+
+  defp fallback_site_count(fallbacks) do
+    fallbacks |> Enum.map(& &1.node.id) |> Enum.uniq() |> length()
   end
 
   defp earliest_fallback(fallbacks) do

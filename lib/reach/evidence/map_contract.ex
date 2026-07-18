@@ -717,6 +717,9 @@ defmodule Reach.Evidence.MapContract do
         parent.type == :function_def ->
           true
 
+        parent.type in [:case, :cond, :with] and node.type == :clause ->
+          returned_expression?(parent, parent_index)
+
         parent.type in [:block, :clause, :case, :cond, :with] and
             List.last(parent.children).id == node.id ->
           returned_expression?(parent, parent_index)
