@@ -182,7 +182,9 @@ defmodule Reach.Smell.ProfileScript do
     %{queries: queries} = check.__reach_pattern_check__()
 
     Enum.map(queries, fn query ->
-      {fun_name, _kind, message, prefilter} = PatternConfig.normalize_query(check, query)
+      {fun_name, _kind, message, prefilter, _safety} =
+        PatternConfig.normalize_query(check, query)
+
       selector = apply(check, fun_name, [])
       active_files = Enum.filter(files, &PatternConfig.source_matches?(File.read!(&1), prefilter))
 
@@ -204,7 +206,7 @@ defmodule Reach.Smell.ProfileScript do
     Enum.filter(files, fn file ->
       source = File.read!(file)
 
-      Enum.any?(patterns, fn {_pattern, _kind, _message, prefilter} ->
+      Enum.any?(patterns, fn {_pattern, _kind, _message, prefilter, _safety} ->
         PatternConfig.source_matches?(source, prefilter)
       end)
     end)
@@ -213,14 +215,17 @@ defmodule Reach.Smell.ProfileScript do
   defp pattern_maps(patterns, source) do
     patterns
     |> Stream.with_index()
-    |> Enum.reduce({%{}, %{}}, fn {{pattern, kind, message, prefilter}, idx}, {named, meta} ->
-      if PatternConfig.source_matches?(source, prefilter) do
-        name = :"p#{idx}"
-        {Map.put(named, name, pattern), Map.put(meta, name, {kind, message})}
-      else
-        {named, meta}
+    |> Enum.reduce(
+      {%{}, %{}},
+      fn {{pattern, kind, message, prefilter, _safety}, idx}, {named, meta} ->
+        if PatternConfig.source_matches?(source, prefilter) do
+          name = :"p#{idx}"
+          {Map.put(named, name, pattern), Map.put(meta, name, {kind, message})}
+        else
+          {named, meta}
+        end
       end
-    end)
+    )
   end
 
   defp ms(us), do: System.convert_time_unit(us, :microsecond, :millisecond)

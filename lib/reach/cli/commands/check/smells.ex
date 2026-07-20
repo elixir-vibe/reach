@@ -11,7 +11,9 @@ defmodule Reach.CLI.Commands.Check.Smells do
   def run(opts, positional, command \\ "reach.check") do
     format = opts[:format] || "text"
     config = Config.read() |> Config.normalize()
-    findings = opts |> load_project(positional) |> SmellsCheck.run(config)
+    project = load_project(opts, positional)
+    if is_nil(opts[:project]), do: :erlang.garbage_collect()
+    findings = SmellsCheck.run(project, config)
     check_findings = Enum.map(findings, &Finding.from_smell/1)
 
     write_baseline(opts, check_findings)
@@ -24,7 +26,11 @@ defmodule Reach.CLI.Commands.Check.Smells do
 
   defp load_project(opts, positional) do
     path = opts[:path] || List.first(positional)
-    project_opts = [quiet: opts[:format] == "json"] ++ Keyword.take(opts, [:plugins])
+
+    project_opts =
+      [quiet: opts[:format] == "json", retain_module_sdgs: false] ++
+        Keyword.take(opts, [:plugins])
+
     project_opts = if path, do: Keyword.put(project_opts, :paths, [path]), else: project_opts
     opts[:project] || Project.load(project_opts)
   end

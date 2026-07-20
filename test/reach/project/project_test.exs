@@ -44,6 +44,21 @@ defmodule Reach.ProjectTest do
       assert map_size(project.nodes) > 0
     end
 
+    test "can discard per-module dependence graphs after merging" do
+      path =
+        write_file("lib/compact.ex", """
+        defmodule CompactProject do
+          def run(value), do: value
+        end
+        """)
+
+      project = Project.from_sources([path], retain_module_sdgs: false)
+
+      assert project.modules == %{}
+      assert map_size(project.nodes) > 0
+      assert Graph.num_vertices(project.graph) > 0
+    end
+
     test "builds merged call graph" do
       path_a =
         write_file("lib/caller.ex", """
@@ -106,6 +121,20 @@ defmodule Reach.ProjectTest do
   end
 
   describe "Reach.CLI.Project" do
+    test "loads projects without retaining per-module dependence graphs" do
+      path =
+        write_file("lib/compact_cli.ex", """
+        defmodule CompactCLIProject do
+          def run(value), do: value
+        end
+        """)
+
+      project = CLIProject.load(paths: [path], quiet: true, retain_module_sdgs: false)
+
+      assert project.modules == %{}
+      assert map_size(project.nodes) > 0
+    end
+
     test "clears function index cache between loaded projects" do
       path_a = write_file("lib/cache_a.ex", "defmodule CacheA do\n  def only_a, do: 1\nend\n")
       path_b = write_file("lib/cache_b.ex", "defmodule CacheB do\n  def only_b, do: 2\nend\n")

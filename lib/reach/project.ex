@@ -40,6 +40,10 @@ defmodule Reach.Project do
 
   @doc """
   Builds a project graph from source file paths.
+
+  Set `:retain_module_sdgs` to `false` for one-shot analyses that only need the
+  merged graph and node index. This releases the per-module dependence graphs
+  after merging and substantially reduces peak memory use.
   """
   @spec from_sources([Path.t()], keyword()) :: t()
   def from_sources(paths, opts \\ []) do
@@ -399,8 +403,11 @@ defmodule Reach.Project do
 
     Reach.Effects.infer_local_effects(merged_nodes, plugins)
 
+    retained_modules =
+      if Keyword.get(opts, :retain_module_sdgs, true), do: module_sdgs, else: %{}
+
     %__MODULE__{
-      modules: module_sdgs,
+      modules: retained_modules,
       graph: merged_graph,
       nodes: merged_nodes,
       call_graph: merged_call_graph,

@@ -68,7 +68,12 @@ defmodule Reach.CLI.Commands.Check do
 
   defp maybe_put_shared_project(opts, modes, []) do
     if share_project?(opts, modes) do
-      Keyword.put(opts, :project, Project.load([quiet: false] ++ plugin_opts(opts)))
+      project_opts =
+        [quiet: false, retain_module_sdgs: :smells not in modes] ++ plugin_opts(opts)
+
+      project = Project.load(project_opts)
+      if :smells in modes, do: :erlang.garbage_collect()
+      Keyword.put(opts, :project, project)
     else
       opts
     end

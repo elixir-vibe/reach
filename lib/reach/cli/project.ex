@@ -113,7 +113,8 @@ defmodule Reach.CLI.Project do
         do: file
   end
 
-  defp project_opts(opts), do: Keyword.take(opts, [:plugins, :source_only])
+  defp project_opts(opts),
+    do: Keyword.take(opts, [:plugins, :source_only, :retain_module_sdgs])
 
   def compile(quiet? \\ false)
 
