@@ -6,6 +6,7 @@ defmodule Reach.EvidenceTest do
 
     assert Reach.Evidence.StandardLibraryBypass in providers
     assert Reach.Evidence.MapContract in providers
+    assert Reach.Evidence.TotalFunctionLaundering in providers
   end
 
   test "discovers plugin AST evidence providers" do

@@ -180,9 +180,11 @@ Calibration notes:
 
 ## Total-function laundering
 
-`Reach.Smell.Checks.TotalFunctionLaundering` detects private unary multi-clause parsers whose constrained clauses preserve a literal domain while a final catch-all silently returns one accepted value. Domain preservation includes identity clauses and equivalent string-to-atom mappings. The fallback must appear in the observed output domain or in a same-named literal `@type`/`@typep` domain.
+`Reach.Evidence.TotalFunctionLaundering` records private unary multi-clause parsers whose constrained clauses preserve a literal domain while a final catch-all returns one accepted value. Domain preservation includes identity clauses and equivalent string-to-atom mappings. The fallback must appear in the observed output domain or in a same-named literal `@type`/`@typep` domain.
 
-Precision guards exclude public APIs, one-clause domains, transformations such as `inspect(value)`, presentation mappings, mixed semantic mappings, dynamic fallback bodies, and constants outside the established domain. The finding points at the catch-all and asks callers to supply an explicit default or the parser to raise/return an error for unsupported input.
+Smell promotion is narrower. If the fallback has its own explicit accepted-input clause, the catch-all establishes an intentional default normalizer and remains evidence-only. `total_function_laundering` is emitted when the fallback is established only by a same-named declared type and cannot be selected through an explicit domain clause, making malformed input indistinguishable from an otherwise buried accepted value.
+
+Other precision guards exclude public APIs, one-clause domains, transformations such as `inspect(value)`, presentation mappings, mixed semantic mappings, dynamic fallback bodies, and constants outside the established domain. The finding points at the catch-all and asks callers to supply an explicit default or the parser to raise/return an error for unsupported input.
 
 Calibration notes:
 

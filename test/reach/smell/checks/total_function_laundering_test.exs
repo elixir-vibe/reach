@@ -2,6 +2,7 @@ defmodule Reach.Smell.Checks.TotalFunctionLaunderingTest do
   use ExUnit.Case, async: true
 
   alias Reach.Check.Smells
+  alias Reach.Evidence.TotalFunctionLaundering
   alias Reach.Smell.Finding
 
   test "flags a catch-all that launders invalid input into the declared domain" do
@@ -21,6 +22,10 @@ defmodule Reach.Smell.Checks.TotalFunctionLaunderingTest do
       """)
 
     assert [%Finding{} = finding] = laundering_findings(project)
+
+    assert [%{fallback_explicit?: false, fallback: :ordered}] =
+             TotalFunctionLaundering.collect_project(project)
+
     assert finding.kind == :total_function_laundering
     assert finding.location.line == 10
     assert finding.confidence == :high
@@ -29,7 +34,7 @@ defmodule Reach.Smell.Checks.TotalFunctionLaunderingTest do
     assert finding.occurrences == 5
   end
 
-  test "flags a fallback returned by another literal domain clause" do
+  test "keeps explicit default normalizers as evidence without promoting a smell" do
     project =
       project_from_string("""
       defmodule Parser do
@@ -39,7 +44,10 @@ defmodule Reach.Smell.Checks.TotalFunctionLaunderingTest do
       end
       """)
 
-    assert [%{kind: :total_function_laundering}] = laundering_findings(project)
+    assert [] = laundering_findings(project)
+
+    assert [%{fallback_explicit?: true, fallback: :safe}] =
+             TotalFunctionLaundering.collect_project(project)
   end
 
   test "does not flag a best-effort serializer that transforms its catch-all input" do

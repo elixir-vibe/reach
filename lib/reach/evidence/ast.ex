@@ -1,6 +1,14 @@
 defmodule Reach.Evidence.AST do
   @moduledoc "Shared AST helpers for evidence providers."
 
+  @doc "Parses one source file with line and column metadata without loading it."
+  @spec parse_file(Path.t()) :: {:ok, Macro.t()} | {:error, term()}
+  def parse_file(file) do
+    with {:ok, source} <- File.read(file) do
+      Code.string_to_quoted(source, columns: true, emit_warnings: false)
+    end
+  end
+
   def collect(ast, collector) when is_function(collector, 2) do
     ast
     |> reduce([], collector)

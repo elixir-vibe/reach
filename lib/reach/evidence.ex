@@ -12,12 +12,14 @@ defmodule Reach.Evidence do
     NilParameter,
     ParameterShape,
     RepresentationOverlap,
-    ReturnContract
+    ReturnContract,
+    TotalFunctionLaundering
   }
 
   @ast_providers [
     Reach.Evidence.StandardLibraryBypass,
-    Reach.Evidence.MapContract
+    Reach.Evidence.MapContract,
+    Reach.Evidence.TotalFunctionLaundering
   ]
 
   @doc "Returns AST evidence providers available for the configured plugins."
@@ -39,6 +41,9 @@ defmodule Reach.Evidence do
 
   @doc "Returns terminal return-shape evidence grouped by function."
   def return_contracts(project), do: ReturnContract.collect_project(project)
+
+  @doc "Returns accepted-domain fallback evidence from private parsers."
+  def total_function_laundering(project), do: TotalFunctionLaundering.collect_project(project)
 
   @doc "Returns nil-capable parameter uses and guard-dominance evidence."
   def nil_parameters(project), do: NilParameter.collect_project(project)

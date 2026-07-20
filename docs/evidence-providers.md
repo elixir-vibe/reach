@@ -116,6 +116,16 @@ Reach.Evidence.return_contracts(project)
 
 The smell policy promotes only high-confidence `:ok` contract conflicts backed by a closed-spec mismatch, an asymmetric raw error beside tagged errors, or a tagged nil/empty sentinel beside raw successful values. Bare/tagged optional payloads, tuple-arity differences, explicit/open unions, conventional `{:ok, value} | {:error, reason}`, custom sentinel failures, state-machine tuples, dynamic forwarding, and explicit or source-declared OTP callbacks remain evidence-only. Nested `{:ok, {:ok, value}}` remains an independently promoted finding.
 
+## Accepted-domain fallback evidence
+
+`Reach.Evidence.TotalFunctionLaundering` records private unary parsers whose literal or membership-guarded clauses preserve a closed value domain while a final catch-all returns one accepted value.
+
+```elixir
+Reach.Evidence.total_function_laundering(project)
+```
+
+Facts retain the observed input/output domain, same-named literal type domain, fallback, clause locations, and whether the fallback has its own explicit accepted-input clause. An explicit fallback clause establishes an intentional default-normalization policy and remains evidence-only. The `total_function_laundering` smell promotes only the narrower case where the fallback is declared by the type but cannot be selected through an explicit domain clause, so unsupported input is indistinguishable from an otherwise buried accepted value.
+
 ## Boundaries
 
 Evidence providers must not emit `Reach.Smell.Finding` and must not depend on CLI rendering or command modules. User-facing policy belongs in:
