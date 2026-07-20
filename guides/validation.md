@@ -15,16 +15,10 @@ mix hex.build
 
 ## Canonical CLI validation
 
-The canonical command validation script exercises Reach, Phoenix, Ecto, and Oban command paths and checks JSON purity.
+Checked-in canonical command tests exercise command routing, canonical envelopes, graph-backed candidates, and JSON purity.
 
 ```bash
-/tmp/reach_validate_canonical_full.sh
-```
-
-Expected result:
-
-```text
-failures=0
+mix test test/reach/cli/canonical_tasks_test.exs test/reach/cli/json_output_test.exs
 ```
 
 ## ProgramFacts oracle validation

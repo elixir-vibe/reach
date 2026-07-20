@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.8.0 - 2026-07-20
+
 ### Added
 
 - `mix reach.trace --pattern regex-on-structured` traces structured file contents into regex and regex-based string parsing, including a conservative fallback for structure-shaped regex literals.

@@ -60,7 +60,7 @@ This API is separate from per-file AST providers because clone evidence needs th
 
 ## External-data boundary evidence
 
-`Reach.Evidence.ExternalDataBoundary` performs source-only intrafunction provenance analysis. Decoder ownership stays in plugins through `Reach.Plugin.external_data_source/1`; the generic provider knows only platform storage and process boundaries such as `:persistent_term`, ETS, process dictionaries, messages, and GenServer state returns.
+`Reach.Evidence.ExternalDataBoundary` performs source-only intrafunction provenance analysis. Decoder ownership stays in plugins through `Reach.Plugin.external_data_source/2`; the generic provider knows only platform storage and process boundaries such as `:persistent_term`, ETS, process dictionaries, messages, and GenServer state returns.
 
 The provider follows direct assignments, aliases, `case`, `with`, `if`, and container wrapping. Explicit calls, map construction, or struct construction stop provenance, treating them as possible normalization boundaries rather than guessing through transformations. Collect project-level facts with:
 

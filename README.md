@@ -22,7 +22,7 @@ Elixir 1.18+ / OTP 27+.
 ```elixir
 def deps do
   [
-    {:reach, "~> 2.6", only: [:dev, :test], runtime: false}
+    {:reach, "~> 2.8", only: [:dev, :test], runtime: false}
   ]
 end
 ```

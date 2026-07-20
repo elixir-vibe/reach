@@ -20,7 +20,7 @@ Before release:
 ```bash
 mix compile --force --warnings-as-errors
 mix ci
-/tmp/reach_validate_canonical_full.sh
+mix test test/reach/cli/canonical_tasks_test.exs test/reach/cli/json_output_test.exs
 mix docs
 mix hex.build
 ```

@@ -8,7 +8,7 @@ defmodule Reach.Check.MapContractTemplate do
   @field_name ~r/^[a-z_][a-zA-Z0-9_]*[?!]?$/
 
   @spec build(
-          [Reach.Evidence.MapContract.Contract.t()],
+          [map()],
           [term()],
           atom(),
           Reach.Project.t(),

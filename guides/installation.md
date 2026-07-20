@@ -3,7 +3,7 @@
 Add Reach to your project dependencies:
 
 ```elixir
-{:reach, "~> 2.6", only: [:dev, :test], runtime: false}
+{:reach, "~> 2.8", only: [:dev, :test], runtime: false}
 ```
 
 Optional dependencies enable richer output:

@@ -155,8 +155,7 @@ Calibration notes:
 - The eight checksum-pinned Hex packages produce zero findings.
 - A 2,000-package download-ranked Hex scan produced forty-one initial use-site findings. One was a generated binary parser whose final wildcard clause safely accepted nil; wildcard fallback recognition removed it, while the remaining findings retain exact call/default provenance for review.
 - The historical LLM Proxy `07ed32b~1` response-handler source produces both intended findings when the two nil calls from the regression specimen are included: the two- and three-argument handlers pass nil to the struct-restricted token-pool function. Revision `07ed32b` is clean because `not is_nil(token)` moved into the helper clause head.
-- The complete 17,771-version indexed Hex corpus produced 382 initial findings across 123 package versions. Semantic review labeled 21 true positives and 361 false positives (5.5% precision). Rebinding, default-wrapper, receiver, guard, branch, dispatch, and promotion guards retain all 21 reviewed true positives and remove all 361 reviewed false positives.
-- The retained corpus findings comprise fourteen direct nil-default hazards, five strict clauses that preempt later nil fallbacks, and two explicit nil calls into unconditional conversion paths.
+- Indexed-Hex review identified direct nil-default hazards, strict clauses preempting later nil fallbacks, and explicit nil calls into unconditional conversion paths. Rebinding, default-wrapper, receiver, guard, branch, dispatch, and promotion guards were derived from the reviewed labels; operational corpus counts remain in calibration artifacts rather than policy documentation.
 
 ## Return-shape divergence
 
@@ -170,7 +169,7 @@ Calibration notes:
 - Restricting policy to `:ok`, excluding untagged tuples and dynamic outcomes, honoring `@impl`, and fixing `try`/`else` semantics reduced the same corpus to one reviewed finding: Elixir's private `Mix.Utils.do_symlink_or_copy/3` returns bare `:ok` after linking but `{:ok, files}` after copying.
 - The eight checksum-pinned Hex packages produce no findings. No corpus project produced a nested-success-tag finding.
 - A 2,000-package download-ranked Hex scan produced sixty-three initial return findings. It exposed legacy OTP implementations without `@impl` annotations, including a GenServer `init/1` timeout tuple and a `:gen_event` callback wrapper; source-declared OTP callback recognition keeps those contracts out of smell policy.
-- Full-corpus review labeled all 379 findings across 247 package versions: 24 true positives and 355 false positives (6.3% initial precision). The false-positive queue consisted of 137 optional-success/pass-through contracts, 128 mode/parser/callback contracts, 70 declared or open unions, and 20 custom error-sentinel/overload contracts. Closed-spec mismatches, asymmetric error wrappers, and tagged sentinel edge cases retain all 24 reviewed positives while removing all 355 reviewed false positives.
+- Indexed-Hex review separated closed-spec mismatches, asymmetric error wrappers, and tagged sentinel edge cases from intentional optional-success, parser/callback, declared-union, and custom-sentinel contracts. Operational corpus counts remain in calibration artifacts rather than policy documentation.
 
 ## Module-level facades
 
