@@ -34,8 +34,15 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContractTest do
         defmodule UsedImplementation do
           use Contract
           def metadata(data) do
-            {Map.get(data, :id), Map.get(data, :name), Map.get(data, :type),
-             Map.get(data, :status), Map.get(data, :version)}
+            {Map.get(data, :id), Map.get(data, :name), Map.get(data, :type)}
+          end
+        end
+        """,
+        """
+        defmodule AnotherUsedImplementation do
+          use Contract
+          def metadata(data) do
+            {Map.get(data, :id), Map.get(data, :name), Map.get(data, :type)}
           end
         end
         """
@@ -61,7 +68,7 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContractTest do
     refute Enum.any?(findings, &(&1.kind == :broad_callback_map_contract))
   end
 
-  test "does not promote weak evidence from one implementation" do
+  test "does not promote one specialized implementation even with many keys" do
     findings =
       project_from_sources([
         """
@@ -69,7 +76,15 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContractTest do
           @callback metadata(map()) :: tuple()
         end
         """,
-        implementation("Only")
+        """
+        defmodule Only do
+          @behaviour Contract
+          def metadata(data) do
+            {Map.get(data, :id), Map.get(data, :name), Map.get(data, :type),
+             Map.get(data, :status), Map.get(data, :version)}
+          end
+        end
+        """
       ])
       |> Smells.run()
 

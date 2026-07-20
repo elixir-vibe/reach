@@ -8,7 +8,6 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
   alias Reach.Smell.{Finding, Helpers}
 
   @minimum_keys 3
-  @strong_single_keys 5
 
   @impl true
   def kinds, do: [:broad_callback_map_contract]
@@ -119,15 +118,8 @@ defmodule Reach.Smell.Checks.BroadCallbackMapContract do
   defp promotable_shape(shapes) do
     common_keys = common_keys(shapes)
 
-    cond do
-      length(shapes) >= 2 and length(common_keys) >= @minimum_keys ->
-        %{shapes: shapes, keys: common_keys}
-
-      shape = Enum.find(shapes, &(length(&1.keys) >= @strong_single_keys)) ->
-        %{shapes: [shape], keys: shape.keys}
-
-      true ->
-        nil
+    if length(shapes) >= 2 and length(common_keys) >= @minimum_keys do
+      %{shapes: shapes, keys: common_keys}
     end
   end
 

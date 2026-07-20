@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- Broad callback map contracts now require a shared shape across multiple implementations; one specialized implementation remains evidence even when it reads many keys.
 - Nested same-tag return structures now remain return-contract evidence instead of being treated as duplicate wrappers without proof that their protocol layers are equivalent.
 - Total-function laundering now keeps explicit default normalizers as evidence and promotes only typed domain values that have no explicit parser clause.
 - Empty-map and key-normalization checks now coalesce equivalent findings from the same source line or normalization operation while retaining all conversion-site evidence.
