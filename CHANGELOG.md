@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- CLI guidance now treats nested same-tag returns as layered contract evidence, matching calibrated smell policy.
 - Default-drift checks now require one direct map/key contract, schema checks distinguish direct validated values from nested or revalidated data, and decoded-boundary promotion excludes sandbox payloads and transient wire envelopes.
 - Broad callback map contracts now require a shared shape across multiple implementations; one specialized implementation remains evidence even when it reads many keys.
 - Nested same-tag return structures now remain return-contract evidence instead of being treated as duplicate wrappers without proof that their protocol layers are equivalent.
