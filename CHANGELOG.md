@@ -23,9 +23,12 @@
 - Map-contract analysis now detects broad parameter/callback contracts, conflicting defaults, undeclared schema access, atom/string fallback contracts, false-collapsing lookups, key normalization hazards, and empty map constructors.
 - Plugin and project-configured DSL ranges now suppress generic findings where macros reinterpret ordinary Elixir syntax.
 - Evidence providers now share an explicit provider behaviour and normalized capability-bypass metadata; optional ExDNA dependency scanning can produce advisory `reuse_dependency` candidates from exact project-to-dependency clones without compiling dependency code.
+- Smell JSON now classifies remediation as `equivalent`, `conditional`, or `review_only`, allowing agents to distinguish proven replacements from advisory review leads.
 
 ### Fixed
 
+- Mechanical collection checks no longer recommend behavior-changing rewrites for mapped extrema/first values, recursive flattening, character digits, arbitrary enumerables, negative slicing, sort ties, or callback-order-changing pipeline fusion.
+- Mechanical equivalence tests now use strict equality, mixed numeric tie cases, and explicit counterexamples that prove the gate can reject unsafe replacements.
 - Default-drift checks now require one direct map/key contract, schema checks distinguish direct validated values from nested or revalidated data, and decoded-boundary promotion excludes sandbox payloads and transient wire envelopes.
 - Broad callback map contracts now require a shared shape across multiple implementations; one specialized implementation remains evidence even when it reads many keys.
 - Nested same-tag return structures now remain return-contract evidence instead of being treated as duplicate wrappers without proof that their protocol layers are equivalent.

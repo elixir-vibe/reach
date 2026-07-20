@@ -27,11 +27,11 @@ defmodule Reach.Plugins.Ecto.Smells.FloatMoneyTest do
     %{queries: queries} = FloatMoney.__reach_pattern_check__()
 
     field_query =
-      Enum.find(queries, fn {_fun_name, _kind, message, _prefilter} ->
+      Enum.find(queries, fn {_fun_name, _kind, message, _prefilter, _remediation_safety} ->
         message =~ "schema field"
       end)
 
-    {_fun_name, _kind, _message, prefilter} =
+    {_fun_name, _kind, _message, prefilter, _remediation_safety} =
       PatternConfig.normalize_query(FloatMoney, field_query)
 
     refute PatternConfig.source_matches?("defmodule M do\n  false\nend", prefilter)

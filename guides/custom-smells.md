@@ -171,7 +171,7 @@ defmodule MyApp.ReachSmells.NoBooleanCase do
 end
 ```
 
-Use source DSL checks when a rule is local to one AST node or can be expressed as an ExAST `~p` pattern. Use `Reach.Smell.Check.AST` when the check needs full-file state or a custom traversal.
+Use source DSL checks when a rule is local to one AST node or can be expressed as an ExAST `~p` pattern. Set `remediation_safety: :equivalent` only when the recommended replacement preserves values, exceptions, and callback evaluation order across the rule's full matched domain. Use `:conditional` when the message states the required preconditions; otherwise keep the default `:review_only`. Use `Reach.Smell.Check.AST` when the check needs full-file state or a custom traversal.
 
 ## AST-backed source checks
 

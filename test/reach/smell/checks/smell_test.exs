@@ -222,7 +222,7 @@ defmodule Reach.SmellTest do
       assert redundant != []
     end
 
-    test "piped Enum.map into List.first IS detected" do
+    test "does not recommend find_value for map followed by List.first" do
       findings =
         run_smell_task("""
         defmodule PipedEagerTest do
@@ -232,13 +232,12 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      eager = Enum.filter(findings, &(&1.kind == :eager_pattern))
-      assert eager != []
+      refute Enum.any?(findings, &String.contains?(&1.message, "find_value"))
     end
   end
 
   describe "collection pipeline smells" do
-    test "flags sort then reverse" do
+    test "does not rewrite sort then reverse across undocumented tie semantics" do
       findings =
         run_smell_task("""
         defmodule SortReverse do
@@ -246,13 +245,10 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(
-               findings,
-               &(&1.kind == :eager_pattern and &1.message =~ "sort(enumerable, :desc)")
-             )
+      refute Enum.any?(findings, &String.contains?(&1.message, "sort(enumerable, :desc)"))
     end
 
-    test "flags sort then at" do
+    test "does not recommend min or max for generic sort then at" do
       findings =
         run_smell_task("""
         defmodule SortAt do
@@ -260,13 +256,10 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(
-               findings,
-               &(&1.kind == :eager_pattern and &1.message =~ "full sort for one element")
-             )
+      refute Enum.any?(findings, &String.contains?(&1.message, "full sort for one element"))
     end
 
-    test "flags non-negative drop then take" do
+    test "does not recommend slice for generic drop then take" do
       findings =
         run_smell_task("""
         defmodule DropTake do
@@ -274,10 +267,10 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.kind == :eager_pattern and &1.message =~ "Enum.slice/3"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "Enum.slice/3"))
     end
 
-    test "flags negative drop then take" do
+    test "does not recommend slice for negative drop then take" do
       findings =
         run_smell_task("""
         defmodule DropTakeTail do
@@ -285,7 +278,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.kind == :eager_pattern and &1.message =~ "Enum.slice/3"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "Enum.slice/3"))
     end
 
     test "flags take_while then length" do
@@ -388,7 +381,7 @@ defmodule Reach.SmellTest do
       assert Enum.any?(findings, &(&1.message =~ "inspect/1 for module"))
     end
 
-    test "flags Enum.reverse |> hd" do
+    test "does not assume reverse input is a list" do
       findings =
         run_smell_task("""
         defmodule IdiomC do
@@ -398,7 +391,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "Enum.reverse"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "List.last"))
     end
   end
 
@@ -746,7 +739,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      matching = Enum.filter(findings, &String.contains?(&1.message, "one character"))
+      matching = Enum.filter(findings, &String.contains?(&1.message, "one grapheme"))
       assert length(matching) == 2
     end
 
@@ -762,7 +755,7 @@ defmodule Reach.SmellTest do
       assert Enum.filter(findings, &String.contains?(&1.message, "Enum.take")) == []
     end
 
-    test "flags Integer.to_string to String.to_charlist digit extraction" do
+    test "does not replace character digits with integer digits" do
       findings =
         run_smell_task("""
         defmodule CollectionIdioms do
@@ -770,10 +763,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert [%{kind: :suboptimal} = finding] =
-               Enum.filter(findings, &String.contains?(&1.message, "Integer.to_string"))
-
-      assert finding.message =~ "Integer.digits/2"
+      refute Enum.any?(findings, &String.contains?(&1.message, "Integer.digits"))
     end
   end
 
@@ -1037,7 +1027,7 @@ defmodule Reach.SmellTest do
       refute Enum.any?(findings, &(&1.message =~ ~r/Map\.(keys|values)\/1 → Enum\.(map|filter)/))
     end
 
-    test "flags Enum.map |> Enum.max" do
+    test "does not replace mapped maxima with max_by elements" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1045,7 +1035,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "Enum.max_by"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "Enum.max_by"))
     end
 
     test "flags List.foldl" do
@@ -1081,7 +1071,7 @@ defmodule Reach.SmellTest do
       refute Enum.any?(findings, &(&1.message =~ "protocol dispatch"))
     end
 
-    test "flags Map.put with variable key and boolean value" do
+    test "does not infer MapSet membership from one boolean put" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1089,7 +1079,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "MapSet"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "MapSet"))
     end
 
     test "does not flag Map.put with constant key and boolean value" do
@@ -1189,7 +1179,7 @@ defmodule Reach.SmellTest do
       assert length(Enum.filter(findings, &(&1.message =~ "String.length/1"))) == 2
     end
 
-    test "flags integer string graphemes digit extraction" do
+    test "does not replace string graphemes with integer digits" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1197,7 +1187,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "Integer.digits"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "Integer.digits"))
     end
 
     test "flags piped Regex.replace" do
@@ -1208,7 +1198,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "use String.replace"))
+      assert Enum.any?(findings, &(&1.message =~ "verify argument order"))
     end
 
     test "does not flag direct Regex.replace" do
@@ -1377,7 +1367,7 @@ defmodule Reach.SmellTest do
       refute Enum.any?(findings, &(&1.message =~ "Enum.concat/1"))
     end
 
-    test "flags length(String.split) - 1" do
+    test "does not replace arbitrary String.split separators with binary matches" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1385,10 +1375,10 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "String.split"))
+      refute Enum.any?(findings, &String.contains?(&1.message, ":binary.matches"))
     end
 
-    test "flags Enum.at(list, -1)" do
+    test "does not assume Enum.at receives a list" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1396,7 +1386,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "List.last"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "List.last"))
     end
 
     test "flags Map.keys |> Enum.member?" do
@@ -1479,7 +1469,7 @@ defmodule Reach.SmellTest do
       refute Enum.any?(findings, &(&1.message =~ "Map.new/2 mapper"))
     end
 
-    test "flags Enum.map |> List.flatten" do
+    test "does not replace recursive List.flatten with flat_map" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1487,10 +1477,10 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "flat_map"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "use Enum.flat_map/2 directly"))
     end
 
-    test "flags Enum.sort/2 |> Enum.reverse" do
+    test "does not invert arbitrary sort directions" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1498,7 +1488,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "opposite sort direction"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "opposite sort direction"))
     end
   end
 
@@ -1763,7 +1753,7 @@ defmodule Reach.SmellTest do
   end
 
   describe "manual min/max detection" do
-    test "flags if a > b, do: a, else: b as manual max" do
+    test "does not replace strict max comparison with different tie selection" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1771,10 +1761,10 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "max/2"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "max/2"))
     end
 
-    test "flags if a < b, do: a, else: b as manual min" do
+    test "does not replace strict min comparison with different tie selection" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1782,7 +1772,20 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "min/2"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "min/2"))
+    end
+
+    test "flags inclusive comparisons whose tie selection matches Kernel min and max" do
+      findings =
+        run_smell_task("""
+        defmodule A do
+          def bigger(a, b), do: if(a >= b, do: a, else: b)
+          def smaller(a, b), do: if(a <= b, do: a, else: b)
+        end
+        """)
+
+      assert Enum.any?(findings, &String.contains?(&1.message, "max/2"))
+      assert Enum.any?(findings, &String.contains?(&1.message, "min/2"))
     end
 
     test "does not flag if with different branches" do
@@ -1824,7 +1827,7 @@ defmodule Reach.SmellTest do
   end
 
   describe "sort then negative take" do
-    test "flags Enum.sort |> Enum.take(-1)" do
+    test "does not replace a list result with scalar max" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1832,7 +1835,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "Enum.max"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "Enum.max"))
     end
   end
 
@@ -1976,7 +1979,7 @@ defmodule Reach.SmellTest do
       refute Enum.any?(findings, &(&1.message =~ "String.duplicate/2"))
     end
 
-    test "flags bare-variable List.duplicate with positive literal followed by Enum.concat" do
+    test "does not suggest flat_map without an equivalent source enumerable" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -1985,7 +1988,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert length(Enum.filter(findings, &(&1.message =~ "repeats a list"))) == 2
+      refute Enum.any?(findings, &String.contains?(&1.message, "repeats a list"))
     end
 
     test "does not flag unsafe List.duplicate followed by Enum.concat variants" do
@@ -2026,7 +2029,7 @@ defmodule Reach.SmellTest do
   end
 
   describe "needless bool" do
-    test "flags if cond, do: true, else: false" do
+    test "does not replace truthiness coercion with the raw condition" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -2035,10 +2038,10 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "already a boolean"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "already a boolean"))
     end
 
-    test "flags if cond, do: false, else: true" do
+    test "does not negate a condition without boolean proof" do
       findings =
         run_smell_task("""
         defmodule A do
@@ -2047,7 +2050,7 @@ defmodule Reach.SmellTest do
         end
         """)
 
-      assert Enum.any?(findings, &(&1.message =~ "negate"))
+      refute Enum.any?(findings, &String.contains?(&1.message, "negate"))
     end
   end
 

@@ -6,87 +6,60 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
   alias Reach.Smell.Helpers
 
   smell(
-    ~p[Enum.reverse(_) |> hd()],
-    :suboptimal,
-    "Enum.reverse/1 |> hd() traverses twice; use List.last/1"
-  )
-
-  smell(
-    ~p[Enum.reverse(_) |> List.first()],
-    :suboptimal,
-    "Enum.reverse/1 |> List.first/1 traverses twice; use List.last/1"
-  )
-
-  smell(
     ~p[Enum.reverse(_) ++ _],
     :suboptimal,
-    "Enum.reverse(list) ++ tail traverses twice; use Enum.reverse(list, tail)"
+    "Enum.reverse(list) ++ tail traverses twice; use Enum.reverse(list, tail)",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[String.graphemes(_) |> length()],
     :suboptimal,
-    "String.graphemes/1 |> length/1 builds an intermediate list; use String.length/1"
+    "String.graphemes/1 |> length/1 builds an intermediate list; use String.length/1",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[String.graphemes(_) |> Enum.count()],
     :suboptimal,
-    "String.graphemes/1 |> Enum.count/1 builds an intermediate list; use String.length/1"
-  )
-
-  smell(
-    ~p[Integer.to_string(_, _) |> String.to_charlist()],
-    :suboptimal,
-    "Integer.to_string/2 → String.to_charlist/1; prefer Integer.digits/2"
-  )
-
-  smell(
-    ~p[Integer.to_string(_) |> String.graphemes()],
-    :suboptimal,
-    "Integer.to_string/1 → String.graphemes/1; prefer Integer.digits/1"
-  )
-
-  smell(
-    ~p[Integer.to_string(_, _) |> String.graphemes()],
-    :suboptimal,
-    "Integer.to_string/2 → String.graphemes/1; prefer Integer.digits/2"
+    "String.graphemes/1 |> Enum.count/1 builds an intermediate list; use String.length/1",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[String.length(_) == 1],
     :suboptimal,
-    "String.length/1 traverses the whole string to check for one character; use pattern matching"
+    "String.length/1 traverses the whole string to check for one grapheme; review String.next_grapheme/1 when this is hot (byte-pattern matching is not Unicode-equivalent)"
   )
 
   smell(
     ~p[1 == String.length(_)],
     :suboptimal,
-    "String.length/1 traverses the whole string to check for one character; use pattern matching"
+    "String.length/1 traverses the whole string to check for one grapheme; review String.next_grapheme/1 when this is hot (byte-pattern matching is not Unicode-equivalent)"
   )
 
   smell(
     ~p[String.length(_) != 1],
     :suboptimal,
-    "String.length/1 traverses the whole string to check for one character; use pattern matching"
+    "String.length/1 traverses the whole string to check for one grapheme; review String.next_grapheme/1 when this is hot (byte-pattern matching is not Unicode-equivalent)"
   )
 
   smell(
     ~p[1 != String.length(_)],
     :suboptimal,
-    "String.length/1 traverses the whole string to check for one character; use pattern matching"
+    "String.length/1 traverses the whole string to check for one grapheme; review String.next_grapheme/1 when this is hot (byte-pattern matching is not Unicode-equivalent)"
   )
 
   smell(
     ~p[inspect(_) |> String.starts_with?(_)],
     :suboptimal,
-    "inspect/1 for module/atom membership is fragile; use Module.split/1 or direct atom comparison"
+    "inspect/1 for module/atom membership is fragile; review Module.split/1 or direct atom comparison after preserving accepted input types"
   )
 
   smell(
     ~p[inspect(_) |> String.contains?(_)],
     :suboptimal,
-    "inspect/1 for type checking is fragile; compare atoms or use Module.split/1"
+    "inspect/1 for type checking is fragile; review direct atom comparison or Module.split/1 after preserving accepted input types"
   )
 
   smell(
@@ -116,19 +89,15 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
   smell(
     ~p[Map.keys(_) |> Enum.uniq()],
     :suboptimal,
-    "Map.keys/1 returns unique keys already; Enum.uniq/1 is redundant"
-  )
-
-  smell(
-    ~p[List.to_tuple(_) |> elem(_)],
-    :suboptimal,
-    "List.to_tuple/1 → elem/2 allocates a full copy; use Enum.at/2 or pattern matching"
+    "Map.keys/1 returns unique keys already; Enum.uniq/1 is redundant",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[String.graphemes(_) |> Enum.reverse() |> Enum.join()],
     :suboptimal,
-    "String.graphemes |> Enum.reverse |> Enum.join; use String.reverse/1"
+    "String.graphemes |> Enum.reverse |> Enum.join; use String.reverse/1",
+    remediation_safety: :equivalent
   )
 
   smell(
@@ -170,160 +139,143 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
   smell(
     ~p[Map.values(_) |> Enum.max()],
     :suboptimal,
-    "Map.values/1 → Enum.max: iterate the map directly with Enum.max_by/2"
+    "Map.values/1 → Enum.max/1 allocates a values list; review a direct reduce if allocation matters (Enum.max_by/2 on the map returns a {key, value} pair)"
   )
 
   smell(
     ~p[Map.values(_) |> Enum.min()],
     :suboptimal,
-    "Map.values/1 → Enum.min: iterate the map directly with Enum.min_by/2"
-  )
-
-  smell(
-    from(~p[Map.put(_, key, value)])
-    |> where(not constant_map_key?(^key) and literal_boolean?(^value)),
-    :suboptimal,
-    "Map.put/3 with variable key and boolean value suggests membership tracking; use MapSet"
+    "Map.values/1 → Enum.min/1 allocates a values list; review a direct reduce if allocation matters (Enum.min_by/2 on the map returns a {key, value} pair)"
   )
 
   # length(list) == 0 → list == []
   smell(
     ~p[length(_) == 0],
     :suboptimal,
-    "length/1 == 0 is O(n); use pattern match or == []"
+    "length/1 == 0 is O(n); review a list pattern or == [] only when malformed-list exception parity is not required"
   )
 
   smell(
     ~p[0 == length(_)],
     :suboptimal,
-    "length/1 == 0 is O(n); use pattern match or == []"
+    "length/1 == 0 is O(n); review a list pattern or == [] only when malformed-list exception parity is not required"
   )
 
   # length(list) > 0 → list != [] or match?([_|_], list)
   smell(
     ~p[length(_) > 0],
     :suboptimal,
-    "length/1 > 0 is O(n); use != [] or match?([_ | _], list)"
+    "length/1 > 0 is O(n); review a non-empty-list pattern only when malformed-list exception parity is not required"
   )
 
   smell(
     from(~p[Regex.replace(_, _, _)]) |> where(piped()),
     :suboptimal,
-    "Regex.replace/3 in a pipe receives the piped string as the regex argument; use String.replace/3"
+    "Regex.replace/3 receives the piped value as its regex argument; verify argument order and retain Regex.replace when regex semantics are intended"
   )
 
   smell(
     from(~p[Regex.replace(_, _, _, _)]) |> where(piped()),
     :suboptimal,
-    "Regex.replace/4 in a pipe receives the piped string as the regex argument; use String.replace/4"
-  )
-
-  smell(
-    ~p[length(String.split(_, _)) - 1],
-    :suboptimal,
-    "length(String.split) - 1 allocates the full split list just to count; use :binary.matches/2 |> length/1"
+    "Regex.replace/4 receives the piped value as its regex argument; verify argument order and retain Regex.replace when regex semantics are intended"
   )
 
   smell(
     ~p[Map.keys(_) |> Enum.member?(_)],
     :suboptimal,
-    "Map.keys/1 → Enum.member?: use Map.has_key?/2 directly"
+    "Map.keys/1 → Enum.member?: use Map.has_key?/2 directly",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Map.values(_) |> Enum.count()],
     :suboptimal,
-    "Map.values/1 → Enum.count: use map_size/1 instead"
+    "Map.values/1 → Enum.count: use map_size/1 instead",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Map.keys(_) |> Enum.count()],
     :suboptimal,
-    "Map.keys/1 → Enum.count: use map_size/1 instead"
+    "Map.keys/1 → Enum.count: use map_size/1 instead",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Map.keys(_) |> length()],
     :suboptimal,
-    "Map.keys/1 → length: use map_size/1 instead"
+    "Map.keys/1 → length: use map_size/1 instead",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Map.values(_) |> length()],
     :suboptimal,
-    "Map.values/1 → length: use map_size/1 instead"
-  )
-
-  smell(
-    ~p[Enum.at(_, -1)],
-    :suboptimal,
-    "Enum.at(list, -1) traverses the list twice; use List.last/1"
-  )
-
-  smell(
-    ~p[if left > right, do: left, else: right],
-    :suboptimal,
-    "if a > b, do: a, else: b reimplements max/2; use Kernel.max/2"
+    "Map.values/1 → length: use map_size/1 instead",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[if left >= right, do: left, else: right],
     :suboptimal,
-    "if a >= b, do: a, else: b reimplements max/2; use Kernel.max/2"
-  )
-
-  smell(
-    ~p[if left < right, do: left, else: right],
-    :suboptimal,
-    "if a < b, do: a, else: b reimplements min/2; use Kernel.min/2"
+    "if a >= b, do: a, else: b reimplements max/2; use Kernel.max/2",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[if left <= right, do: left, else: right],
     :suboptimal,
-    "if a <= b, do: a, else: b reimplements min/2; use Kernel.min/2"
+    "if a <= b, do: a, else: b reimplements min/2; use Kernel.min/2",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Enum.map(_, _) |> Enum.into(%{})],
     :suboptimal,
-    "Enum.map/2 |> Enum.into(%{}): use Map.new/2"
+    "Enum.map/2 |> Enum.into(%{}) allocates an intermediate list; use Map.new/2 only when the mapper is pure and always returns a {key, value} pair, because fusion changes failure timing",
+    remediation_safety: :conditional
   )
 
   smell(
     ~p[Enum.into(_, MapSet.new())],
     :suboptimal,
-    "Enum.into(enum, MapSet.new()): use MapSet.new/1"
+    "Enum.into(enum, MapSet.new()): use MapSet.new/1",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Enum.into(_, MapSet.new(), _)],
     :suboptimal,
-    "Enum.into(enum, MapSet.new(), mapper): use MapSet.new/2"
+    "Enum.into(enum, MapSet.new(), mapper): use MapSet.new/2",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Map.new(Enum.to_list(_))],
     :suboptimal,
-    "Enum.to_list/1 before Map.new/1 is redundant; Map.new/1 accepts any enumerable"
+    "Enum.to_list/1 before Map.new/1 is redundant when every yielded item is a {key, value} pair; direct construction changes invalid-item failure timing",
+    remediation_safety: :conditional
   )
 
   smell(
     ~p[MapSet.new(Enum.to_list(_))],
     :suboptimal,
-    "Enum.to_list/1 before MapSet.new/1 is redundant; MapSet.new/1 accepts any enumerable"
+    "Enum.to_list/1 before MapSet.new/1 is redundant; MapSet.new/1 accepts any enumerable",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Enum.dedup(_) |> MapSet.new()],
     :redundant_traversal,
-    "Enum.dedup/1 before MapSet.new/1 is redundant; MapSet stores unique elements already"
+    "Enum.dedup/1 before MapSet.new/1 is redundant; MapSet stores unique elements already",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Enum.uniq(_) |> MapSet.new()],
     :redundant_traversal,
-    "Enum.uniq/1 before MapSet.new/1 is redundant; MapSet stores unique elements already"
+    "Enum.uniq/1 before MapSet.new/1 is redundant; MapSet stores unique elements already",
+    remediation_safety: :equivalent
   )
 
   smell(
@@ -344,7 +296,8 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
     from(~p[Map.new(Enum.group_by(_, _), callback)])
     |> where(length_of_group_fn?(^callback)),
     :suboptimal,
-    "Enum.group_by/2 followed by Map.new/2 counting group lengths is a manual frequency count; use Enum.frequencies_by/2"
+    "Enum.group_by/2 followed by Map.new/2 counting group lengths is a manual frequency count; use Enum.frequencies_by/2",
+    remediation_safety: :equivalent
   )
 
   smell(
@@ -357,28 +310,24 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
   smell(
     ~p[Enum.map(_, _) |> Enum.concat()],
     :eager_pattern,
-    "Enum.map/2 |> Enum.concat/1: use Enum.flat_map/2"
+    "Enum.map/2 |> Enum.concat/1 allocates an intermediate list; fuse with Enum.flat_map/2 only when callbacks are pure and every mapped result is a proper list, because fusion changes failure timing",
+    remediation_safety: :conditional
   )
 
   smell(
     from(~p[Enum.join(List.duplicate(value, _))])
     |> where(string_literal?(^value)),
     :suboptimal,
-    "List.duplicate/2 followed by Enum.join/1 repeats a string through an intermediate list; use String.duplicate/2"
-  )
-
-  smell(
-    from(~p[Enum.concat(List.duplicate(list, count))])
-    |> where(bare_variable?(^list) and positive_integer_literal?(^count)),
-    :suboptimal,
-    "List.duplicate/2 followed by Enum.concat/1 repeats a list through an intermediate list; use Enum.flat_map/2"
+    "List.duplicate/2 followed by Enum.join/1 repeats a string through an intermediate list; use String.duplicate/2",
+    remediation_safety: :equivalent
   )
 
   smell(
     from(~p[Enum.into(_, target)])
     |> where(match?({:%{}, _, []}, ^target)),
     :suboptimal,
-    "Enum.into(enum, %{}): use Map.new/1"
+    "Enum.into(enum, %{}): use Map.new/1",
+    remediation_safety: :equivalent
   )
 
   defp bare_param?({name, _meta, context}) when is_atom(name) and is_atom(context), do: true
@@ -397,59 +346,22 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
   defp definitely_not_pair?({:{}, _meta, elements}) when is_list(elements), do: true
   defp definitely_not_pair?(_value), do: false
 
-  defp constant_map_key?(value), do: literal_atom_or_binary?(value) or module_literal?(value)
-
-  defp literal_atom_or_binary?({:__block__, _meta, [value]})
-       when is_atom(value) or is_binary(value),
-       do: true
-
-  defp literal_atom_or_binary?(value) when is_atom(value) or is_binary(value), do: true
-  defp literal_atom_or_binary?(_value), do: false
-
-  defp literal_boolean?({:__block__, _meta, [value]}) when is_boolean(value), do: true
-  defp literal_boolean?(value) when is_boolean(value), do: true
-  defp literal_boolean?(_value), do: false
-
   defp string_literal?({:__block__, _meta, [value]}) when is_binary(value), do: true
   defp string_literal?(value) when is_binary(value), do: true
   defp string_literal?(_value), do: false
 
-  defp bare_variable?({name, _meta, context}) when is_atom(name) and is_atom(context), do: true
-  defp bare_variable?(_value), do: false
-
-  defp positive_integer_literal?({:__block__, _meta, [value]})
-       when is_integer(value) and value > 0,
-       do: true
-
-  defp positive_integer_literal?(value) when is_integer(value) and value > 0, do: true
-  defp positive_integer_literal?(_value), do: false
-
-  defp module_literal?({:__MODULE__, _meta, _context}), do: true
-  defp module_literal?({:__aliases__, _meta, aliases}) when is_list(aliases), do: true
-  defp module_literal?(_value), do: false
-
-  smell(
-    ~p[if _, do: true, else: false],
-    :suboptimal,
-    "if condition, do: true, else: false: the condition is already a boolean"
-  )
-
-  smell(
-    ~p[if _, do: false, else: true],
-    :suboptimal,
-    "if condition, do: false, else: true: use not/!/1 or negate the condition"
-  )
-
   smell(
     ~p[Keyword.get(_, _, nil)],
     :suboptimal,
-    "Keyword.get/3 with nil default is redundant; nil is already the default for Keyword.get/2"
+    "Keyword.get/3 with nil default is redundant; nil is already the default for Keyword.get/2",
+    remediation_safety: :equivalent
   )
 
   smell(
     ~p[Map.get(_, _, nil)],
     :suboptimal,
-    "Map.get/3 with nil default is redundant; nil is already the default for Map.get/2"
+    "Map.get/3 with nil default is redundant; nil is already the default for Map.get/2",
+    remediation_safety: :equivalent
   )
 
   smell(
@@ -462,54 +374,6 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
     ~p[String.split(_, _) |> List.first()],
     :suboptimal,
     "String.split/2 |> List.first/1 splits the entire string; use String.split/3 with parts: 2"
-  )
-
-  smell(
-    ~p[Enum.sort(_) |> Enum.reverse()],
-    :suboptimal,
-    "Enum.sort/1 |> Enum.reverse/1 sorts ascending then reverses; use Enum.sort(enum, :desc)"
-  )
-
-  smell(
-    ~p[Enum.sort(_, _) |> Enum.reverse()],
-    :suboptimal,
-    "Enum.sort/2 |> Enum.reverse/1 sorts then reverses; choose the desired sort direction directly"
-  )
-
-  smell(
-    ~p[Enum.sort(_) |> Enum.at(0)],
-    :suboptimal,
-    "Enum.sort/1 |> Enum.at(0) sorts the whole collection to get the minimum; use Enum.min/1"
-  )
-
-  smell(
-    ~p[Enum.sort(_) |> Enum.at(-1)],
-    :suboptimal,
-    "Enum.sort/1 |> Enum.at(-1) sorts the whole collection to get the maximum; use Enum.max/1"
-  )
-
-  smell(
-    ~p[Enum.sort(_, :asc) |> Enum.at(0)],
-    :suboptimal,
-    "Enum.sort(enum, :asc) |> Enum.at(0) sorts the whole collection to get the minimum; use Enum.min/1"
-  )
-
-  smell(
-    ~p[Enum.sort(_, :asc) |> Enum.at(-1)],
-    :suboptimal,
-    "Enum.sort(enum, :asc) |> Enum.at(-1) sorts the whole collection to get the maximum; use Enum.max/1"
-  )
-
-  smell(
-    ~p[Enum.sort(_, :desc) |> Enum.at(0)],
-    :suboptimal,
-    "Enum.sort(enum, :desc) |> Enum.at(0) sorts the whole collection to get the maximum; use Enum.max/1"
-  )
-
-  smell(
-    ~p[Enum.sort(_, :desc) |> Enum.at(-1)],
-    :suboptimal,
-    "Enum.sort(enum, :desc) |> Enum.at(-1) sorts the whole collection to get the minimum; use Enum.min/1"
   )
 
   smell(

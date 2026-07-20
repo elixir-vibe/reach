@@ -60,12 +60,13 @@ defmodule Reach.Smell.PatternRunner do
       zipper
       |> Patcher.find_many(named)
       |> Enum.map(fn match ->
-        {kind, message} = Map.fetch!(meta, match.pattern)
+        {kind, message, remediation_safety} = Map.fetch!(meta, match.pattern)
         line = (match.range && match.range.start[:line]) || 0
 
         Finding.new(
           kind: kind,
           message: message,
+          remediation_safety: remediation_safety,
           location: "#{file}:#{line}",
           source_range: match.range
         )
@@ -90,14 +91,14 @@ defmodule Reach.Smell.PatternRunner do
   end
 
   defp add_pattern(
-         {{pattern, kind, message, prefilter}, pattern_idx},
+         {{pattern, kind, message, prefilter, remediation_safety}, pattern_idx},
          module_idx,
          source,
          {named, meta}
        ) do
     if PatternConfig.source_matches?(source, prefilter) do
       name = :"p#{module_idx}_#{pattern_idx}"
-      {Map.put(named, name, pattern), Map.put(meta, name, {kind, message})}
+      {Map.put(named, name, pattern), Map.put(meta, name, {kind, message, remediation_safety})}
     else
       {named, meta}
     end
@@ -106,14 +107,19 @@ defmodule Reach.Smell.PatternRunner do
   defp find_query_smells(zipper, source, file, check_configs) do
     Enum.flat_map(check_configs, fn {module, %{queries: queries}} ->
       queries
-      |> Enum.filter(fn {_fun_name, _kind, _message, prefilter} ->
+      |> Enum.filter(fn {_fun_name, _kind, _message, prefilter, _remediation_safety} ->
         PatternConfig.source_matches?(source, prefilter)
       end)
       |> Enum.flat_map(&query_smells(zipper, file, module, &1))
     end)
   end
 
-  defp query_smells(zipper, file, module, {fun_name, kind, message, _prefilter}) do
+  defp query_smells(
+         zipper,
+         file,
+         module,
+         {fun_name, kind, message, _prefilter, remediation_safety}
+       ) do
     zipper
     |> Patcher.find_all(apply(module, fun_name, []))
     |> Enum.map(fn match ->
@@ -122,6 +128,7 @@ defmodule Reach.Smell.PatternRunner do
       Finding.new(
         kind: kind,
         message: message,
+        remediation_safety: remediation_safety,
         location: "#{file}:#{line}",
         source_range: match.range
       )

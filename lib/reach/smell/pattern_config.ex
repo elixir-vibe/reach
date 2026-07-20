@@ -10,20 +10,28 @@ defmodule Reach.Smell.PatternConfig do
   end
 
   def normalize_pattern({pattern, kind, message}),
-    do: {pattern, kind, message, inferred_prefilter(pattern, :auto)}
+    do: normalize_pattern({pattern, kind, message, :auto, :review_only})
 
   def normalize_pattern({pattern, kind, message, prefilter}),
-    do: {pattern, kind, message, inferred_prefilter(pattern, prefilter)}
+    do: normalize_pattern({pattern, kind, message, prefilter, :review_only})
 
-  def normalize_query(module, {fun_name, kind, message}),
-    do: normalize_query(module, {fun_name, kind, message, :auto})
-
-  def normalize_query(module, {fun_name, kind, message, prefilter}) do
-    selector = apply(module, fun_name, [])
-    {fun_name, kind, message, inferred_prefilter(selector, prefilter)}
+  def normalize_pattern({pattern, kind, message, prefilter, remediation_safety}) do
+    {pattern, kind, message, inferred_prefilter(pattern, prefilter), remediation_safety}
   end
 
-  def prefiltered?({_name_or_pattern, _kind, _message, prefilter}), do: prefilter != []
+  def normalize_query(module, {fun_name, kind, message}),
+    do: normalize_query(module, {fun_name, kind, message, :auto, :review_only})
+
+  def normalize_query(module, {fun_name, kind, message, prefilter}),
+    do: normalize_query(module, {fun_name, kind, message, prefilter, :review_only})
+
+  def normalize_query(module, {fun_name, kind, message, prefilter, remediation_safety}) do
+    selector = apply(module, fun_name, [])
+    {fun_name, kind, message, inferred_prefilter(selector, prefilter), remediation_safety}
+  end
+
+  def prefiltered?({_name_or_pattern, _kind, _message, prefilter, _remediation_safety}),
+    do: prefilter != []
 
   def source_matches?(_source, []), do: true
   def source_matches?(nil, _prefilter), do: true

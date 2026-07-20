@@ -74,6 +74,7 @@ defmodule Reach.Smell.Registry do
     Enum.map(metadata.patterns ++ metadata.queries, fn
       {_matcher, kind, _message} -> kind
       {_matcher, kind, _message, _prefilter} -> kind
+      {_matcher, kind, _message, _prefilter, _remediation_safety} -> kind
     end)
   end
 

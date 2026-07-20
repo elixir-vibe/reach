@@ -145,13 +145,21 @@ defmodule Reach.Smell.Checks.LoopAntipattern do
 
   defp manual_min_reduce(all_nodes) do
     for node <- all_nodes, reduce_call?(node), callback_contains?(node, :min) do
-      finding(:suboptimal, "manual min-reduction; use Enum.min/1 or Enum.min_by/2", node)
+      finding(
+        :suboptimal,
+        "manual min-reduction; review Enum.min/1 only after preserving the initial accumulator, empty-input behavior, and tie selection",
+        node
+      )
     end
   end
 
   defp manual_max_reduce(all_nodes) do
     for node <- all_nodes, reduce_call?(node), callback_contains?(node, :max) do
-      finding(:suboptimal, "manual max-reduction; use Enum.max/1 or Enum.max_by/2", node)
+      finding(
+        :suboptimal,
+        "manual max-reduction; review Enum.max/1 only after preserving the initial accumulator, empty-input behavior, and tie selection",
+        node
+      )
     end
   end
 

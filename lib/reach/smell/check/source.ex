@@ -37,20 +37,25 @@ defmodule Reach.Smell.Check.Source do
 
   defp build_smell(pattern, kind, message, opts, caller) do
     prefilter = Keyword.get(opts, :prefilter, :auto)
-
+    remediation_safety = Keyword.get(opts, :remediation_safety, :review_only)
     mode = Keyword.get(opts, :mode, :auto)
+
+    unless remediation_safety in [:equivalent, :conditional, :review_only] do
+      raise ArgumentError,
+            "remediation_safety must be :equivalent, :conditional, or :review_only"
+    end
 
     if mode == :ast do
       quote do
         @smell_ast_callbacks {unquote(pattern), unquote(kind), unquote(message),
-                              unquote(prefilter)}
+                              unquote(prefilter), unquote(remediation_safety)}
       end
     else
-      build_pattern_smell(pattern, kind, message, prefilter, caller)
+      build_pattern_smell(pattern, kind, message, prefilter, remediation_safety, caller)
     end
   end
 
-  defp build_pattern_smell(pattern, kind, message, prefilter, caller) do
+  defp build_pattern_smell(pattern, kind, message, prefilter, remediation_safety, caller) do
     if selector_ast?(pattern) do
       idx = Module.get_attribute(caller.module, :smell_query_counter) || 0
       Module.put_attribute(caller.module, :smell_query_counter, idx + 1)
@@ -58,14 +63,15 @@ defmodule Reach.Smell.Check.Source do
 
       quote do
         @smell_query_names {unquote(fun_name), unquote(kind), unquote(message),
-                            unquote(prefilter)}
+                            unquote(prefilter), unquote(remediation_safety)}
         @doc false
         @dialyzer {:nowarn_function, [{unquote(fun_name), 0}]}
         def unquote(fun_name)(), do: unquote(pattern)
       end
     else
       quote do
-        @smell_patterns {unquote(pattern), unquote(kind), unquote(message), unquote(prefilter)}
+        @smell_patterns {unquote(pattern), unquote(kind), unquote(message), unquote(prefilter),
+                         unquote(remediation_safety)}
       end
     end
   end
@@ -78,7 +84,7 @@ defmodule Reach.Smell.Check.Source do
     ast_callbacks = Module.get_attribute(env.module, :smell_ast_callbacks) || []
 
     ast_matchers =
-      for {callback, _kind, _message, _prefilter} <- ast_callbacks do
+      for {callback, _kind, _message, _prefilter, _remediation_safety} <- ast_callbacks do
         quote do
           def __reach_ast_smell_match__(unquote(callback), node), do: unquote(callback)(node)
         end

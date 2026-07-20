@@ -16,7 +16,6 @@ lib/mix/tasks/phx.gen.auth.ex:389  unsafe_atom_creation
 lib/mix/tasks/phx.gen.auth.ex:397  unsafe_atom_creation
 lib/mix/tasks/phx.gen.auth.ex:399  unsafe_atom_creation
 lib/mix/tasks/phx.gen.auth.ex:403  unsafe_atom_creation
-lib/mix/tasks/phx.gen.auth.ex:415  suboptimal
 lib/mix/tasks/phx.gen.context.ex:174  unsafe_atom_creation
 lib/mix/tasks/phx.gen.embedded.ex:62  suboptimal
 lib/mix/tasks/phx.gen.live.ex:187  suboptimal

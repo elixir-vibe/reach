@@ -16,6 +16,8 @@ Prefer JSON for agents and CI. Human text output is intentionally summarized, co
 
 Contract candidates include structured `canonical_site`, `keys`, `draft_contract`, and `blast_radius` fields in addition to the common candidate proof and suggestion fields. `canonical_site` names an existing producer, literal construction function, or normalization boundary proven from source; it remains `null` when Reach cannot prove one. Decoded-boundary candidates also include `decoder` and `boundary`. Agents should treat `draft_contract` as a starting shape, review every function listed in `blast_radius`, and complete every proof step before editing.
 
+Smell findings include `remediation_safety`: `equivalent` means Reach has a behavior-preserving replacement contract, `conditional` requires stated preconditions, and `review_only` is advisory evidence rather than an automatic rewrite. Agents must not turn `conditional` or `review_only` findings into edits without proving the missing conditions.
+
 Changed-code results include top-level `risk` and `confidence` fields plus a detailed `coverage` object:
 
 ```json

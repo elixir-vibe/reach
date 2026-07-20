@@ -79,7 +79,7 @@ defmodule Reach.Check.ArchitecturePolicyTest do
   end
 
   test "reach.check --smells --strict fails when findings are present" do
-    path = smell_fixture("def run(items), do: items |> Enum.reverse() |> Enum.reverse()")
+    path = smell_fixture("def run(items), do: items |> Enum.filter(& &1.active?) |> length()")
     with_reach_config(~S([]))
 
     assert_raise Mix.Error, ~r/Smell check failed: \d+ finding\(s\)/, fn ->
@@ -88,7 +88,7 @@ defmodule Reach.Check.ArchitecturePolicyTest do
   end
 
   test "reach.check --smells honors strict config" do
-    path = smell_fixture("def run(items), do: items |> Enum.reverse() |> Enum.reverse()")
+    path = smell_fixture("def run(items), do: items |> Enum.filter(& &1.active?) |> length()")
     with_reach_config(~S([smells: [strict: true]]))
 
     assert_raise Mix.Error, ~r/Smell check failed: \d+ finding\(s\)/, fn ->

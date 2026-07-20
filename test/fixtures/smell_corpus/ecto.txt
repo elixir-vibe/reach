@@ -4,7 +4,6 @@ lib/ecto/changeset.ex:1369  suboptimal
 lib/ecto/changeset.ex:3456  unsafe_atom_creation
 lib/ecto/changeset.ex:4220  string_building
 lib/ecto/changeset.ex:518  string_building
-lib/ecto/changeset/relation.ex:415  suboptimal
 lib/ecto/changeset/relation.ex:486  suboptimal
 lib/ecto/embedded.ex:237  string_building
 lib/ecto/query.ex:545  string_building
@@ -25,14 +24,11 @@ lib/ecto/query/planner.ex:2159  suboptimal
 lib/ecto/query/planner.ex:2164  string_building
 lib/ecto/query/planner.ex:2237  suboptimal
 lib/ecto/query/planner.ex:240  bare_rescue
-lib/ecto/query/planner.ex:2559  eager_pattern
 lib/ecto/query/planner.ex:2574  string_building
 lib/ecto/query/planner.ex:2714  suboptimal
 lib/ecto/query/planner.ex:359  bare_rescue
-lib/ecto/repo/assoc.ex:64  suboptimal
 lib/ecto/repo/preloader.ex:350  suboptimal
 lib/ecto/repo/preloader.ex:592  suboptimal
-lib/ecto/repo/preloader.ex:636  suboptimal
 lib/ecto/repo/preloader.ex:789  string_building
 lib/ecto/repo/preloader.ex:79  bare_rescue
 lib/ecto/repo/schema.ex:1258  string_building

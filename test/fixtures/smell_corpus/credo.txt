@@ -2,7 +2,6 @@ lib/credo/check.ex:445  bare_rescue
 lib/credo/check.ex:880  unsafe_atom_creation
 lib/credo/check/config_comment.ex:141  unsafe_atom_creation
 lib/credo/check/consistency/line_endings/collector.ex:12  suboptimal
-lib/credo/check/consistency/multi_alias_import_require_use/collector.ex:21  eager_pattern
 lib/credo/check/consistency/multi_alias_import_require_use/collector.ex:21  manual_flat_map
 lib/credo/check/consistency/multi_alias_import_require_use/collector.ex:82  suboptimal
 lib/credo/check/consistency/space_around_operators.ex:103  suboptimal
@@ -24,13 +23,9 @@ lib/credo/check/refactor/map_into.ex:80  suboptimal
 lib/credo/check/refactor/module_dependencies.ex:112  redundant_computation
 lib/credo/check/refactor/nesting.ex:89  suboptimal
 lib/credo/check/refactor/redundant_with_clause_result.ex:58  suboptimal
-lib/credo/check/refactor/variable_rebinding.ex:120  eager_pattern
 lib/credo/check/refactor/variable_rebinding.ex:120  manual_flat_map
-lib/credo/check/refactor/variable_rebinding.ex:127  eager_pattern
 lib/credo/check/refactor/variable_rebinding.ex:127  manual_flat_map
-lib/credo/check/refactor/variable_rebinding.ex:59  eager_pattern
 lib/credo/check/refactor/variable_rebinding.ex:59  manual_flat_map
-lib/credo/check/refactor/with_clauses.ex:95  suboptimal
 lib/credo/check/runner.ex:94  bare_rescue
 lib/credo/check/warning/unused_operation.ex:108  suboptimal
 lib/credo/cli/command/categories/output/default.ex:18  unsafe_atom_creation
@@ -44,7 +39,6 @@ lib/credo/cli/command/diff/task/get_git_diff.ex:91  suboptimal
 lib/credo/cli/command/explain/explain_command.ex:105  suboptimal
 lib/credo/cli/command/explain/explain_command.ex:131  suboptimal
 lib/credo/cli/command/explain/output/default.ex:143  unsafe_atom_creation
-lib/credo/cli/command/explain/output/default.ex:478  suboptimal
 lib/credo/cli/command/explain/output/default.ex:61  unsafe_atom_creation
 lib/credo/cli/command/info/info_command.ex:54  suboptimal
 lib/credo/cli/command/info/info_command.ex:62  suboptimal
@@ -75,9 +69,7 @@ lib/credo/execution/task/write_debug_report.ex:92  suboptimal
 lib/credo/exs_loader.ex:29  bare_rescue
 lib/credo/priority.ex:31  unsafe_atom_creation
 lib/credo/priority.ex:75  suboptimal
-lib/credo/sources.ex:125  eager_pattern
 lib/credo/sources.ex:155  suboptimal
 lib/credo/sources.ex:167  suboptimal
 lib/credo/sources.ex:174  suboptimal
-lib/credo/sources.ex:87  eager_pattern
 lib/credo/test/assertions.ex:182  string_building
