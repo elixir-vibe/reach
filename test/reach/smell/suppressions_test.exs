@@ -2,7 +2,9 @@ defmodule Reach.Smell.SuppressionsTest do
   use ExUnit.Case, async: true
 
   alias Reach.Check.Smells
+  alias Reach.Config
   alias Reach.Project
+  alias Reach.Smell.{Finding, Suppressions}
 
   test "global path ignore suppresses all smell kinds in matching files" do
     path =
@@ -58,6 +60,40 @@ defmodule Reach.Smell.SuppressionsTest do
     project = Project.from_sources([path])
 
     assert Smells.run(project, smells: [ignore: [modules: ["Generated.ModuleIgnore"]]]) == []
+  end
+
+  test "module ignore resolves findings to the innermost containing module" do
+    path =
+      fixture("nested_module_ignore", """
+      defmodule Generated.Outer do
+        def outer(items), do: items |> Enum.filter(& &1.active?) |> length()
+
+        defmodule Inner do
+          def inner(items), do: items |> Enum.filter(& &1.active?) |> length()
+        end
+      end
+      """)
+
+    project = Project.from_sources([path])
+
+    findings =
+      project
+      |> Smells.run(smells: [ignore: [modules: ["Generated.Outer.Inner"]]])
+      |> Enum.filter(&(&1.kind == :suboptimal))
+
+    assert [finding] = findings
+    assert {_file, 2} = Suppressions.location(finding)
+  end
+
+  test "module suppression skips project indexing when no module ignores are configured" do
+    finding = Finding.new(kind: :suboptimal, message: "example", location: "sample.ex:1")
+    project_without_nodes = %{nodes: :not_enumerable}
+
+    refute Suppressions.suppressed_by_module?(
+             finding,
+             project_without_nodes,
+             Config.normalize([])
+           )
   end
 
   test "disable-next-line source comment suppresses one finding" do

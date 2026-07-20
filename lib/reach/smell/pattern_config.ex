@@ -16,7 +16,8 @@ defmodule Reach.Smell.PatternConfig do
     do: normalize_pattern({pattern, kind, message, prefilter, :review_only})
 
   def normalize_pattern({pattern, kind, message, prefilter, remediation_safety}) do
-    {pattern, kind, message, inferred_prefilter(pattern, prefilter), remediation_safety}
+    normalized_prefilter = inferred_prefilter(pattern, prefilter)
+    {ExAST.Pattern.compile(pattern), kind, message, normalized_prefilter, remediation_safety}
   end
 
   def normalize_query(module, {fun_name, kind, message}),

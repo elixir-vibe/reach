@@ -72,6 +72,7 @@ defmodule Reach.MacroFact do
   @module_forms [:defmodule, :defprotocol, :defimpl]
   @control_forms [:=, :->, :fn, :case, :cond, :if, :unless, :with, :for, :receive, :try]
   @non_declaration_calls [:@, :alias, :require, :import]
+  @project_cache_key {__MODULE__, :project_facts}
 
   def family, do: @family
   def kinds, do: @kinds
@@ -120,18 +121,33 @@ defmodule Reach.MacroFact do
 
   @doc "Collects macro/DSL facts from all source files in a project."
   @spec collect_project(map(), keyword()) :: [t()]
-  def collect_project(project, opts \\ []) do
+  def collect_project(project, opts \\ [])
+
+  def collect_project(%{cache_key: cache_key} = project, []) when not is_nil(cache_key) do
+    signature = {cache_key, project.nodes, Map.get(project, :plugins, [])}
+
+    case Process.get(@project_cache_key) do
+      {^signature, facts} ->
+        facts
+
+      _miss ->
+        facts = collect_project_uncached(project, [])
+        Process.put(@project_cache_key, {signature, facts})
+        facts
+    end
+  end
+
+  def collect_project(project, opts), do: collect_project_uncached(project, opts)
+
+  defp collect_project_uncached(project, opts) do
     plugins = Keyword.get(opts, :plugins, Map.get(project, :plugins, []))
 
-    files = Reach.Source.project_files(project)
-    aliases = local_use_aliases(files)
+    project_asts = project |> Reach.Source.project_files() |> project_asts()
+    aliases = local_use_aliases(project_asts)
 
-    files
-    |> Enum.flat_map(fn file ->
-      case collect_file(file, Keyword.put(opts, :plugins, plugins)) do
-        {:ok, facts} -> facts
-        {:error, _reason} -> []
-      end
+    project_asts
+    |> Enum.flat_map(fn {file, ast} ->
+      collect_ast(ast, Keyword.merge(opts, file: file, plugins: plugins))
     end)
     |> Enum.map(&apply_local_use_alias(&1, aliases))
     |> refine_facts(plugins, %{})
@@ -169,16 +185,26 @@ defmodule Reach.MacroFact do
     Enum.filter(facts, fn fact -> fact.source[:line] == line end)
   end
 
-  defp local_use_aliases(files) do
-    files
-    |> Enum.flat_map(fn file ->
+  defp project_asts(files) do
+    Enum.flat_map(files, fn file ->
       with {:ok, source} <- File.read(file),
-           {:ok, ast} <- Code.string_to_quoted(source, emit_warnings: false) do
-        collect_local_use_aliases(ast)
+           {:ok, ast} <-
+             Code.string_to_quoted(source,
+               columns: true,
+               token_metadata: true,
+               emit_warnings: false,
+               file: file
+             ) do
+        [{file, ast}]
       else
         _error -> []
       end
     end)
+  end
+
+  defp local_use_aliases(project_asts) do
+    project_asts
+    |> Enum.flat_map(fn {_file, ast} -> collect_local_use_aliases(ast) end)
     |> Map.new()
   end
 

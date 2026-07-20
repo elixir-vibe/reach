@@ -92,7 +92,7 @@ defmodule Reach.Evidence.NilParameter do
   def collect_project(%{nodes: nodes, call_graph: %Graph{}} = project) when is_map(nodes) do
     index = Query.function_index(project)
     functions = index.all
-    requirements = required_parameters(functions, project.call_graph)
+    requirements = required_parameters(index, project.call_graph)
 
     definition_sources = definition_nil_sources(functions)
     call_sources = call_nil_sources(project, index)
@@ -1043,18 +1043,18 @@ defmodule Reach.Evidence.NilParameter do
     end
   end
 
-  defp required_parameters(functions, call_graph) do
+  defp required_parameters(index, call_graph) do
     requirements =
-      functions
+      index.all
       |> Enum.group_by(&function_id/1)
       |> Enum.reduce(MapSet.new(), &add_function_requirements/2)
 
     requirements =
-      Enum.reduce(functions, requirements, fn function, acc ->
+      Enum.reduce(index.all, requirements, fn function, acc ->
         add_default_arity_requirements(function, acc, requirements)
       end)
 
-    add_virtual_arity_requirements(requirements, functions, call_graph)
+    add_virtual_arity_requirements(requirements, index, call_graph)
   end
 
   defp add_function_requirements({function_id, functions}, requirements) do
@@ -1122,8 +1122,8 @@ defmodule Reach.Evidence.NilParameter do
     end)
   end
 
-  defp add_virtual_arity_requirements(requirements, functions, call_graph) do
-    defined = MapSet.new(functions, &function_id/1)
+  defp add_virtual_arity_requirements(requirements, index, call_graph) do
+    defined = MapSet.new(index.all, &function_id/1)
 
     call_graph
     |> Graph.vertices()
@@ -1136,12 +1136,12 @@ defmodule Reach.Evidence.NilParameter do
     )
     |> Enum.reject(&MapSet.member?(defined, &1))
     |> Enum.reduce(requirements, fn virtual, acc ->
-      add_virtual_requirements(virtual, functions, requirements, acc)
+      add_virtual_requirements(virtual, index, requirements, acc)
     end)
   end
 
-  defp add_virtual_requirements({module, name, arity} = virtual, functions, requirements, acc) do
-    source = nearest_higher_arity(functions, module, name, arity)
+  defp add_virtual_requirements({module, name, arity} = virtual, index, requirements, acc) do
+    source = nearest_higher_arity(index, module, name, arity)
 
     if source do
       arity
@@ -1154,13 +1154,10 @@ defmodule Reach.Evidence.NilParameter do
     end
   end
 
-  defp nearest_higher_arity(functions, module, name, arity) do
-    functions
-    |> Enum.filter(fn function ->
-      function.meta.module == module and function.meta.name == name and
-        function.meta.arity > arity
-    end)
-    |> Enum.min_by(& &1.meta.arity, fn -> nil end)
+  defp nearest_higher_arity(index, module, name, arity) do
+    index.by_module_name
+    |> Map.get({module, name}, [])
+    |> Enum.find(&(&1.meta.arity > arity))
   end
 
   defp copy_virtual_requirement(source, virtual, parameter_index, requirements, acc) do
@@ -1392,23 +1389,18 @@ defmodule Reach.Evidence.NilParameter do
 
   defp function_candidates(index, module, name, arity) do
     case Map.get(index.by_module, {module, name, arity}, []) do
-      [] ->
-        index.by_module
-        |> Enum.filter(fn
-          {{^module, ^name, candidate_arity}, _functions} -> candidate_arity > arity
-          {_key, _functions} -> false
-        end)
-        |> Enum.min_by(
-          fn {{_module, _name, candidate_arity}, _functions} -> candidate_arity end,
-          fn -> nil end
-        )
-        |> case do
-          nil -> []
-          {_key, functions} -> functions
-        end
+      [] -> higher_arity_candidates(index, module, name, arity)
+      functions -> functions
+    end
+  end
 
-      functions ->
-        functions
+  defp higher_arity_candidates(index, module, name, arity) do
+    index.by_module_name
+    |> Map.get({module, name}, [])
+    |> Enum.find(&(&1.meta.arity > arity))
+    |> case do
+      nil -> []
+      function -> Map.get(index.by_module, function_id(function), [])
     end
   end
 

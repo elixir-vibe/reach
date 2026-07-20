@@ -6,14 +6,23 @@ defmodule Reach.Smell.PatternRunner do
   alias Reach.Smell.PatternConfig
   alias Reach.Smell.Source
 
-  def run(project, checks, files \\ nil) do
+  @default_max_concurrency System.schedulers_online()
+
+  def run(project, checks, files \\ nil, opts \\ []) do
     check_configs =
       Enum.map(checks, fn check ->
         {check, PatternConfig.normalize(check, check.__reach_pattern_check__())}
       end)
 
-    files = files || Source.module_files(project)
-    Enum.flat_map(files, &scan_file(&1, check_configs))
+    max_concurrency = Keyword.get(opts, :max_concurrency, @default_max_concurrency)
+
+    (files || Source.module_files(project))
+    |> Task.async_stream(&scan_file(&1, check_configs),
+      max_concurrency: max_concurrency,
+      ordered: true,
+      timeout: :infinity
+    )
+    |> Enum.flat_map(fn {:ok, findings} -> findings end)
   end
 
   defp scan_file(file, check_configs) do

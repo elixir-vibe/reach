@@ -108,6 +108,7 @@ defmodule Reach.Evidence.MapContract do
   @options_names [:config, :opts, :options]
   @boolean_key_terms ~w(active allow allowed disabled enabled flag hidden valid visible)
   @non_call_forms [:., :%, :{}, :__aliases__, :__block__, :=, :->, :def, :defp, :fn, :|>]
+  @project_cache_key {__MODULE__, :project_evidence}
 
   @impl true
   def family, do: :map_contract
@@ -117,12 +118,14 @@ defmodule Reach.Evidence.MapContract do
 
   def collect_key_accesses(%{nodes: nodes, call_graph: _call_graph} = project)
       when is_map(nodes) do
-    function_index = Query.function_index(project)
-    predecessor_index = Query.value_predecessor_index(project)
+    cached_project_evidence(project, :key_accesses, fn ->
+      function_index = Query.function_index(project)
+      predecessor_index = Query.value_predecessor_index(project)
 
-    nodes
-    |> Map.values()
-    |> Enum.flat_map(&classify_key_access(&1, project, function_index, predecessor_index))
+      nodes
+      |> Map.values()
+      |> Enum.flat_map(&classify_key_access(&1, project, function_index, predecessor_index))
+    end)
   end
 
   def collect_key_accesses(_project), do: []
@@ -130,11 +133,13 @@ defmodule Reach.Evidence.MapContract do
   @doc "Indexes direct function-parameter bindings by their zero-based parameter position."
   @spec parameter_origin_index(map()) ::
           %{{{module() | nil, atom(), non_neg_integer()}, term()} => non_neg_integer()}
-  def parameter_origin_index(%{nodes: nodes}) when is_map(nodes) do
-    nodes
-    |> Map.values()
-    |> Enum.filter(&(&1.type == :function_def))
-    |> Enum.reduce(%{}, &index_function_parameters/2)
+  def parameter_origin_index(%{nodes: nodes} = project) when is_map(nodes) do
+    cached_project_evidence(project, :parameter_origins, fn ->
+      nodes
+      |> Map.values()
+      |> Enum.filter(&(&1.type == :function_def))
+      |> Enum.reduce(%{}, &index_function_parameters/2)
+    end)
   end
 
   def parameter_origin_index(_project), do: %{}
@@ -142,11 +147,13 @@ defmodule Reach.Evidence.MapContract do
   @doc "Returns names bound inside nested function-parameter patterns."
   @spec nested_parameter_bindings(map()) ::
           MapSet.t({{module() | nil, atom(), non_neg_integer()}, non_neg_integer(), atom()})
-  def nested_parameter_bindings(%{nodes: nodes}) when is_map(nodes) do
-    nodes
-    |> Map.values()
-    |> Enum.filter(&(&1.type == :function_def))
-    |> Enum.reduce(MapSet.new(), &index_nested_parameter_bindings/2)
+  def nested_parameter_bindings(%{nodes: nodes} = project) when is_map(nodes) do
+    cached_project_evidence(project, :nested_parameter_bindings, fn ->
+      nodes
+      |> Map.values()
+      |> Enum.filter(&(&1.type == :function_def))
+      |> Enum.reduce(MapSet.new(), &index_nested_parameter_bindings/2)
+    end)
   end
 
   def nested_parameter_bindings(_project), do: MapSet.new()
@@ -163,12 +170,14 @@ defmodule Reach.Evidence.MapContract do
 
   def collect_key_normalizations(%{nodes: nodes, call_graph: _call_graph} = project)
       when is_map(nodes) do
-    parent_index = parent_index(nodes)
-    function_index = Query.function_index(project)
+    cached_project_evidence(project, :key_normalizations, fn ->
+      parent_index = parent_index(nodes)
+      function_index = Query.function_index(project)
 
-    nodes
-    |> Map.values()
-    |> Enum.flat_map(&key_normalizations(&1, project, parent_index, function_index))
+      nodes
+      |> Map.values()
+      |> Enum.flat_map(&key_normalizations(&1, project, parent_index, function_index))
+    end)
   end
 
   def collect_key_normalizations(_project), do: []
@@ -189,13 +198,15 @@ defmodule Reach.Evidence.MapContract do
   end
 
   def collect_fallbacks(project) do
-    accesses_by_node = Map.new(collect_key_accesses(project), &{&1.node.id, &1})
-    parent_index = parent_index(project.nodes)
+    cached_project_evidence(project, :fallbacks, fn ->
+      accesses_by_node = Map.new(collect_key_accesses(project), &{&1.node.id, &1})
+      parent_index = parent_index(project.nodes)
 
-    project.nodes
-    |> Map.values()
-    |> Enum.flat_map(&fallback_for_node(&1, accesses_by_node, parent_index))
-    |> Enum.filter(&dual_representation_fallback?/1)
+      project.nodes
+      |> Map.values()
+      |> Enum.flat_map(&fallback_for_node(&1, accesses_by_node, parent_index))
+      |> Enum.filter(&dual_representation_fallback?/1)
+    end)
   end
 
   @impl true
@@ -1313,6 +1324,33 @@ defmodule Reach.Evidence.MapContract do
 
   defp observation_location(%{key: key, kind: kind, meta: meta}) do
     meta |> location() |> Map.merge(%{key: key, kind: kind})
+  end
+
+  defp cached_project_evidence(%{cache_key: cache_key} = project, kind, collector)
+       when not is_nil(cache_key) do
+    signature = {cache_key, project.nodes, project.graph, project.call_graph}
+
+    case Process.get(@project_cache_key) do
+      {^signature, evidence} when is_map_key(evidence, kind) ->
+        Map.fetch!(evidence, kind)
+
+      _miss ->
+        result = collector.()
+        put_cached_project_evidence(signature, kind, result)
+        result
+    end
+  end
+
+  defp cached_project_evidence(_project, _kind, collector), do: collector.()
+
+  defp put_cached_project_evidence(signature, kind, result) do
+    evidence =
+      case Process.get(@project_cache_key) do
+        {^signature, evidence} -> Map.put(evidence, kind, result)
+        _other -> %{kind => result}
+      end
+
+    Process.put(@project_cache_key, {signature, evidence})
   end
 
   defp location(meta), do: %{line: meta[:line], column: meta[:column]}

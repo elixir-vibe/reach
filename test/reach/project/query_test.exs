@@ -99,6 +99,49 @@ defmodule Reach.QueryTest do
     end
   end
 
+  describe "value_predecessor_index/1" do
+    test "invalidates cached indexes when the project graph changes" do
+      project =
+        """
+        defmodule ValueIndex do
+          def run(value), do: value
+        end
+        """
+        |> project_from_string()
+        |> Map.put(:cache_key, make_ref())
+
+      assert Query.value_predecessor_index(project) == Query.value_predecessor_index(project)
+
+      [from_id, to_id | _rest] = Map.keys(project.nodes)
+      graph = Graph.add_edge(project.graph, from_id, to_id, label: :summary)
+      updated_project = %{project | graph: graph}
+
+      assert from_id in Map.fetch!(Query.value_predecessor_index(updated_project), to_id)
+    end
+  end
+
+  describe "function_index/1" do
+    test "groups functions by module and name in arity order" do
+      project =
+        project_from_string("""
+        defmodule IndexedFunctions do
+          def fetch(value), do: value
+          def fetch(value, fallback, opts), do: {value, fallback, opts}
+          def other(value, fallback), do: {value, fallback}
+        end
+        """)
+
+      arities =
+        project
+        |> Query.function_index()
+        |> Map.fetch!(:by_module_name)
+        |> Map.fetch!({IndexedFunctions, :fetch})
+        |> Enum.map(& &1.meta.arity)
+
+      assert arities == [1, 3]
+    end
+  end
+
   describe "value lineage" do
     test "finds a shared parameter origin through a key conversion" do
       project =

@@ -237,6 +237,38 @@ defmodule Reach.Evidence.MapContractTest do
     File.rm_rf(dir)
   end
 
+  test "keeps cached project evidence isolated between projects" do
+    dir = Path.join(System.tmp_dir!(), "reach-map-cache-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    first_path = Path.join(dir, "first.ex")
+    second_path = Path.join(dir, "second.ex")
+
+    File.write!(first_path, """
+    defmodule FirstContract do
+      def read(map), do: Map.get(map, :first)
+    end
+    """)
+
+    File.write!(second_path, """
+    defmodule SecondContract do
+      def read(map), do: Map.get(map, :second)
+    end
+    """)
+
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    first_project = Reach.Project.from_sources([first_path], plugins: [])
+    second_project = Reach.Project.from_sources([second_path], plugins: [])
+
+    assert Enum.map(MapContract.collect_key_accesses(first_project), & &1.key_label) == ["first"]
+
+    assert Enum.map(MapContract.collect_key_accesses(second_project), & &1.key_label) == [
+             "second"
+           ]
+
+    assert Enum.map(MapContract.collect_key_accesses(first_project), & &1.key_label) == ["first"]
+  end
+
   test "ignores map literals without later flow evidence" do
     ast =
       Code.string_to_quoted!("""

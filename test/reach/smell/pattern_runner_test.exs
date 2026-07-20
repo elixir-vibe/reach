@@ -2,7 +2,49 @@ defmodule Reach.Smell.PatternRunnerTest do
   use ExUnit.Case, async: true
 
   alias Reach.Project
-  alias Reach.Smell.{Checks.CollectionIdioms, SourceRunner}
+
+  alias Reach.Smell.{
+    Checks.CollectionIdioms,
+    Checks.PipelineWaste,
+    PatternConfig,
+    PatternRunner,
+    SourceRunner
+  }
+
+  test "normalizes source patterns into reusable compiled patterns" do
+    config = PatternConfig.normalize(CollectionIdioms, CollectionIdioms.__reach_pattern_check__())
+
+    assert Enum.all?(config.patterns, fn
+             {%ExAST.CompiledPattern{}, _kind, _message, _prefilter, _safety} -> true
+             _pattern -> false
+           end)
+  end
+
+  test "scans files concurrently while preserving input order" do
+    dir =
+      Path.join(System.tmp_dir!(), "reach-pattern-order-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(dir)
+
+    paths =
+      for name <- ["first", "second"] do
+        path = Path.join(dir, "#{name}.ex")
+
+        File.write!(path, """
+        defmodule #{Macro.camelize(name)} do
+          def count(items), do: items |> Enum.filter(&is_atom/1) |> length()
+        end
+        """)
+
+        path
+      end
+
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    findings = PatternRunner.run(%{}, [PipelineWaste], paths, max_concurrency: 2)
+
+    assert Enum.map(findings, & &1.location) == Enum.map(paths, &"#{&1}:2")
+  end
 
   test "isolates source files with dynamically unquoted import options" do
     source = """

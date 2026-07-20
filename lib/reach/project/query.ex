@@ -5,6 +5,7 @@ defmodule Reach.Project.Query do
 
   @default_value_lineage_nodes 200
   @function_index_cache_key {__MODULE__, :function_index}
+  @value_predecessor_index_cache_key {__MODULE__, :value_predecessor_index}
 
   def function_index(project) do
     case Map.get(project, :cache_key) do
@@ -28,6 +29,7 @@ defmodule Reach.Project.Query do
 
   def reset_cache do
     Process.delete(@function_index_cache_key)
+    Process.delete(@value_predecessor_index_cache_key)
     :ok
   end
 
@@ -36,6 +38,26 @@ defmodule Reach.Project.Query do
           optional(Reach.IR.Node.id()) => [Reach.IR.Node.id()]
         }
   def value_predecessor_index(project) do
+    case Map.get(project, :cache_key) do
+      nil ->
+        build_value_predecessor_index(project)
+
+      cache_key ->
+        signature = {cache_key, project.graph}
+
+        case Process.get(@value_predecessor_index_cache_key) do
+          {^signature, index} ->
+            index
+
+          _miss ->
+            index = build_value_predecessor_index(project)
+            Process.put(@value_predecessor_index_cache_key, {signature, index})
+            index
+        end
+    end
+  end
+
+  defp build_value_predecessor_index(project) do
     project.graph
     |> Graph.edges()
     |> Enum.filter(&Reach.Analysis.value_edge?/1)
@@ -287,6 +309,13 @@ defmodule Reach.Project.Query do
         {node.meta[:module], node.meta[:name], node.meta[:arity]}
       end)
 
+    by_module_name =
+      func_defs
+      |> Enum.group_by(fn node -> {node.meta[:module], node.meta[:name]} end)
+      |> Map.new(fn {module_name, functions} ->
+        {module_name, Enum.sort_by(functions, & &1.meta[:arity])}
+      end)
+
     node_to_function = build_node_to_function_index(project)
 
     named_modules = named_modules(project.call_graph)
@@ -294,6 +323,7 @@ defmodule Reach.Project.Query do
     %{
       by_name_arity: by_name_arity,
       by_module: by_module,
+      by_module_name: by_module_name,
       by_file: by_file,
       node_to_function: node_to_function,
       named_modules: named_modules,

@@ -330,6 +330,34 @@ defmodule Reach.MacroFactTest do
            ] = MacroFact.collect_project(project)
   end
 
+  test "keeps cached project facts isolated between projects" do
+    dir = Path.join(System.tmp_dir!(), "reach-macro-cache-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    first_path = Path.join(dir, "first.ex")
+    second_path = Path.join(dir, "second.ex")
+
+    File.write!(first_path, """
+    defmodule FirstBehaviour do
+      @callback first(term()) :: term()
+    end
+    """)
+
+    File.write!(second_path, """
+    defmodule SecondBehaviour do
+      @callback second(term()) :: term()
+    end
+    """)
+
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    first_project = Reach.Project.from_sources([first_path], plugins: [])
+    second_project = Reach.Project.from_sources([second_path], plugins: [])
+
+    assert Enum.any?(MacroFact.collect_project(first_project), &(&1.name == :first))
+    assert Enum.any?(MacroFact.collect_project(second_project), &(&1.name == :second))
+    assert Enum.any?(MacroFact.collect_project(first_project), &(&1.name == :first))
+  end
+
   test "collects behaviour declarations" do
     source = ~S'''
     defmodule MyApp.Implementation do
