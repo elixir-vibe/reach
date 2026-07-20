@@ -2,7 +2,7 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
   use ExUnit.Case, async: true
 
   alias Reach.Check.Smells
-  alias Reach.Project
+  alias Reach.{Evidence, Project}
 
   test "finds a bare tag mixed with the same tagged contract" do
     findings =
@@ -101,17 +101,17 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
     assert [_finding] = by_kind(findings, :return_shape_divergence)
   end
 
-  test "finds nested duplicate return tags independently" do
-    findings =
-      smells("""
+  test "keeps nested return tags as evidence without assuming the layers are duplicates" do
+    project =
+      project("""
       defmodule NestedTag do
         def load(value), do: {:ok, {:ok, value}}
       end
       """)
 
-    assert [finding] = by_kind(findings, :nested_return_tag)
-    assert finding.message =~ "wraps :ok inside the same return tag"
-    assert by_kind(findings, :return_shape_divergence) == []
+    assert [%{outcomes: outcomes}] = Evidence.return_contracts(project)
+    assert Enum.any?(outcomes, &(&1.nested_same_tag == :ok))
+    assert by_kind(Smells.run(project, []), :return_shape_divergence) == []
   end
 
   test "keeps conventional tagged and sentinel contracts clean" do
@@ -228,16 +228,15 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergenceTest do
 
   defp by_kind(findings, kind), do: Enum.filter(findings, &(&1.kind == kind))
 
-  defp smells(source) do
+  defp smells(source), do: source |> project() |> Smells.run([])
+
+  defp project(source) do
     path =
       Path.join(System.tmp_dir!(), "reach-return-shape-#{System.unique_integer([:positive])}.ex")
 
     File.write!(path, source)
     on_exit(fn -> File.rm(path) end)
 
-    path
-    |> List.wrap()
-    |> Project.from_sources()
-    |> Smells.run([])
+    Project.from_sources([path])
   end
 end

@@ -12,7 +12,7 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergence do
   @contract_tag :ok
 
   @impl true
-  def kinds, do: [:return_shape_divergence, :nested_return_tag]
+  def kinds, do: [:return_shape_divergence]
 
   @impl true
   def run(project) do
@@ -22,31 +22,7 @@ defmodule Reach.Smell.Checks.ReturnShapeDivergence do
     |> Enum.flat_map(&findings/1)
   end
 
-  defp findings(fact) do
-    nested_tag_findings(fact) ++ divergence_findings(fact)
-  end
-
-  defp nested_tag_findings(fact) do
-    nested = Enum.filter(fact.outcomes, &(&1.nested_same_tag == @contract_tag))
-
-    if nested == [] do
-      []
-    else
-      tags = nested |> Enum.map(& &1.nested_same_tag) |> Enum.uniq() |> Enum.sort()
-      locations = Enum.map_join(nested, ", ", &outcome_location/1)
-
-      [
-        Finding.new(
-          kind: :nested_return_tag,
-          message:
-            "#{function_name(fact)} wraps #{Enum.map_join(tags, ", ", &inspect/1)} inside the same return tag at #{locations}; remove the duplicate wrapper and keep one contract layer",
-          location: fact_location(fact),
-          evidence: Enum.map(nested, &outcome_evidence/1),
-          confidence: :high
-        )
-      ]
-    end
-  end
+  defp findings(fact), do: divergence_findings(fact)
 
   defp divergence_findings(fact) do
     case divergence_reason(fact) do

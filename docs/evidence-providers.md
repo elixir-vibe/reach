@@ -114,7 +114,7 @@ Unknown calls and implicit `with` fallthrough remain dynamic evidence rather tha
 Reach.Evidence.return_contracts(project)
 ```
 
-The smell policy promotes only high-confidence `:ok` contract conflicts backed by a closed-spec mismatch, an asymmetric raw error beside tagged errors, or a tagged nil/empty sentinel beside raw successful values. Bare/tagged optional payloads, tuple-arity differences, explicit/open unions, conventional `{:ok, value} | {:error, reason}`, custom sentinel failures, state-machine tuples, dynamic forwarding, and explicit or source-declared OTP callbacks remain evidence-only. Nested `{:ok, {:ok, value}}` remains an independently promoted finding.
+The smell policy promotes only high-confidence `:ok` contract conflicts backed by a closed-spec mismatch, an asymmetric raw error beside tagged errors, or a tagged nil/empty sentinel beside raw successful values. Bare/tagged optional payloads, tuple-arity differences, explicit/open unions, conventional `{:ok, value} | {:error, reason}`, custom sentinel failures, state-machine tuples, dynamic forwarding, explicit or source-declared OTP callbacks, and nested same-tag results remain evidence-only.
 
 ## Accepted-domain fallback evidence
 

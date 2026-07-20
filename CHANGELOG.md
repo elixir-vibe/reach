@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- Nested same-tag return structures now remain return-contract evidence instead of being treated as duplicate wrappers without proof that their protocol layers are equivalent.
 - Total-function laundering now keeps explicit default normalizers as evidence and promotes only typed domain values that have no explicit parser clause.
 - Empty-map and key-normalization checks now coalesce equivalent findings from the same source line or normalization operation while retaining all conversion-site evidence.
 - Default-drift and schema-contract findings now choose locations, keys, and evidence deterministically instead of depending on project-node map traversal order.
