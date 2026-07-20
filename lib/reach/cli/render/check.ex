@@ -42,8 +42,7 @@ defmodule Reach.CLI.Render.Check do
 
       IO.puts("    evidence=#{Format.humanized_join(candidate.evidence)}")
 
-      render_boundary_contract(candidate)
-      render_blast_radius(candidate.blast_radius)
+      render_fix_template(candidate)
       render_representative_calls(candidate)
       render_clone_siblings(candidate.clone_siblings)
 
@@ -272,9 +271,29 @@ defmodule Reach.CLI.Render.Check do
     end)
   end
 
-  defp render_boundary_contract(%{boundary: boundary, decoder: decoder, draft_contract: draft})
+  defp render_fix_template(candidate) do
+    render_boundary_contract(candidate)
+    render_canonical_site(candidate.canonical_site)
+    render_draft_contract(candidate.draft_contract)
+    render_blast_radius(candidate.blast_radius)
+  end
+
+  defp render_boundary_contract(%{boundary: boundary, decoder: decoder})
        when is_binary(boundary) and is_binary(decoder) do
     IO.puts("    decoder=#{decoder} boundary=#{boundary}")
+  end
+
+  defp render_boundary_contract(_candidate), do: :ok
+
+  defp render_canonical_site(%{target: target, file: file, line: line, reason: reason}) do
+    IO.puts(
+      "    canonical site=#{target} #{Format.loc(file, line)} reason=#{Format.humanize(reason)}"
+    )
+  end
+
+  defp render_canonical_site(_site), do: :ok
+
+  defp render_draft_contract(draft) when is_binary(draft) do
     IO.puts("    draft contract:")
 
     draft
@@ -282,7 +301,7 @@ defmodule Reach.CLI.Render.Check do
     |> Enum.each(&IO.puts("      #{&1}"))
   end
 
-  defp render_boundary_contract(_candidate), do: :ok
+  defp render_draft_contract(_draft), do: :ok
 
   defp render_blast_radius([]), do: :ok
   defp render_blast_radius(nil), do: :ok

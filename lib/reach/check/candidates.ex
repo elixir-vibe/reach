@@ -10,7 +10,8 @@ defmodule Reach.Check.Candidates do
     Changed,
     CloneConsolidationCandidates,
     DependencyBypassCandidates,
-    FacadeCandidates
+    FacadeCandidates,
+    MapContractTemplate
   }
 
   alias Reach.Config
@@ -290,6 +291,9 @@ defmodule Reach.Check.Candidates do
 
       profile = map_contract_candidate_profile(group)
 
+      template =
+        MapContractTemplate.build(contracts, keys, profile.kind, project, candidate_config)
+
       Candidate.new(
         id: candidate_id("R6", index),
         kind: profile.kind,
@@ -304,7 +308,10 @@ defmodule Reach.Check.Candidates do
         keys: Enum.map(keys, &to_string/1),
         occurrences: length(contracts),
         sources: Enum.map(sources, &to_string/1),
-        proof: profile.proof,
+        canonical_site: template.canonical_site,
+        draft_contract: template.draft_contract,
+        blast_radius: template.blast_radius,
+        proof: map_contract_template_proof(template) ++ profile.proof,
         suggestion: profile.suggestion
       )
     end)
@@ -432,6 +439,20 @@ defmodule Reach.Check.Candidates do
             "Consider replacing this repeated implicit map contract with a struct or explicit domain contract."
         }
     end
+  end
+
+  defp map_contract_template_proof(%{canonical_site: nil, blast_radius: blast_radius}) do
+    [
+      "Reach could not prove one canonical construction site; choose one before replacing representations.",
+      "Review every blast-radius function before changing the contract: #{Enum.join(blast_radius, ", ")}."
+    ]
+  end
+
+  defp map_contract_template_proof(%{canonical_site: site, blast_radius: blast_radius}) do
+    [
+      "Make the contract canonical at #{site.target} (#{site.file}:#{site.line}) before changing consumers.",
+      "Review every blast-radius function before changing the contract: #{Enum.join(blast_radius, ", ")}."
+    ]
   end
 
   defp map_contract_confidence(contracts) do

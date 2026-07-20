@@ -42,6 +42,19 @@ defmodule Reach.Check.CandidatesTest do
     assert candidate.occurrences == 2
     assert "local" in candidate.sources
     assert "return" in candidate.sources
+    assert candidate.canonical_site.target == "Profiles.profile/1"
+    assert candidate.canonical_site.reason == :existing_producer
+
+    assert candidate.draft_contract ==
+             "@enforce_keys [:email, :id, :name]\ndefstruct [:email, :id, :name]"
+
+    assert "Profiles.profile/1" in candidate.blast_radius
+    assert "Profiles.render/1" in candidate.blast_radius
+
+    json = candidate |> JSON.encode!() |> JSON.decode!()
+    assert json["canonical_site"]["target"] == "Profiles.profile/1"
+    assert json["draft_contract"] =~ "defstruct"
+    assert "Profiles.render/1" in json["blast_radius"]
 
     File.rm_rf(dir)
   end
@@ -189,6 +202,10 @@ defmodule Reach.Check.CandidatesTest do
     assert candidate.actionability == :review_options_contract
     assert candidate.keys == ["mode", "retries", "timeout"]
     assert candidate.suggestion =~ "typed map"
+    assert candidate.canonical_site.reason == :map_literal
+    assert candidate.draft_contract =~ "@type t :: %{"
+    assert candidate.draft_contract =~ "required(:timeout) => term()"
+    assert candidate.blast_radius != []
 
     File.rm_rf(dir)
   end

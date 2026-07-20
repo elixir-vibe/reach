@@ -38,6 +38,12 @@ defmodule Reach.Check.BoundaryContractCandidates do
       sources: [fact.source],
       boundary: fact.boundary,
       decoder: fact.source,
+      canonical_site: %{
+        target: target,
+        file: fact.file,
+        line: fact.line,
+        reason: :normalization_boundary
+      },
       draft_contract: draft_contract(fact.consumer_keys),
       blast_radius: blast_radius,
       proof: [

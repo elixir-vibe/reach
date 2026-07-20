@@ -38,6 +38,13 @@ defmodule Reach.Check.BoundaryContractCandidatesTest do
     assert candidate.boundary == ":persistent_term.put/2"
     assert candidate.keys == ["input", "output"]
 
+    assert candidate.canonical_site == %{
+             target: "PricingBoundary.init/1 at :persistent_term.put/2",
+             file: path,
+             line: 4,
+             reason: :normalization_boundary
+           }
+
     assert candidate.draft_contract ==
              "@enforce_keys [:input, :output]\ndefstruct [:input, :output]"
 
@@ -71,6 +78,7 @@ defmodule Reach.Check.BoundaryContractCandidatesTest do
         })
       end)
 
+    assert output =~ "canonical site=PricingBoundary.init/1 at :persistent_term.put/2"
     assert output =~ "draft contract"
     assert output =~ "@enforce_keys [:input, :output]"
     assert output =~ "blast radius"
@@ -79,6 +87,7 @@ defmodule Reach.Check.BoundaryContractCandidatesTest do
     json = candidate |> JSON.encode!() |> JSON.decode!()
     assert json["decoder"] == "Jason.decode!/1"
     assert json["boundary"] == ":persistent_term.put/2"
+    assert json["canonical_site"]["reason"] == "normalization_boundary"
     assert json["draft_contract"] =~ "defstruct"
     assert "PricingBoundary.quote/1" in json["blast_radius"]
   end

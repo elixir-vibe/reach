@@ -26,6 +26,7 @@ defmodule Reach.Check.Candidate do
     :sources,
     :boundary,
     :decoder,
+    :canonical_site,
     :draft_contract,
     blast_radius: [],
     clone_siblings: []
@@ -35,6 +36,7 @@ defmodule Reach.Check.Candidate do
           risk: :high | :medium | :low,
           confidence: :high | :medium | :low,
           effects: [Reach.Effects.effect()] | nil,
+          canonical_site: map() | nil,
           blast_radius: [String.t()],
           clone_siblings: [map()]
         }

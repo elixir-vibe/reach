@@ -13,7 +13,8 @@
 - Changed-code analysis now inventories added and removed source suppressions and raises risk for additions without reasons, while project maps expose total and reasonless suppression counts.
 - Smell analysis now detects decoded external fixed-shape payloads crossing storage or process boundaries without explicit normalization.
 - Fixed decoded-boundary evidence now produces advisory contract-normalization candidates with draft structs/schemas and graph-backed blast radii.
-- Smell analysis now detects incompatible success return structures and nested duplicate `:ok` tags across function clauses and branches.
+- Implicit map-contract candidates now include a source-backed canonical construction site, a draft struct/type/schema, and a graph-computed blast radius.
+- Smell analysis now detects incompatible success return structures across function clauses and branches while retaining nested same-tag protocol layers as evidence.
 - Smell analysis now reports proven nil-capable parameters that reach strict uses without a dominating non-nil guard.
 - Smell analysis now identifies cross-module bare maps that duplicate an existing canonical struct entity while excluding projections and boundary representations.
 - Smell analysis now reports consumed domain parameters receiving divergent fixed map shapes, while changed-code checks flag entropy increases.

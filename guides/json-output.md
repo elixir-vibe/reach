@@ -14,7 +14,7 @@ JSON output is pipe-safe and should not include progress text. Tests decode comp
 
 Prefer JSON for agents and CI. Human text output is intentionally summarized, colorized, and may include truncation hints.
 
-Boundary-contract candidates include structured `decoder`, `boundary`, `keys`, `draft_contract`, and `blast_radius` fields in addition to the common candidate proof and suggestion fields. Agents should treat `draft_contract` as a starting shape and complete every listed proof step before editing.
+Contract candidates include structured `canonical_site`, `keys`, `draft_contract`, and `blast_radius` fields in addition to the common candidate proof and suggestion fields. `canonical_site` names an existing producer, literal construction function, or normalization boundary proven from source; it remains `null` when Reach cannot prove one. Decoded-boundary candidates also include `decoder` and `boundary`. Agents should treat `draft_contract` as a starting shape, update every function in `blast_radius`, and complete every listed proof step before editing.
 
 Changed-code results include top-level `risk` and `confidence` fields plus a detailed `coverage` object:
 
