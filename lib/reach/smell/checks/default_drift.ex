@@ -39,7 +39,7 @@ defmodule Reach.Smell.Checks.DefaultDrift do
       |> Enum.map(&elem(&1, 0))
       |> Enum.sort_by(&Helpers.source_sort_key(&1.node))
 
-    if length(defaults) >= 2 and
+    if length(defaults) >= 2 and promotable_group?(accesses_and_defaults, parent_index) and
          not mutually_exclusive_defaults?(accesses_and_defaults, parent_index) do
       first = List.first(accesses)
 
@@ -56,6 +56,84 @@ defmodule Reach.Smell.Checks.DefaultDrift do
       ]
     else
       []
+    end
+  end
+
+  defp promotable_group?(accesses_and_defaults, parent_index) do
+    accesses = Enum.map(accesses_and_defaults, &elem(&1, 0))
+
+    direct_map_variables?(accesses) and same_owner_module?(accesses) and
+      consistent_key_expression?(accesses) and distinct_source_lines?(accesses) and
+      not nested_fallback_chain?(accesses, parent_index)
+  end
+
+  defp direct_map_variables?(accesses) do
+    Enum.all?(accesses, fn access ->
+      match?([%{type: :var} | _rest], access.node.children)
+    end)
+  end
+
+  defp same_owner_module?(accesses) do
+    accesses
+    |> Enum.map(fn access -> elem(access.function, 0) end)
+    |> Enum.uniq()
+    |> length() == 1
+  end
+
+  defp consistent_key_expression?(accesses) do
+    case Enum.map(accesses, & &1.logical_key) |> Enum.uniq() do
+      [{:literal, _key}] ->
+        true
+
+      [{:flow, _origins}] ->
+        accesses
+        |> Enum.map(&key_variable_names/1)
+        |> Enum.uniq()
+        |> length() == 1
+
+      _logical_keys ->
+        false
+    end
+  end
+
+  defp key_variable_names(access) do
+    access.node.children
+    |> Enum.at(1)
+    |> descendant_variable_names()
+    |> Enum.sort()
+  end
+
+  defp descendant_variable_names(nil), do: []
+
+  defp descendant_variable_names(%{type: :var, meta: %{name: name}}), do: [name]
+
+  defp descendant_variable_names(%{children: children}) do
+    Enum.flat_map(children, &descendant_variable_names/1)
+  end
+
+  defp distinct_source_lines?(accesses) do
+    accesses
+    |> Enum.map(&get_in(&1.node.source_span, [:start_line]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> length() >= 2
+  end
+
+  defp nested_fallback_chain?(accesses, parent_index) do
+    ids = MapSet.new(accesses, & &1.node.id)
+
+    Enum.any?(accesses, fn access ->
+      ancestor_in?(access.node.id, MapSet.delete(ids, access.node.id), parent_index)
+    end)
+  end
+
+  defp ancestor_in?(node_id, targets, parent_index) do
+    case parent_index[node_id] do
+      %{id: parent_id} ->
+        MapSet.member?(targets, parent_id) or ancestor_in?(parent_id, targets, parent_index)
+
+      nil ->
+        false
     end
   end
 

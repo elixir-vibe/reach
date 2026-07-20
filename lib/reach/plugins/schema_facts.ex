@@ -291,10 +291,37 @@ defmodule Reach.Plugins.SchemaFacts do
     |> Map.new()
   end
 
-  defp resolve_attribute({:@, _meta, [{name, _name_meta, _args}]}, attributes),
-    do: {Map.get(attributes, name), {:attribute, name}}
+  defp resolve_attribute({:@, _meta, [{name, _name_meta, _args}]}, attributes) do
+    {expand_schema_attributes(Map.get(attributes, name), attributes, MapSet.new([name])),
+     {:attribute, name}}
+  end
 
-  defp resolve_attribute(schema, _attributes), do: {schema, :inline}
+  defp resolve_attribute(schema, attributes) do
+    {expand_schema_attributes(schema, attributes, MapSet.new()), :inline}
+  end
+
+  defp expand_schema_attributes(values, attributes, seen) when is_list(values) do
+    Enum.flat_map(values, &expand_schema_entry(&1, attributes, seen))
+  end
+
+  defp expand_schema_attributes(value, _attributes, _seen), do: value
+
+  defp expand_schema_entry(
+         {:@, _meta, [{name, _name_meta, _args}]} = attribute,
+         attributes,
+         seen
+       ) do
+    if MapSet.member?(seen, name) do
+      [attribute]
+    else
+      attributes
+      |> Map.get(name)
+      |> expand_schema_attributes(attributes, MapSet.put(seen, name))
+      |> List.wrap()
+    end
+  end
+
+  defp expand_schema_entry(value, _attributes, _seen), do: [value]
 
   defp module_and_body({:defmodule, _meta, [module_ast, body]}) do
     {module_name(module_ast), keyword_body(body)}

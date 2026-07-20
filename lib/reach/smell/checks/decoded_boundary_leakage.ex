@@ -15,6 +15,7 @@ defmodule Reach.Smell.Checks.DecodedBoundaryLeakage do
     project
     |> Evidence.external_data_boundaries()
     |> Enum.filter(&ExternalDataBoundary.fixed_contract?/1)
+    |> Enum.reject(&ExternalDataBoundary.transport_envelope?/1)
     |> Enum.map(&finding/1)
   end
 

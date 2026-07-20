@@ -79,6 +79,40 @@ defmodule Reach.Smell.Checks.DecodedBoundaryLeakageTest do
     refute Enum.any?(Smells.run(project, []), &(&1.kind == :decoded_boundary_leakage))
   end
 
+  test "keeps sandbox payload preservation as evidence only" do
+    {project, _path} =
+      project("""
+      defmodule Example.Sandbox.API do
+        def store(raw) do
+          dashboard = Jason.decode!(raw)
+          GenServer.call(__MODULE__, {:store, dashboard})
+        end
+
+        def consume(dashboard), do: {dashboard["title"], dashboard["version"]}
+      end
+      """)
+
+    assert Reach.Evidence.external_data_boundaries(project) != []
+    refute Enum.any?(Smells.run(project, []), &(&1.kind == :decoded_boundary_leakage))
+  end
+
+  test "keeps transient transport envelopes as evidence only" do
+    {project, _path} =
+      project("""
+      defmodule Example.Connectors.Websocket do
+        def store(raw, table) do
+          response = Jason.decode!(raw)
+          :ets.insert(table, {response["id"], response})
+        end
+
+        def consume(response), do: {response["id"], response["error"]}
+      end
+      """)
+
+    assert Reach.Evidence.external_data_boundaries(project) != []
+    refute Enum.any?(Smells.run(project, []), &(&1.kind == :decoded_boundary_leakage))
+  end
+
   test "a source suppression can justify an intentional raw boundary" do
     {project, _path} =
       project("""

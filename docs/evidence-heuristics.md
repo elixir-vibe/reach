@@ -85,7 +85,7 @@ Calibration notes:
 
 `Reach.Evidence.ExternalDataBoundary` tracks plugin-owned decoder results into generic storage and process boundaries without compiling source. Jason and Poison own their decode call shapes; the generic provider owns `:persistent_term`, ETS, process dictionaries, sends, GenServer calls/starts, and GenServer callback state returns. Explicit struct/map construction and transformation calls stop provenance.
 
-Raw boundary crossings are evidence. Promotion to the high-confidence `decoded_boundary_leakage` smell additionally requires at least two distinct downstream literal map keys in the same module. This preserves intentionally dynamic stores while finding decoded fixed-shape contracts that lose provenance before consumers apply string-key defaults.
+Raw boundary crossings are evidence. Promotion to the high-confidence `decoded_boundary_leakage` smell additionally requires at least two distinct downstream literal map keys in the same module. This preserves intentionally dynamic stores while finding decoded fixed-shape contracts that lose provenance before consumers apply string-key defaults. Sandbox payloads and transient transport envelopes identified by module role plus wire-envelope keys remain evidence because preserving their upstream representation is part of the boundary contract.
 
 The same fixed-contract evidence produces advisory `introduce_boundary_contract` candidates. Each candidate names the decoder and exact storage/process boundary, emits a draft `@enforce_keys`/`defstruct` when keys are valid fields (otherwise a validation-schema draft), and computes a bounded blast radius from the boundary and literal-key consumer functions through the shared `Reach.Evidence.Impact` traversal also used by `Reach.Inspect.Impact`.
 
@@ -102,6 +102,10 @@ Calibration notes:
 `broad_map_contract` requires at least three literal keys from one direct broad-map parameter origin and at least one strict `Map.fetch!/2` access. Derived maps, nested function-head pattern bindings, paths that mix the parameter with another map origin, lenient-only access, and functions with multiple observed shapes remain evidence. Parameter-origin indexing also distinguishes multiple `map()` arguments in one spec, so keys from one input cannot be attributed to another.
 
 `broad_callback_map_contract` requires at least two behaviour implementations to independently consume at least three common literal keys from the same callback parameter. A large shape observed in only one implementation remains evidence because broad callback maps often intentionally permit implementation-specific payloads.
+
+`default_drift` compares literal defaults only for direct maps in one owner module and requires distinct source lines. Different nested maps, distinct computed keys, one atom/string fallback chain, and same-line expression roles remain evidence.
+
+Schema-contract checks join accesses only to the direct value validated by that schema. Wildcard fields, schema fragments composed through module attributes, nested values, and values revalidated against another schema are not undeclared outer fields.
 
 `dual_key_fallback` is grouped by function and map origin and requires at least two distinct returned literal atom/string fallback expression sites. Dynamic compatibility accessors, one-off fallbacks, and a single chain of semantic key aliases remain evidence. A fallback node that can collapse an explicit boolean `false` into a terminal default emits only the higher-confidence `false_collapsing_lookup` finding rather than duplicate normalization advice.
 

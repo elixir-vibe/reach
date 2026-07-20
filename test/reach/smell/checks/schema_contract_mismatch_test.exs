@@ -91,6 +91,71 @@ defmodule Reach.Smell.Checks.SchemaContractMismatchTest do
     refute Enum.any?(findings, &(&1.kind == :schema_undeclared_key_access))
   end
 
+  test "does not treat wildcard schema keys as undeclared" do
+    findings =
+      project_from_source(
+        """
+        defmodule Contract do
+          @schema [*: [type: :keyword_list]]
+
+          def validate(sections, section) do
+            sections = NimbleOptions.validate!(sections, @schema)
+            sections[section]
+          end
+        end
+        """,
+        [Reach.Plugins.NimbleOptions]
+      )
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :schema_undeclared_key_access))
+  end
+
+  test "expands schema fragments stored in module attributes" do
+    findings =
+      project_from_source(
+        """
+        defmodule Contract do
+          @request_opts {:request_opts, [type: :keyword_list, default: []]}
+          @schema [@request_opts, batch_size: [type: :pos_integer]]
+
+          def validate(opts) do
+            opts = NimbleOptions.validate!(opts, @schema)
+            opts[:request_opts]
+          end
+        end
+        """,
+        [Reach.Plugins.NimbleOptions]
+      )
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :schema_undeclared_key_access))
+  end
+
+  test "does not attribute nested or revalidated values to the outer schema" do
+    findings =
+      project_from_source(
+        """
+        defmodule Contract do
+          @schema [nested: [type: :keyword_list], smoke: [type: :keyword_list]]
+          @smoke_schema [enabled: [type: :boolean], entry_file: [type: :string]]
+
+          def validate(opts) do
+            opts = NimbleOptions.validate!(opts, @schema)
+            nested = opts[:nested]
+            Map.get(nested, :implementation_specific)
+            smoke = NimbleOptions.validate!(opts[:smoke], @smoke_schema)
+            {smoke[:enabled], smoke[:entry_file]}
+          end
+        end
+        """,
+        [Reach.Plugins.NimbleOptions]
+      )
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :schema_undeclared_key_access))
+  end
+
   test "does not flag schemas with one key representation" do
     findings =
       project_from_source("""

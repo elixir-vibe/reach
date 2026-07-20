@@ -56,28 +56,40 @@ defmodule Reach.Smell.Checks.SchemaContractMismatch do
     input = usage.input
 
     Enum.filter(accesses, fn access ->
-      access.function == usage.function and
+      access.function == usage.function and direct_input_access?(access, input) and
         Enum.any?(access.map_origins, fn origin ->
           match?(%{type: :var, meta: %{name: ^input}}, project.nodes[origin])
         end)
     end)
   end
 
+  defp direct_input_access?(
+         %{node: %{children: [%{type: :var, meta: %{name: input}} | _]}},
+         input
+       ),
+       do: true
+
+  defp direct_input_access?(_access, _input), do: false
+
   defp undeclared_key_findings(fact, accesses) do
-    declared = MapSet.new(fact.data.fields, fn {key, _representation} -> to_string(key) end)
+    if Enum.any?(fact.data.fields, fn {key, _representation} -> key == :* end) do
+      []
+    else
+      declared = MapSet.new(fact.data.fields, fn {key, _representation} -> to_string(key) end)
 
-    undeclared =
-      accesses
-      |> Enum.reject(&MapSet.member?(declared, &1.key_label))
-      |> Enum.sort_by(&Helpers.source_sort_key(&1.node))
-      |> Enum.uniq_by(& &1.key_label)
+      undeclared =
+        accesses
+        |> Enum.reject(&MapSet.member?(declared, &1.key_label))
+        |> Enum.sort_by(&Helpers.source_sort_key(&1.node))
+        |> Enum.uniq_by(& &1.key_label)
 
-    grouped_finding(
-      fact,
-      undeclared,
-      :schema_undeclared_key_access,
-      "code reads keys absent from the #{fact.framework} schema"
-    )
+      grouped_finding(
+        fact,
+        undeclared,
+        :schema_undeclared_key_access,
+        "code reads keys absent from the #{fact.framework} schema"
+      )
+    end
   end
 
   defp representation_findings(%{data: %{key_representation: :mixed}}, _accesses), do: []

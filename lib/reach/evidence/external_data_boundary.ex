@@ -19,12 +19,29 @@ defmodule Reach.Evidence.ExternalDataBoundary do
 
   @state_callback_key {:reach, :state_callback}
   @default_fixed_contract_min_keys 2
+  @sandbox_module_segments ~w(mock sandbox)
+  @transport_module_segments ~w(connector connectors transport websocket)
+  @wire_envelope_keys MapSet.new(~w(error id jsonrpc method params result))
 
   @doc "Returns whether boundary evidence has enough fixed-key consumers for policy promotion."
   @spec fixed_contract?(Fact.t(), pos_integer()) :: boolean()
   def fixed_contract?(fact, min_keys \\ @default_fixed_contract_min_keys) do
     length(fact.consumer_keys) >= min_keys
   end
+
+  @doc "Returns whether a fact preserves a sandbox payload or transient wire envelope."
+  @spec transport_envelope?(Fact.t()) :: boolean()
+  def transport_envelope?(%Fact{boundary_function: {module, _name, _arity}} = fact)
+      when is_atom(module) do
+    segments = module_segments(module)
+
+    Enum.any?(segments, &(&1 in @sandbox_module_segments)) or
+      (Enum.any?(segments, &(&1 in @transport_module_segments)) and
+         "id" in fact.consumer_keys and
+         Enum.all?(fact.consumer_keys, &MapSet.member?(@wire_envelope_keys, &1)))
+  end
+
+  def transport_envelope?(_fact), do: false
 
   @doc "Collects boundary-crossing evidence from all source files in a project."
   @spec collect_project(Reach.Project.t()) :: [Fact.t()]
@@ -517,4 +534,16 @@ defmodule Reach.Evidence.ExternalDataBoundary do
   end
 
   defp ast_column(_ast), do: nil
+
+  defp module_segments(module) do
+    if module |> Atom.to_string() |> String.starts_with?("Elixir.") do
+      module
+      |> Module.split()
+      |> Enum.flat_map(fn segment ->
+        segment |> Macro.underscore() |> String.split("_", trim: true)
+      end)
+    else
+      []
+    end
+  end
 end

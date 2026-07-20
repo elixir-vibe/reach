@@ -109,6 +109,80 @@ defmodule Reach.Smell.Checks.DefaultDriftTest do
     refute Enum.any?(findings, &(&1.kind == :default_drift))
   end
 
+  test "does not join the same dynamic key across different derived maps" do
+    findings =
+      project_from_string("""
+      defmodule State do
+        def limits(state, key) do
+          {Map.get(state.counts, key, 0), Map.get(state.limits, key, 1)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :default_drift))
+  end
+
+  test "does not join distinct computed keys with shared flow origins" do
+    findings =
+      project_from_string("""
+      defmodule Totals do
+        def read(values, key) do
+          count_key = key
+          amount_key = key
+          {Map.get(values, count_key, 0), Map.get(values, amount_key, 0.0)}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :default_drift))
+  end
+
+  test "does not treat one atom-string fallback chain as default drift" do
+    findings =
+      project_from_string("""
+      defmodule Payload do
+        def name(payload) do
+          Map.get(payload, :name, nil) || Map.get(payload, "name", "")
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :default_drift))
+  end
+
+  test "does not join implementation-specific defaults across modules" do
+    findings =
+      project_from_string("""
+      defmodule Chart do
+        def title(opts), do: Map.get(opts, :title, "Chart")
+      end
+
+      defmodule Treemap do
+        def title(opts), do: Map.get(opts, :title, "Treemap")
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :default_drift))
+  end
+
+  test "does not flag same-line reads serving distinct expression roles" do
+    findings =
+      project_from_string("""
+      defmodule Style do
+        def height(assigns) do
+          %{"max-height: \#{Map.get(assigns, :height, "0")}" => Map.get(assigns, :height, nil) != nil}
+        end
+      end
+      """)
+      |> Smells.run()
+
+    refute Enum.any?(findings, &(&1.kind == :default_drift))
+  end
+
   test "does not flag repeated use of one default" do
     findings =
       project_from_string("""
