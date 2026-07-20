@@ -198,7 +198,7 @@ defmodule Reach.MixProject do
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
       files:
-        ~w(lib priv examples guides docs mix.exs README.md CHANGELOG.md LICENSE .formatter.exs)
+        ~w(lib priv examples guides docs mix.exs README.md CONTRIBUTING.md CHANGELOG.md LICENSE .formatter.exs)
     ]
   end
 end

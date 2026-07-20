@@ -5,7 +5,7 @@ defmodule Reach.Evidence.ParameterShape do
   alias Reach.Project.Query
 
   defmodule Occurrence do
-    @moduledoc false
+    @moduledoc "One fixed-map argument observed at a resolved call site."
 
     @type function_id :: {module() | nil, atom(), non_neg_integer()}
     @type key :: atom() | String.t()
@@ -23,7 +23,7 @@ defmodule Reach.Evidence.ParameterShape do
   end
 
   defmodule Fact do
-    @moduledoc false
+    @moduledoc "Observed fixed-map shape variants for one function parameter."
 
     @type key :: atom() | String.t()
     @type function_id :: {module() | nil, atom(), non_neg_integer()}

@@ -19,7 +19,7 @@ defmodule Reach.Evidence.Facade do
   end
 
   defmodule Module do
-    @moduledoc false
+    @moduledoc "Aggregated forwarding and boundary evidence for one module."
     @derive JSON.Encoder
     @type t :: %__MODULE__{}
     defstruct [

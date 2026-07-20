@@ -6,7 +6,7 @@ defmodule Reach.Evidence.ExternalDataBoundary do
   alias Reach.Source
 
   defmodule Origin do
-    @moduledoc false
+    @moduledoc "Decoder source and line retained while tracking external-data provenance."
     @type t :: %__MODULE__{source: String.t(), line: pos_integer() | nil}
     @enforce_keys [:source]
     defstruct [:source, :line]

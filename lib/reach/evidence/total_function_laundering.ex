@@ -7,7 +7,7 @@ defmodule Reach.Evidence.TotalFunctionLaundering do
   alias Reach.Source
 
   defmodule Fact do
-    @moduledoc false
+    @moduledoc "Evidence about a closed-domain parser with an accepted-value fallback."
 
     @type t :: %__MODULE__{
             name: atom(),

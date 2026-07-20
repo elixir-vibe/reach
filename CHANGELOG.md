@@ -14,16 +14,18 @@
 - Changed-code analysis now classifies moved dual-key/default-drift evidence and exact whole-function clones as displaced when occurrence counts do not improve.
 - Changed-code analysis now inventories added and removed source suppressions and raises risk for additions without reasons, while project maps expose total and reasonless suppression counts.
 - Smell analysis now detects decoded external fixed-shape payloads crossing storage or process boundaries without explicit normalization.
-- Fixed decoded-boundary evidence now produces advisory contract-normalization candidates with draft structs/schemas and graph-backed blast radii.
+- Fixed-shape decoded-boundary evidence now produces advisory contract-normalization candidates with draft structs/schemas and graph-backed blast radii.
 - Implicit map-contract candidates now include a source-backed canonical construction site, a draft struct/type/schema, and a graph-computed blast radius.
 - Smell analysis now detects incompatible success return structures across function clauses and branches while retaining nested same-tag protocol layers as evidence.
 - Smell analysis now reports proven nil-capable parameters that reach strict uses without a dominating non-nil guard.
 - Smell analysis now identifies cross-module bare maps that duplicate an existing canonical struct entity while excluding projections and boundary representations.
 - Smell analysis now reports consumed domain parameters receiving divergent fixed map shapes, while changed-code checks flag entropy increases.
+- Map-contract analysis now detects broad parameter/callback contracts, conflicting defaults, undeclared schema access, atom/string fallback contracts, false-collapsing lookups, key normalization hazards, and empty map constructors.
+- Plugin and project-configured DSL ranges now suppress generic findings where macros reinterpret ordinary Elixir syntax.
+- Evidence providers now share an explicit provider behaviour and normalized capability-bypass metadata; optional ExDNA dependency scanning can produce advisory `reuse_dependency` candidates from exact project-to-dependency clones without compiling dependency code.
 
 ### Fixed
 
-- CLI guidance now treats nested same-tag returns as layered contract evidence, matching calibrated smell policy.
 - Default-drift checks now require one direct map/key contract, schema checks distinguish direct validated values from nested or revalidated data, and decoded-boundary promotion excludes sandbox payloads and transient wire envelopes.
 - Broad callback map contracts now require a shared shape across multiple implementations; one specialized implementation remains evidence even when it reads many keys.
 - Nested same-tag return structures now remain return-contract evidence instead of being treated as duplicate wrappers without proof that their protocol layers are equivalent.
@@ -35,17 +37,11 @@
 - Return-shape divergence now requires a closed `@spec` mismatch, an asymmetric raw error wrapper, or a tagged nil/empty edge case, keeping intentional optional payloads, parser/callback tuples, and declared unions as evidence.
 - Same-entity representation analysis now excludes source map patterns, manually encoded structs, adapter and presentation boundaries, nested projections, and maps normalized by direct or consistently struct-building callers.
 - Parameter-shape entropy now excludes defensively consumed optional fields, literal companion-argument dispatch, guarded map/struct dispatch, and function-head map patterns that are not exact runtime shapes.
-- Scanner integration tests now propagate the active Mix environment to child processes, keeping clean `mix ci` runs deterministic.
 - Clone analysis cache keys now distinguish projects with identical node-id ranges, preventing evidence from leaking between parse snapshots.
-- Root `mix ci` now fetches the isolated calibration project's dependencies before running its checks.
 - Changed-code checks no longer expand diff ranges line by line or repeatedly rebuild project function indexes, preventing severe slowdowns on large pull requests.
 - Effect and risk values now remain typed atoms through domain and text-rendering layers; only JSON serialization converts them to strings.
 - Changed-code output now reports assessment confidence and line/file coverage separately from function risk, including deleted-only and otherwise unassessed changes.
 - The false-success smell check no longer crashes on calls qualified through `__MODULE__` or other aliases containing non-atom AST segments ([#23](https://github.com/elixir-vibe/reach/issues/23)).
-- Smell checks now run against deterministic snapshots of eight pinned Hex packages in CI, catching new false-positive drift on idiomatic real-world code.
-- Generic smells now ignore source ranges whose syntax is reinterpreted by Ecto, Ash, Nx, plugin-defined, or configured project DSL macros, while column-aware matching preserves same-line findings outside nested DSL calls.
-- Evidence providers now share an explicit provider behaviour and normalized capability-bypass metadata; optional ExDNA dependency scanning emits project-to-dependency reimplementation evidence without compiling dependency code.
-- Exact project-to-dependency Type-I clones can now surface as advisory `reuse_dependency` refactoring candidates, while weaker clone matches remain evidence-only.
 - Module coupling now attributes dependencies to the owning module when multiple modules share one source file.
 
 ## 2.7.5 - 2026-06-12

@@ -72,60 +72,23 @@ New or broader smell rules need a false-positive scan before they are merged. If
 
 ### Corpus workflow
 
-Use `scripts/smell_corpus_scan.exs` for real-world signal checks. The script supports individual smell runs via `--kinds`.
-
-For broad validation we use a local **Hex playground**: a directory of unpacked Hex packages, usually checked out next to Reach as `../hex-playground`. Reach expects package sources under `../hex-playground/sources/<package-version>/`.
-
-Create it with the companion corpus repository:
+The repository-only project under `dev/calibration/` uses Exograph's versioned query and hydration APIs to select and analyze immutable package-version snapshots without compiling corpus code.
 
 ```bash
-cd ..
-git clone https://github.com/elixir-vibe/hex-playground.git
-cd hex-playground
+cd dev/calibration
 mix deps.get
-mix run scripts/fetch.exs
+mix calibration.run \
+  --base-url http://localhost:4200 \
+  --limit 25 \
+  --kinds dual_key_fallback,false_collapsing_lookup \
+  --output /tmp/reach-calibration.json
 ```
 
-If the fetch script name changes, check the playground README and use whichever command populates `sources/` with unpacked Hex packages. You can also point scans at any directory with the same shape by writing its package directories to a repos file.
+Use `--labels PATH` with a JSON object mapping stable review IDs to `true_positive` or `false_positive`. Keep reviewed reports and labels under `dev/calibration/`; keep one-off scan output under `/tmp`.
 
-Create a repo list from a local Hex playground checkout:
+For local source trees that are not indexed by Exograph, use `scripts/smell_corpus_scan.exs --repos-file PATH --kinds a,b,c`. Use `scripts/evidence_corpus_scan.exs` when reviewing evidence before promotion. Both workflows parse source without compiling or loading target projects.
 
-```bash
-find ../hex-playground/sources -mindepth 1 -maxdepth 1 -type d | sort > /tmp/hex-playground-all-repos.txt
-```
-
-Run a single smell:
-
-```bash
-MIX_ENV=test mix run scripts/smell_corpus_scan.exs \
-  --repos-file /tmp/hex-playground-all-repos.txt \
-  --kinds false_success_error \
-  --quiet-zero \
-  --progress-every 500 \
-  --output /tmp/reach-false-success-hex.json
-```
-
-Run a small group of related smells:
-
-```bash
-MIX_ENV=test mix run scripts/smell_corpus_scan.exs \
-  --repos-file /tmp/hex-playground-all-repos.txt \
-  --kinds false_success_error,ets_partial_key_match,ex_unit_async_global_state \
-  --include-tests \
-  --quiet-zero \
-  --progress-every 500 \
-  --output /tmp/reach-new-smells-hex.json
-```
-
-Useful options:
-
-- `--kinds a,b,c` — run only checks that can emit those kinds, and only write those findings.
-- `--include-tests` — include `test/**/*.exs` and `apps/*/test/**/*.exs`; important for ExUnit smells.
-- `--quiet-zero` — suppress per-repo lines with zero findings.
-- `--progress-every N` — print visible progress every N repos; use `0` to disable.
-- `--fail-fast` — stop at the first repository error after writing partial output.
-
-When a corpus run finds noisy examples, inspect the source and tune the rule instead of documenting the noise away. Add regression tests for both the intended hit and the noisy allowed case.
+When a corpus run finds noisy examples, inspect the source and tune the rule instead of documenting the noise away. Add regression tests for both the intended hit and the allowed nearby case.
 
 ## Crash-hunting workflow
 

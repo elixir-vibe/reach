@@ -6,7 +6,7 @@ defmodule Reach.Evidence.RepresentationOverlap do
   alias Reach.Source
 
   defmodule StructShape do
-    @moduledoc false
+    @moduledoc "A source-declared struct and its field shape."
 
     @type t :: %__MODULE__{
             module: module(),
@@ -20,7 +20,7 @@ defmodule Reach.Evidence.RepresentationOverlap do
   end
 
   defmodule MapShape do
-    @moduledoc false
+    @moduledoc "A bare-map construction and its observed shape and provenance."
 
     @type normalization_target ::
             nil | :boundary_call | :struct_constructor | {:call, atom(), atom()}
@@ -56,7 +56,7 @@ defmodule Reach.Evidence.RepresentationOverlap do
   end
 
   defmodule Fact do
-    @moduledoc false
+    @moduledoc "Shape-overlap evidence joining a struct with a bare map."
 
     @type t :: %__MODULE__{
             struct: Reach.Evidence.RepresentationOverlap.StructShape.t(),

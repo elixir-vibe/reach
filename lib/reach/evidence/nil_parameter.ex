@@ -31,7 +31,7 @@ defmodule Reach.Evidence.NilParameter do
   end
 
   defmodule Fact do
-    @moduledoc false
+    @moduledoc "Evidence that a nil-capable parameter can reach a strict use."
     @type t :: %__MODULE__{}
     defstruct [
       :module,

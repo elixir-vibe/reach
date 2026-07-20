@@ -55,7 +55,7 @@ defmodule Reach.Evidence.ReturnContract do
   end
 
   defmodule Fact do
-    @moduledoc false
+    @moduledoc "Observed and declared terminal return shapes for one function."
     @type t :: %__MODULE__{}
     defstruct [
       :module,

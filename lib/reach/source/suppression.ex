@@ -8,7 +8,7 @@ defmodule Reach.Source.Suppression do
   @disable_prefix "# reach:disable"
 
   defmodule Directive do
-    @moduledoc false
+    @moduledoc "A parsed source-suppression directive and its effective scope."
     @derive JSON.Encoder
     @enforce_keys [:scope, :tokens, :file, :line]
     defstruct [:scope, :tokens, :reason, :file, :line, :target_line]

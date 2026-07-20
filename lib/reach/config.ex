@@ -47,7 +47,7 @@ defmodule Reach.Config do
   end
 
   defmodule Candidates do
-    @moduledoc false
+    @moduledoc "Normalized thresholds and output limits for advisory candidates."
     @type t :: %__MODULE__{}
     defstruct thresholds: nil, limits: nil
   end
