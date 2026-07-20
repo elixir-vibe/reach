@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 2.8.1 - 2026-07-20
+
+### Changed
+
+- Smell checks now reuse project-scoped function, value-predecessor, map-contract, and macro-fact indexes; parsed ASTs and precompiled patterns are shared across checks, and per-file pattern scans run concurrently while preserving deterministic finding order.
+- One-shot CLI smell analysis now releases per-module dependence graphs after constructing the merged project graph, substantially reducing peak memory use without changing library defaults.
+- Smell profiling now supports the current normalized pattern metadata, including safety classifications.
+
+### Fixed
+
+- Project-scoped analysis caches now invalidate when graph or node state changes and remain isolated across projects.
+- Module suppression lookup now uses source spans instead of rescanning every project node for each finding, including correct handling of nested modules.
+
 ## 2.8.0 - 2026-07-20
 
 ### Added
