@@ -189,8 +189,8 @@ defmodule Reach.Plugin do
   """
   def resolve(opts) do
     case Keyword.fetch(opts, :plugins) do
-      {:ok, plugins} when is_list(plugins) -> plugins
-      :error -> resolve_detected(opts)
+      {:ok, plugins} when is_list(plugins) and plugins != [] -> plugins
+      _ -> resolve_detected(opts)
     end
   end
 
