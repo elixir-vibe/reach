@@ -158,6 +158,7 @@ defmodule Reach.Plugin do
     {Jido.Action, Reach.Plugins.Jido},
     {OpenTelemetry.Tracer, Reach.Plugins.OpenTelemetry},
     {ExUnit.Case, Reach.Plugins.ExUnit},
+    {Gettext, Reach.Plugins.Gettext},
     {Jason, Reach.Plugins.Jason},
     {Poison, Reach.Plugins.Poison},
     {Zoi, Reach.Plugins.Zoi},
