@@ -499,6 +499,20 @@ Reach runs ExDNA when the package is available; package consumers can disable cl
 
 Set `include_deps: true` to collect project-to-dependency reimplementation evidence from direct Mix dependencies. Reach parses dependency `lib/` sources without compiling or loading them, limits the number of dependency roots with `dep_paths_limit`, and discards dep-to-dep and project-only clone families. This evidence never becomes a smell automatically. Exact Type-I project-to-dependency clones appear as advisory `reuse_dependency` candidates; weaker matches remain evidence-only.
 
+### `checks[:source_paths]`
+
+By default, `reach.check` analyzes the active Mix environment's `:elixirc_paths` and `:erlc_paths`. Mix projects commonly add `test/support` only in `MIX_ENV=test`, so Reach reports the environment, roots, and file count used by each check.
+
+For a verdict independent of `MIX_ENV`, configure an explicit source set:
+
+```elixir
+checks: [
+  source_paths: ["lib", "test/support"]
+]
+```
+
+`--path PATH` overrides the configured/default source set for a single invocation. Explicit paths have no Mix-environment identity.
+
 ### `checks[:baseline]`
 
 Use a baseline to adopt `reach.check` gates in an existing codebase without hiding new issues. Baselines apply across check modes such as architecture violations and smell findings.
@@ -508,7 +522,7 @@ mix reach.check --arch --smells --write-baseline .reach-baseline.json
 mix reach.check --arch --smells --baseline .reach-baseline.json
 ```
 
-When a baseline is configured, known findings are suppressed before gate failure is evaluated. New architecture violations still fail `--arch`, and new smell findings fail when `--strict` or `smells: [strict: true]` is enabled.
+When a baseline is configured, known findings are suppressed before gate failure is evaluated. New architecture violations still fail `--arch`, and new smell findings fail when `--strict` or `smells: [strict: true]` is enabled. New baselines record their analysis scope; Reach rejects reuse under a different Mix environment or source-root set. Legacy unscoped baselines must be regenerated with `--write-baseline` before CLI reuse.
 
 ### `smells[:strict]`
 

@@ -13,8 +13,15 @@ defmodule Reach.Check.DeadCode do
     glob(elixirc, ".ex") ++ glob(erlc, ".erl")
   end
 
+  def collect_files(paths) when is_list(paths) do
+    paths
+    |> Enum.flat_map(&collect_files/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
   def collect_files(path) do
-    if File.dir?(path), do: glob([path], ".ex"), else: [path]
+    if File.dir?(path), do: glob([path], ".ex") ++ glob([path], ".erl"), else: [path]
   end
 
   defp glob(paths, ext) do

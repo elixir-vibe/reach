@@ -38,6 +38,7 @@ defmodule Reach.ConfigTest do
                ],
                checks: [
                  baseline: ".reach-baseline.json",
+                 source_paths: ["lib", "test/support"],
                  layer_coverage: [
                    require_all_modules: true,
                    forbid_multiple_matches: true,
@@ -137,6 +138,7 @@ defmodule Reach.ConfigTest do
     assert config.risk.changed.branch_heavy == 7
     assert config.risk.changed.high_risk_reason_count == 2
     assert config.checks.baseline == ".reach-baseline.json"
+    assert config.checks.source_paths == ["lib", "test/support"]
     assert config.checks.layer_coverage.require_all_modules == true
     assert config.checks.layer_coverage.forbid_multiple_matches == true
     assert config.checks.layer_coverage.ignore == ["Mix.Tasks.*"]

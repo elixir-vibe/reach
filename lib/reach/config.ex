@@ -93,7 +93,7 @@ defmodule Reach.Config do
 
   defmodule Checks do
     @moduledoc false
-    defstruct baseline: nil, layer_coverage: nil
+    defstruct baseline: nil, source_paths: [], layer_coverage: nil
   end
 
   defmodule Checks.LayerCoverage do
@@ -326,6 +326,7 @@ defmodule Reach.Config do
       },
       checks: %Checks{
         baseline: nested(config, [:checks, :baseline], nil, nil),
+        source_paths: nested(config, [:checks, :source_paths], nil, []),
         layer_coverage:
           normalize_layer_coverage(nested(config, [:checks, :layer_coverage], nil, nil))
       },
@@ -653,6 +654,12 @@ defmodule Reach.Config do
     )
     |> check(config, [:checks], &valid_group?/1, "expected keyword list")
     |> check(config, [:checks, :baseline], &is_binary/1, "expected string")
+    |> check(
+      config,
+      [:checks, :source_paths],
+      &valid_pattern_list?/1,
+      "expected string or list of source paths"
+    )
     |> check(
       config,
       [:checks, :layer_coverage],
@@ -992,6 +999,7 @@ defmodule Reach.Config do
     ])
     |> unknown_nested_key_errors(config, [:checks], [
       :baseline,
+      :source_paths,
       :layer_coverage
     ])
     |> unknown_nested_key_errors(config, [:checks, :layer_coverage], [

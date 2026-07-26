@@ -3,7 +3,7 @@ defmodule Reach.Check.ArchitecturePolicyTest do
 
   import ExUnit.CaptureIO
 
-  alias Reach.Check.Architecture
+  alias Reach.Check.{AnalysisScope, Architecture, Baseline}
   alias Reach.CLI.Commands.Check
 
   test "reach.check validates an empty architecture policy" do
@@ -15,6 +15,93 @@ defmodule Reach.Check.ArchitecturePolicyTest do
     assert {:ok, data} = JSON.decode(output)
     assert data["status"] == "ok"
     assert data["violations"] == []
+  end
+
+  test "reach.check honors configured source paths and reports their scope" do
+    dir = Path.join(System.tmp_dir!(), "reach-check-scope-#{System.unique_integer()}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf(dir) end)
+    path = Path.join(dir, "test_only.ex")
+
+    File.write!(path, """
+    defmodule Demo.TestOnly do
+      def danger, do: System.cmd("echo", ["hi"])
+    end
+    """)
+
+    with_reach_config(
+      inspect(
+        layers: [app: "Demo.*"],
+        calls: [forbidden: [{"Demo.*", ["System.cmd"]}]],
+        checks: [source_paths: [path]]
+      )
+    )
+
+    output =
+      capture_io(fn ->
+        assert_raise Mix.Error, ~r/Architecture policy failed/, fn ->
+          Check.run(arch: true, format: "json")
+        end
+      end)
+
+    assert {:ok, data} = JSON.decode(output)
+    assert data["status"] == "failed"
+    assert data["analysis"]["source"] == "paths"
+    assert data["analysis"]["mix_env"] == nil
+    assert data["analysis"]["file_count"] == 1
+    assert Enum.any?(data["analysis"]["source_roots"], &String.ends_with?(&1, "test_only.ex"))
+    assert Enum.any?(data["violations"], &(&1["call"] == "System.cmd/2"))
+  end
+
+  test "reach.check rejects an architecture baseline from another source scope" do
+    dir = Path.join(System.tmp_dir!(), "reach-check-baseline-scope-#{System.unique_integer()}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf(dir) end)
+    source_path = Path.join(dir, "demo.ex")
+    baseline_path = Path.join(dir, "baseline.json")
+    File.write!(source_path, "defmodule Demo.Scoped do\nend\n")
+
+    baseline_scope =
+      AnalysisScope.new(
+        source: :mix,
+        mix_env: :dev,
+        source_roots: ["lib"],
+        file_count: 1
+      )
+
+    Baseline.write(baseline_path, :arch, [], baseline_scope)
+
+    with_reach_config(
+      inspect(
+        layers: [app: "Demo.*"],
+        checks: [baseline: baseline_path, source_paths: [source_path]]
+      )
+    )
+
+    assert_raise Mix.Error, ~r/created for a different analysis scope/, fn ->
+      capture_io(fn -> Check.run(arch: true) end)
+    end
+  end
+
+  test "reach.check rejects a legacy baseline without scope metadata" do
+    dir = Path.join(System.tmp_dir!(), "reach-check-legacy-baseline-#{System.unique_integer()}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf(dir) end)
+    source_path = Path.join(dir, "demo.ex")
+    baseline_path = Path.join(dir, "baseline.json")
+    File.write!(source_path, "defmodule Demo.Legacy do\nend\n")
+    File.write!(baseline_path, JSON.encode!(%{version: 1, tool: "reach", findings: []}))
+
+    with_reach_config(
+      inspect(
+        layers: [app: "Demo.*"],
+        checks: [baseline: baseline_path, source_paths: [source_path]]
+      )
+    )
+
+    assert_raise Mix.Error, ~r/has no analysis scope metadata/, fn ->
+      capture_io(fn -> Check.run(arch: true) end)
+    end
   end
 
   test "reach.check accepts grouped architecture policy" do
@@ -110,6 +197,20 @@ defmodule Reach.Check.ArchitecturePolicyTest do
     assert_raise Mix.Error, ~r/Architecture policy failed/, fn ->
       capture_io(fn -> Check.run(arch: true, format: "json") end)
     end
+  end
+
+  test "reach.check reports invalid configured source paths as a policy error" do
+    with_reach_config("[checks: [source_paths: :bad]]")
+
+    output =
+      capture_io(fn ->
+        assert_raise Mix.Error, ~r/Architecture policy failed/, fn ->
+          Check.run(arch: true, format: "json")
+        end
+      end)
+
+    assert {:ok, data} = JSON.decode(output)
+    assert Enum.any?(data["violations"], &(&1["key"] == "checks.source_paths"))
   end
 
   test "reach.check validates forbidden call config shape" do

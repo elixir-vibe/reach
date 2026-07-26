@@ -14,6 +14,8 @@ JSON output is pipe-safe and should not include progress text. Tests decode comp
 
 Prefer JSON for agents and CI. Human text output is intentionally summarized, colorized, and may include truncation hints.
 
+Project-backed `reach.check` results include an `analysis` object with `mix_env`, `source`, `source_roots`, and `file_count`. Use it to verify that local and CI checks analyzed the same scope; `source: "paths"` indicates an explicit `--path` or `checks[:source_paths]` scope independent of `MIX_ENV`.
+
 Contract candidates include structured `canonical_site`, `keys`, `draft_contract`, and `blast_radius` fields in addition to the common candidate proof and suggestion fields. `canonical_site` names an existing producer, literal construction function, or normalization boundary proven from source; it remains `null` when Reach cannot prove one. Decoded-boundary candidates also include `decoder` and `boundary`. Agents should treat `draft_contract` as a starting shape, review every function listed in `blast_radius`, and complete every proof step before editing.
 
 Smell findings include `remediation_safety`: `equivalent` means Reach has a behavior-preserving replacement contract, `conditional` requires stated preconditions, and `review_only` is advisory evidence rather than an automatic rewrite. Agents must not turn `conditional` or `review_only` findings into edits without proving the missing conditions.

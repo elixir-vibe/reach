@@ -22,6 +22,7 @@ defmodule Reach.CLI.Commands.Check do
     * `--write-baseline` — write current findings to a Reach baseline file
     * `--candidates` — emit advisory refactoring candidates
     * `--top` — limit candidate output for `--candidates`
+    * `--path` — analyze an explicit source path instead of environment-derived Mix paths
 
   """
 
@@ -40,11 +41,43 @@ defmodule Reach.CLI.Commands.Check do
   @check_modes [:arch, :changed, :dead_code, :smells, :candidates]
 
   def run(opts, positional \\ []) do
+    Project.reset_analysis_scope()
+    opts = put_source_paths(opts)
+
     case selected_modes(opts) do
       [] -> run_default(opts)
       [mode] -> run_mode(mode, opts, positional)
       modes -> run_modes(modes, opts, positional)
     end
+  end
+
+  defp put_source_paths(opts) do
+    cond do
+      opts[:project] ->
+        opts
+
+      opts[:path] ->
+        Keyword.put(opts, :paths, [opts[:path]])
+
+      true ->
+        case Config.read() |> Config.normalize() |> then(& &1.checks.source_paths) do
+          [] ->
+            opts
+
+          path when is_binary(path) ->
+            Keyword.put(opts, :paths, [path])
+
+          paths when is_list(paths) ->
+            maybe_put_path_list(opts, paths)
+
+          _invalid ->
+            opts
+        end
+    end
+  end
+
+  defp maybe_put_path_list(opts, paths) do
+    if Enum.all?(paths, &is_binary/1), do: Keyword.put(opts, :paths, paths), else: opts
   end
 
   defp selected_modes(opts) do
@@ -69,7 +102,8 @@ defmodule Reach.CLI.Commands.Check do
   defp maybe_put_shared_project(opts, modes, []) do
     if share_project?(opts, modes) do
       project_opts =
-        [quiet: false, retain_module_sdgs: :smells not in modes] ++ plugin_opts(opts)
+        [quiet: false, show_scope: true, retain_module_sdgs: :smells not in modes] ++
+          source_opts(opts) ++ plugin_opts(opts)
 
       project = Project.load(project_opts)
       if :smells in modes, do: :erlang.garbage_collect()
@@ -105,9 +139,11 @@ defmodule Reach.CLI.Commands.Check do
     result =
       case Architecture.config_violations(config) do
         [] ->
-          project =
-            opts[:project] || Project.load(quiet: opts[:format] == "json", source_only: true)
+          project_opts =
+            [quiet: opts[:format] == "json", show_scope: true, source_only: true] ++
+              source_opts(opts)
 
+          project = opts[:project] || Project.load(project_opts)
           Architecture.run(project, config)
 
         violations ->
@@ -118,11 +154,15 @@ defmodule Reach.CLI.Commands.Check do
     finding_count = length(result.violations)
     findings = Enum.map(result.violations, &Finding.from_arch_violation/1)
 
+    scope = Project.analysis_scope()
+
     if write_path = Baseline.write_path(opts) do
-      Baseline.write(write_path, :arch, findings)
+      Baseline.write(write_path, :arch, findings, scope)
     end
 
-    {new_findings, baseline_findings} = Baseline.filter(findings, Baseline.path(opts, config))
+    baseline_path = Baseline.path(opts, config)
+    validate_baseline_scope!(baseline_path, :arch, scope)
+    {new_findings, baseline_findings} = Baseline.filter(findings, baseline_path)
     violations = filter_violations(result.violations, new_findings)
 
     result = %{
@@ -130,13 +170,29 @@ defmodule Reach.CLI.Commands.Check do
       | violations: violations,
         status: if(violations == [], do: "ok", else: "failed"),
         finding_count: finding_count,
-        baseline_count: length(baseline_findings)
+        baseline_count: length(baseline_findings),
+        analysis: scope
     }
 
     CheckRender.render_result(result, opts[:format], &CheckRender.render_arch_text/1)
 
     if result.violations != [] do
       Mix.raise("Architecture policy failed")
+    end
+  end
+
+  defp validate_baseline_scope!(path, source, scope) do
+    case Baseline.validate_scope(path, source, scope) do
+      :ok ->
+        :ok
+
+      :legacy ->
+        Mix.raise(
+          "Baseline #{path} has no analysis scope metadata. Regenerate it with --write-baseline before reuse."
+        )
+
+      {:error, message} ->
+        Mix.raise(message)
     end
   end
 
@@ -160,7 +216,12 @@ defmodule Reach.CLI.Commands.Check do
       if map_size(ranges) == 0 do
         Changed.empty_result(base, config, files)
       else
-        project = Project.load([quiet: opts[:format] == "json"] ++ plugin_opts(opts))
+        project =
+          Project.load(
+            [quiet: opts[:format] == "json", show_scope: true] ++
+              source_opts(opts) ++ plugin_opts(opts)
+          )
+
         Changed.run(project, config, base: base, files: files, changed_ranges: ranges)
       end
 
@@ -170,12 +231,17 @@ defmodule Reach.CLI.Commands.Check do
   defp run_candidates(opts, positional) do
     project = load_candidates_project(opts, positional)
     config = Config.read()
-    result = Candidates.run(project, config, top: opts[:top] || 40)
+
+    result =
+      project
+      |> Candidates.run(config, top: opts[:top] || 40)
+      |> Map.put(:analysis, Project.analysis_scope())
 
     CheckRender.render_result(result, opts[:format], &CheckRender.render_candidates_text/1)
   end
 
   defp plugin_opts(opts), do: Keyword.take(opts, [:plugins])
+  defp source_opts(opts), do: Keyword.take(opts, [:paths])
 
   defp load_candidates_project(opts, positional) do
     path = opts[:path] || List.first(positional)
@@ -185,10 +251,18 @@ defmodule Reach.CLI.Commands.Check do
         opts[:project]
 
       path ->
-        Project.load([paths: [path], quiet: opts[:format] == "json"] ++ plugin_opts(opts))
+        Project.load(
+          [paths: [path], quiet: opts[:format] == "json", show_scope: true] ++ plugin_opts(opts)
+        )
+
+      opts[:paths] ->
+        Project.load(
+          [paths: opts[:paths], quiet: opts[:format] == "json", show_scope: true] ++
+            plugin_opts(opts)
+        )
 
       true ->
-        Project.load([quiet: opts[:format] == "json"] ++ plugin_opts(opts))
+        Project.load([quiet: opts[:format] == "json", show_scope: true] ++ plugin_opts(opts))
     end
   end
 end

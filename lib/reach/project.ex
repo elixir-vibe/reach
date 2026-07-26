@@ -83,14 +83,41 @@ defmodule Reach.Project do
   @spec from_mix_project(keyword()) :: t()
   def from_mix_project(opts \\ []) do
     plugins = Reach.Plugin.resolve(opts)
-
     opts = Keyword.put(opts, :plugins, plugins)
 
-    source_roots()
-    |> Enum.flat_map(&source_files(&1, plugins))
-    |> Enum.uniq()
-    |> Enum.sort()
-    |> from_sources(opts)
+    %{files: files} = mix_source_files_for_plugins(plugins)
+    from_sources(files, opts)
+  end
+
+  @doc """
+  Returns the source roots and files selected by the current Mix project.
+
+  The result reflects the active `Mix.env/0`, because Mix projects may define
+  environment-specific `:elixirc_paths` and `:erlc_paths`.
+  """
+  @spec mix_source_files(keyword()) :: %{roots: [Path.t()], files: [Path.t()]}
+  def mix_source_files(opts \\ []) do
+    opts
+    |> Reach.Plugin.resolve()
+    |> mix_source_files_for_plugins()
+  end
+
+  defp mix_source_files_for_plugins(plugins) do
+    roots = source_roots()
+
+    files =
+      roots
+      |> Enum.flat_map(&source_files(&1, plugins))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    root_paths =
+      roots
+      |> Enum.flat_map(fn {elixirc_paths, erlc_paths} -> elixirc_paths ++ erlc_paths end)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    %{roots: root_paths, files: files}
   end
 
   defp resolve_plugins_once(opts) do

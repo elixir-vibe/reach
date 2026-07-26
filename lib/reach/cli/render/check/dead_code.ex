@@ -4,11 +4,14 @@ defmodule Reach.CLI.Render.Check.DeadCode do
   alias Reach.CLI.Format
   alias Reach.CLI.Text
 
-  def render(findings, "json", command) do
-    Format.render(%{findings: findings}, command, format: "json", pretty: true)
+  def render(findings, "json", command, analysis) do
+    Format.render(%{findings: findings, analysis: analysis}, command,
+      format: "json",
+      pretty: true
+    )
   end
 
-  def render(findings, "oneline", _command) do
+  def render(findings, "oneline", _command, _analysis) do
     Enum.each(findings, fn finding ->
       IO.puts(
         "#{Format.faint("#{finding.file}:#{finding.line}")}: #{Format.yellow(to_string(finding.kind))}: #{finding.description}"
@@ -16,11 +19,11 @@ defmodule Reach.CLI.Render.Check.DeadCode do
     end)
   end
 
-  def render([], _format, _command) do
+  def render([], _format, _command, _analysis) do
     Text.section("Dead Code", [Text.empty()])
   end
 
-  def render(findings, _format, _command) do
+  def render(findings, _format, _command, _analysis) do
     Text.section("Dead Code", dead_code_lines(findings))
   end
 

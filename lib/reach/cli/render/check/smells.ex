@@ -7,14 +7,14 @@ defmodule Reach.CLI.Render.Check.Smells do
 
   @evidence_display_limit 4
 
-  def render(findings, "json", command) do
-    Format.render(%{findings: findings}, command,
+  def render(findings, "json", command, analysis) do
+    Format.render(%{findings: findings, analysis: analysis}, command,
       format: "json",
       pretty: true
     )
   end
 
-  def render(findings, "oneline", _command) do
+  def render(findings, "oneline", _command, _analysis) do
     Enum.each(findings, fn finding ->
       IO.puts(
         "#{Format.location_text(finding.location)}: #{Format.yellow(to_string(finding.kind))}: #{finding.message}"
@@ -22,7 +22,7 @@ defmodule Reach.CLI.Render.Check.Smells do
     end)
   end
 
-  def render(findings, _format, _command) do
+  def render(findings, _format, _command, _analysis) do
     if findings == [] do
       Text.section("Cross-Function Smell Detection", [Text.empty("no issues")])
     else

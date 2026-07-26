@@ -22,6 +22,7 @@ defmodule Mix.Tasks.Reach.Check do
     * `--write-baseline` — write current findings to a Reach baseline file
     * `--candidates` — emit advisory refactoring candidates
     * `--top` — limit candidate output for `--candidates`
+    * `--path` — analyze an explicit source path instead of environment-derived Mix paths
 
   """
 

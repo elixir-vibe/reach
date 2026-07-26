@@ -1,14 +1,1 @@
-{
-  "version": 1,
-  "tool": "reach",
-  "findings": [
-    {
-      "line": null,
-      "message": "layer cycle: check -> config -> core -> evidence -> frontend -> plugin -> project -> smell -> check",
-      "file": null,
-      "source": "arch",
-      "kind": "layer_cycle",
-      "fingerprint": "sha256:d971c1162b499af6d420a3fcc66ddc2367f10c0ffae19132f29d0f978d1a7fa7"
-    }
-  ]
-}
+{"version":2,"tool":"reach","findings":[{"source":"arch","kind":"layer_cycle","fingerprint":"sha256:d971c1162b499af6d420a3fcc66ddc2367f10c0ffae19132f29d0f978d1a7fa7","message":"layer cycle: check -> config -> core -> evidence -> frontend -> plugin -> project -> smell -> check","file":null,"line":null}],"scopes":{"arch":{"mix_env":"test","source":"mix","source_roots":["lib","src","test/support"],"file_count":287},"smells":{"mix_env":"test","source":"mix","source_roots":["lib","src","test/support"],"file_count":287}}}

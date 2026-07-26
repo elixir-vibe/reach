@@ -1,10 +1,10 @@
 defmodule Reach.Check.Baseline do
   @moduledoc false
 
-  alias Reach.Check.Finding
+  alias Reach.Check.{AnalysisScope, Finding}
 
   @derive JSON.Encoder
-  defstruct version: 1, tool: "reach", findings: []
+  defstruct version: 2, tool: "reach", findings: [], scopes: %{}
 
   def path(opts, config) do
     opts[:baseline] || config.checks.baseline
@@ -20,7 +20,7 @@ defmodule Reach.Check.Baseline do
     Enum.split_with(findings, &(!MapSet.member?(known, &1.fingerprint)))
   end
 
-  def write(path, source, findings) do
+  def write(path, source, findings, scope \\ nil) do
     existing = read(path)
     source = to_string(source)
 
@@ -29,8 +29,52 @@ defmodule Reach.Check.Baseline do
         to_string(finding.source) == source
       end)
 
-    baseline = %__MODULE__{existing | findings: Enum.sort_by(retained ++ findings, &sort_key/1)}
+    scopes =
+      if scope,
+        do: Map.put(existing.scopes, source, scope),
+        else: Map.delete(existing.scopes, source)
+
+    baseline = %__MODULE__{
+      existing
+      | version: 2,
+        findings: Enum.sort_by(retained ++ findings, &sort_key/1),
+        scopes: scopes
+    }
+
     File.write!(path, JSON.encode!(baseline) <> "\n")
+  end
+
+  def validate_scope(nil, _source, _scope), do: :ok
+  def validate_scope(_path, _source, nil), do: :ok
+
+  def validate_scope(path, source, %AnalysisScope{} = current_scope) do
+    if File.exists?(path) do
+      validate_existing_scope(path, source, current_scope)
+    else
+      :ok
+    end
+  end
+
+  defp validate_existing_scope(path, source, current_scope) do
+    baseline = read(path)
+
+    case Map.get(baseline.scopes, to_string(source)) do
+      nil ->
+        :legacy
+
+      baseline_scope ->
+        baseline_scope = AnalysisScope.from_map(baseline_scope)
+
+        if AnalysisScope.compatible?(baseline_scope, current_scope) do
+          :ok
+        else
+          {:error,
+           "Baseline #{path} was created for a different analysis scope. " <>
+             "Expected #{AnalysisScope.describe(baseline_scope)}; " <>
+             "current scope is #{AnalysisScope.describe(current_scope)}. " <>
+             "Use the same MIX_ENV/source paths or regenerate the baseline."}
+        end
+    end
   end
 
   def read(nil), do: %__MODULE__{}
@@ -49,10 +93,16 @@ defmodule Reach.Check.Baseline do
   defp from_map(data) do
     findings = field(data, :findings, [])
 
+    scopes =
+      data
+      |> field(:scopes, %{})
+      |> Map.new(fn {source, scope} -> {to_string(source), AnalysisScope.from_map(scope)} end)
+
     %__MODULE__{
       version: field(data, :version, 1),
       tool: field(data, :tool, "reach"),
-      findings: Enum.map(findings, &finding_from_map/1)
+      findings: Enum.map(findings, &finding_from_map/1),
+      scopes: scopes
     }
   end
 

@@ -7,7 +7,8 @@ defmodule Reach.Check.Architecture do
               status: "ok",
               violations: [],
               finding_count: 0,
-              baseline_count: 0
+              baseline_count: 0,
+              analysis: nil
   end
 
   alias Reach.Check.Violation

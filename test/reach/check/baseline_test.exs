@@ -1,6 +1,7 @@
 defmodule Reach.Check.BaselineTest do
   use ExUnit.Case, async: true
 
+  alias Reach.Check.AnalysisScope
   alias Reach.Check.Baseline
   alias Reach.Check.Finding
   alias Reach.Check.Violation
@@ -32,6 +33,45 @@ defmodule Reach.Check.BaselineTest do
 
     assert Enum.map(baseline.findings, & &1.fingerprint) |> Enum.sort() ==
              Enum.map([arch, new_smell], & &1.fingerprint) |> Enum.sort()
+  after
+    cleanup_baseline()
+  end
+
+  test "records analysis scopes and rejects incompatible reuse" do
+    path = baseline_path()
+    dev_scope = scope("dev", ["lib"], 1)
+    test_scope = scope("test", ["lib", "test/support"], 2)
+
+    Baseline.write(path, :arch, [finding("known")], dev_scope)
+
+    baseline = Baseline.read(path)
+    assert baseline.version == 2
+    assert baseline.scopes["arch"] == dev_scope
+    assert Baseline.validate_scope(path, :arch, dev_scope) == :ok
+
+    assert {:error, message} = Baseline.validate_scope(path, :arch, test_scope)
+    assert message =~ "different analysis scope"
+    assert message =~ "MIX_ENV=dev"
+    assert message =~ "MIX_ENV=test"
+  after
+    cleanup_baseline()
+  end
+
+  test "a missing baseline has no scope mismatch" do
+    path = baseline_path()
+    assert Baseline.validate_scope(path, :arch, scope("dev", ["lib"], 1)) == :ok
+  after
+    cleanup_baseline()
+  end
+
+  test "scope compatibility ignores file count changes" do
+    path = baseline_path()
+    original = scope("test", ["lib", "test/support"], 2)
+    changed_tree = scope("test", ["lib", "test/support"], 5)
+
+    Baseline.write(path, :arch, [finding("known")], original)
+
+    assert Baseline.validate_scope(path, :arch, changed_tree) == :ok
   after
     cleanup_baseline()
   end
@@ -72,6 +112,15 @@ defmodule Reach.Check.BaselineTest do
       )
 
     assert Finding.from_smell(left).fingerprint == Finding.from_smell(right).fingerprint
+  end
+
+  defp scope(env, roots, file_count) do
+    AnalysisScope.new(
+      source: :mix,
+      mix_env: env,
+      source_roots: roots,
+      file_count: file_count
+    )
   end
 
   defp finding(id) do

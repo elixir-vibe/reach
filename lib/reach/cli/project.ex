@@ -1,28 +1,64 @@
 defmodule Reach.CLI.Project do
   @moduledoc false
 
+  alias Reach.Check.AnalysisScope
+  alias Reach.Project, as: ReachProject
   alias Reach.Project.Query
 
+  @analysis_scope_key {__MODULE__, :analysis_scope}
   @display_root_key {__MODULE__, :display_root}
 
+  def analysis_scope, do: Process.get(@analysis_scope_key)
   def display_root, do: Process.get(@display_root_key)
+
+  def reset_analysis_scope, do: Process.delete(@analysis_scope_key)
 
   def load(opts \\ []) do
     Query.reset_cache()
     quiet? = Keyword.get(opts, :quiet, false)
+    show_scope? = Keyword.get(opts, :show_scope, false)
     compile(quiet?)
 
     case Keyword.get(opts, :paths) do
       nil ->
         set_display_root(File.cwd!())
-        unless quiet?, do: Mix.shell().info("Analyzing project...")
-        Reach.Project.from_mix_project(project_opts(opts))
+        %{roots: roots, files: files} = ReachProject.mix_source_files(project_opts(opts))
+        register_analysis_scope(:mix, roots, files, Mix.env())
+        render_analysis_start(quiet?, show_scope?, :project, files)
+        ReachProject.from_sources(files, project_opts(opts))
 
       paths ->
         set_display_root(display_root_for_paths(paths))
-        paths = expand_paths(paths)
-        unless quiet?, do: Mix.shell().info("Analyzing #{length(paths)} file(s)...")
-        Reach.Project.from_sources(paths, project_opts(opts))
+        roots = List.wrap(paths)
+        files = expand_paths(paths)
+        register_analysis_scope(:paths, roots, files, nil)
+        render_analysis_start(quiet?, show_scope?, :files, files)
+        ReachProject.from_sources(files, project_opts(opts))
+    end
+  end
+
+  def register_analysis_scope(source, roots, files, mix_env \\ nil) do
+    scope =
+      AnalysisScope.new(
+        source: source,
+        source_roots: roots,
+        file_count: length(files),
+        mix_env: mix_env
+      )
+
+    Process.put(@analysis_scope_key, scope)
+  end
+
+  defp render_analysis_start(true, _show_scope?, _kind, _files), do: :ok
+
+  defp render_analysis_start(false, show_scope?, kind, files) do
+    case kind do
+      :project -> Mix.shell().info("Analyzing project...")
+      :files -> Mix.shell().info("Analyzing #{length(files)} file(s)...")
+    end
+
+    if show_scope? do
+      Mix.shell().info("Analysis scope: #{AnalysisScope.describe(analysis_scope())}")
     end
   end
 

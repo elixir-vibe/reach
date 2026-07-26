@@ -16,10 +16,13 @@ defmodule Reach.CLI.Commands.Check.Smells do
     findings = SmellsCheck.run(project, config)
     check_findings = Enum.map(findings, &Finding.from_smell/1)
 
-    write_baseline(opts, check_findings)
+    scope = Project.analysis_scope()
+    write_baseline(opts, check_findings, scope)
 
-    {findings, baseline_findings} = filter_baseline(findings, check_findings, opts, config)
-    SmellsRender.render(findings, format, command)
+    {findings, baseline_findings} =
+      filter_baseline(findings, check_findings, opts, config, scope)
+
+    SmellsRender.render(findings, format, command, scope)
     render_baseline_summary(baseline_findings, format)
     raise_on_strict_findings(findings, opts, config)
   end
@@ -28,24 +31,40 @@ defmodule Reach.CLI.Commands.Check.Smells do
     path = opts[:path] || List.first(positional)
 
     project_opts =
-      [quiet: opts[:format] == "json", retain_module_sdgs: false] ++
-        Keyword.take(opts, [:plugins])
+      [quiet: opts[:format] == "json", show_scope: true, retain_module_sdgs: false] ++
+        Keyword.take(opts, [:plugins, :paths])
 
     project_opts = if path, do: Keyword.put(project_opts, :paths, [path]), else: project_opts
     opts[:project] || Project.load(project_opts)
   end
 
-  defp write_baseline(opts, check_findings) do
+  defp write_baseline(opts, check_findings, scope) do
     if write_path = Baseline.write_path(opts) do
-      Baseline.write(write_path, :smells, check_findings)
+      Baseline.write(write_path, :smells, check_findings, scope)
     end
   end
 
-  defp filter_baseline(findings, check_findings, opts, config) do
-    {new_check_findings, baseline_findings} =
-      Baseline.filter(check_findings, Baseline.path(opts, config))
+  defp filter_baseline(findings, check_findings, opts, config, scope) do
+    path = Baseline.path(opts, config)
+    validate_baseline_scope!(path, scope)
+    {new_check_findings, baseline_findings} = Baseline.filter(check_findings, path)
 
     {filter_findings(findings, new_check_findings), baseline_findings}
+  end
+
+  defp validate_baseline_scope!(path, scope) do
+    case Baseline.validate_scope(path, :smells, scope) do
+      :ok ->
+        :ok
+
+      :legacy ->
+        Mix.raise(
+          "Baseline #{path} has no analysis scope metadata. Regenerate it with --write-baseline before reuse."
+        )
+
+      {:error, message} ->
+        Mix.raise(message)
+    end
   end
 
   defp render_baseline_summary([], _format), do: :ok

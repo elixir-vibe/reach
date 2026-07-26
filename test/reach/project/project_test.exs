@@ -81,6 +81,22 @@ defmodule Reach.ProjectTest do
   end
 
   describe "from_mix_project/1" do
+    test "reports the environment-specific Mix source roots and files" do
+      lib_path = write_file("lib/scoped_lib.ex", "defmodule ScopedLib do\nend\n")
+
+      support_path =
+        write_file("test/support/scoped_support.ex", "defmodule ScopedSupport do\nend\n")
+
+      File.cd!(@tmp_dir, fn ->
+        source_set = Project.mix_source_files()
+
+        assert source_set.roots == ["lib", "src", "test/support"]
+
+        assert source_set.files ==
+                 Enum.map([lib_path, support_path], &Path.relative_to(&1, @tmp_dir))
+      end)
+    end
+
     test "includes package-style top-level app sources" do
       write_file("package_a/lib/package_a.ex", "defmodule PackageA do\n  def a, do: 1\nend\n")
 
