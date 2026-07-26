@@ -94,7 +94,7 @@ Optional clone evidence (via ExDNA) enriches semantic smell confidence. Clone fa
 
 ## Plugins
 
-Plugins extend Reach with framework-specific semantics: effect classification, trace presets, behaviour labels, visualization filtering, and graph edges. Built-in plugins auto-detect Phoenix, Ecto, Oban, Ash, GenStage, Jido, and OpenTelemetry. Language frontends (JavaScript/Gleam) are also plugin-discovered.
+Plugins extend Reach with framework-specific semantics: effect classification, trace presets, behaviour labels, visualization filtering, and graph edges. Built-in plugins auto-detect Phoenix, Ecto, Oban, Ash, GenStage, Jido, OpenTelemetry, and Gettext. Language frontends (JavaScript/Gleam) are also plugin-discovered.
 
 ## OTP analysis
 

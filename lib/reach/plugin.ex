@@ -46,8 +46,8 @@ defmodule Reach.Plugin do
 
   ## Built-in plugins
 
-  Plugins for Phoenix, Ecto, Ash, Nx, Oban, GenStage, Jido, and OpenTelemetry
-  are included and auto-detected at runtime. Override with the
+  Plugins for Phoenix, Ecto, Ash, Nx, Oban, GenStage, Jido, OpenTelemetry,
+  and Gettext are included and auto-detected at runtime. Override with the
   `:plugins` option:
 
       Reach.Project.from_mix_project(plugins: [Reach.Plugins.Ecto])
@@ -158,6 +158,7 @@ defmodule Reach.Plugin do
     {Jido.Action, Reach.Plugins.Jido},
     {OpenTelemetry.Tracer, Reach.Plugins.OpenTelemetry},
     {ExUnit.Case, Reach.Plugins.ExUnit},
+    {Gettext, Reach.Plugins.Gettext},
     {Jason, Reach.Plugins.Jason},
     {Poison, Reach.Plugins.Poison},
     {Zoi, Reach.Plugins.Zoi},

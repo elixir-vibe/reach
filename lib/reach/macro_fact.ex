@@ -65,7 +65,8 @@ defmodule Reach.MacroFact do
     :ash_attribute,
     :ash_code_interface,
     :ash_resource_dsl,
-    :ash_state_machine_dsl
+    :ash_state_machine_dsl,
+    :gettext_use
   ]
 
   @definition_forms [:def, :defp, :defmacro, :defmacrop]

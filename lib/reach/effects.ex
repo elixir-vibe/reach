@@ -134,8 +134,8 @@ defmodule Reach.Effects do
   def classify(%Node{type: :call} = node, plugins) do
     plugins = resolve_plugins(plugins)
 
-    case classify_call(node.meta[:module], node.meta[:function], node.meta[:arity], plugins) do
-      :unknown -> Reach.Plugin.classify_effect(plugins, node) || :unknown
+    case Reach.Plugin.classify_effect(plugins, node) do
+      nil -> classify_call(node.meta[:module], node.meta[:function], node.meta[:arity], plugins)
       effect -> effect
     end
   end

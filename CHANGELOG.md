@@ -5,10 +5,12 @@
 ### Added
 
 - `mix reach.check` now reports its Mix environment, source roots, and analyzed file count; `checks: [source_paths: [...]]` and `--path` provide an environment-independent source scope.
+- A built-in Gettext plugin recognizes locale setters and `use Gettext` declarations, preventing false-positive dead-code findings.
 
 ### Fixed
 
 - Check baselines now record their analysis scope and reject unscoped legacy baselines or reuse under a different Mix environment/source-root set, preventing silent local/CI suppression drift. ([#33](https://github.com/elixir-vibe/reach/issues/33))
+- Plugin effect classifications now take precedence over generic typespec inference, allowing dependency-specific semantics to override data-return heuristics.
 
 ## 2.8.1 - 2026-07-20
 

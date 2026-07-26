@@ -8,6 +8,12 @@ defmodule Reach.Effects.ScopedPluginTest do
     def analyze(_nodes, _opts), do: []
 
     @impl true
+    def classify_effect(%{
+          type: :call,
+          meta: %{module: Reach.Test.Effects.SpecReturnService, function: :run}
+        }),
+        do: :write
+
     def classify_effect(%{type: :call, meta: %{module: ScopedService, function: :run}}),
       do: :write
 
@@ -41,6 +47,13 @@ defmodule Reach.Effects.ScopedPluginTest do
     assert Reach.Effects.classify(node, []) == :unknown
     assert Reach.Effects.classify(node, [WritePlugin]) == :write
     assert Reach.Effects.classify(node, []) == :unknown
+  end
+
+  test "plugins override effects inferred from dependency specs" do
+    node = call_node("Reach.Test.Effects.SpecReturnService.run()")
+
+    assert Reach.Effects.classify(node, []) == :pure
+    assert Reach.Effects.classify(node, [WritePlugin]) == :write
   end
 
   test "local inferred effects are scoped by plugin list" do
