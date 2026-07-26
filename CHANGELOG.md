@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.8.2 - 2026-07-26
+
+### Breaking changes
+
+- Check baselines now record their analysis scope. Existing unscoped baselines must be regenerated before reuse, and baselines are rejected under a different Mix environment or source-root set, preventing silent local/CI suppression drift. ([#33](https://github.com/elixir-vibe/reach/issues/33))
+
 ### Added
 
 - `mix reach.check` now reports its Mix environment, source roots, and analyzed file count; `checks: [source_paths: [...]]` and `--path` provide an environment-independent source scope.
@@ -9,7 +15,6 @@
 
 ### Fixed
 
-- Check baselines now record their analysis scope and reject unscoped legacy baselines or reuse under a different Mix environment/source-root set, preventing silent local/CI suppression drift. ([#33](https://github.com/elixir-vibe/reach/issues/33))
 - Plugin effect classifications now take precedence over generic typespec inference, allowing dependency-specific semantics to override data-return heuristics.
 
 ## 2.8.1 - 2026-07-20
