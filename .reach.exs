@@ -30,6 +30,7 @@ layers = [
     "Reach.DependencySummary",
     "Reach.Dominator",
     "Reach.Effects",
+    "Reach.Effects.*",
     "Reach.ErlangFrontend",
     "Reach.Graph",
     "Reach.GraphAlgorithms",

@@ -93,8 +93,12 @@ defmodule Reach.CLI.Render.Map do
           &IO.puts("boundary #{&1.function} effects=#{Enum.join(&1.effects, "+")}")
         )
 
-      {:effects, %{distribution: distribution}} ->
+      {:effects, %{distribution: distribution, sources: sources}} ->
         Enum.each(distribution, fn row -> IO.puts("effect #{row.effect}=#{row.count}") end)
+
+        Enum.each(sources, fn row ->
+          IO.puts("effect_source #{effect_source_label(row)}=#{row.count}")
+        end)
 
       {:effects, effects} ->
         Enum.each(effects, fn {effect, count} -> IO.puts("effect #{effect}=#{count}") end)
@@ -179,14 +183,29 @@ defmodule Reach.CLI.Render.Map do
   defp render_text_section(:effects, %{distribution: [], unknown_calls: []}),
     do: IO.puts("  " <> Format.empty())
 
-  defp render_text_section(:effects, %{distribution: distribution, unknown_calls: unknown_calls}) do
+  defp render_text_section(:effects, %{
+         distribution: distribution,
+         sources: sources,
+         unknown_calls: unknown_calls
+       }) do
     Enum.each(distribution, fn row ->
       IO.puts("  #{Format.effect(row.effect)}: #{row.count} (#{percent(row.ratio)})")
     end)
 
+    if sources != [] do
+      IO.puts("  classification sources:")
+
+      Enum.each(sources, fn row ->
+        IO.puts("    #{effect_source_label(row)}: #{row.count} (#{percent(row.ratio)})")
+      end)
+    end
+
     if unknown_calls != [] do
       IO.puts("  unknown calls:")
-      Enum.each(unknown_calls, &IO.puts("    #{&1.module}.#{&1.function}: #{&1.count}"))
+
+      Enum.each(unknown_calls, fn call ->
+        IO.puts("    #{call.module}.#{call.function} [#{call.kind}]: #{call.count}")
+      end)
     end
   end
 
@@ -231,6 +250,17 @@ defmodule Reach.CLI.Render.Map do
     render_cross_function_flows(Map.get(data, :cross_function_edges, []))
     render_top_data_functions(data.top_functions)
   end
+
+  defp effect_source_label(%{
+         source: :plugin,
+         classifier: classifier,
+         confidence: confidence
+       })
+       when not is_nil(classifier),
+       do: "plugin (#{classifier}) [#{confidence}]"
+
+  defp effect_source_label(%{source: source, confidence: confidence}),
+    do: "#{source} [#{confidence}]"
 
   defp render_cross_function_flows([]) do
     IO.puts("\n  Cross-function flows:")

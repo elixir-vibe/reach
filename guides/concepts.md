@@ -16,7 +16,7 @@ Data-flow edges track definitions, uses, parameters, returns, and cross-function
 
 ## Effects
 
-Reach classifies calls into effect categories such as pure, IO, read, write, send, receive, exception, NIF, and unknown. Effect evidence powers boundaries, smells, and refactoring candidates.
+Reach classifies calls into effect categories such as pure, IO, read, write, send, receive, exception, NIF, and unknown. Effect evidence powers boundaries, smells, and refactoring candidates. `Reach.Effects.classify_with_provenance/2` also reports whether a result came from intrinsic semantics, a built-in rule, a plugin, a typespec, inferred types, or project-local inference, together with its confidence.
 
 ## Smells
 

@@ -17,6 +17,7 @@ defmodule Reach.Map.Analysis do
     DepthMetric,
     EffectCall,
     EffectRow,
+    EffectSourceRow,
     EffectSummary,
     Hotspot,
     ModuleCoupling,
@@ -167,14 +168,23 @@ defmodule Reach.Map.Analysis do
   end
 
   defp call_nodes(project, path, module_filter) do
-    module_nodes = module_defs(project, nil)
+    project
+    |> function_defs(path)
+    |> filter_functions_by_module(module_filter)
+    |> Enum.flat_map(fn function ->
+      function
+      |> IR.all_nodes()
+      |> Enum.filter(&(&1.type == :call))
+    end)
+    |> Enum.uniq_by(& &1.id)
+  end
 
-    for(
-      {_id, node} <- project.nodes,
-      node.type == :call and Query.file_matches?(span_file(node), path),
-      do: node
-    )
-    |> filter_by_module(module_nodes, module_filter)
+  defp filter_functions_by_module(functions, nil), do: functions
+
+  defp filter_functions_by_module(functions, module_filter) do
+    Enum.filter(functions, fn function ->
+      function.meta[:module] && to_string(function.meta[:module]) =~ module_filter
+    end)
   end
 
   defp module_defs(project, path) do
@@ -351,28 +361,58 @@ defmodule Reach.Map.Analysis do
   end
 
   defp effect_summary(call_nodes, top, plugins) do
+    classified_calls =
+      Enum.map(call_nodes, fn node ->
+        {node, Effects.classify_with_provenance(node, plugins)}
+      end)
+
+    total = length(classified_calls)
+
     distribution =
-      call_nodes
-      |> Enum.map(&Effects.classify(&1, plugins))
+      classified_calls
+      |> Enum.map(fn {_node, classification} -> classification.effect end)
       |> Enum.frequencies()
       |> Enum.sort_by(&elem(&1, 1), :desc)
 
-    total = length(call_nodes)
+    sources =
+      classified_calls
+      |> Enum.map(fn {_node, classification} ->
+        {classification.source, classification.classifier, classification.confidence}
+      end)
+      |> Enum.frequencies()
+      |> Enum.sort_by(fn {{source, classifier, confidence}, count} ->
+        {-count, to_string(source), inspect(classifier), to_string(confidence)}
+      end)
+      |> Enum.map(fn {{source, classifier, confidence}, count} ->
+        EffectSourceRow.new(
+          source: source,
+          classifier: if(classifier, do: inspect(classifier)),
+          confidence: confidence,
+          count: count,
+          ratio: Float.round(count / max(total, 1), 3)
+        )
+      end)
 
     unknown_calls =
-      call_nodes
-      |> Enum.filter(&(Effects.classify(&1, plugins) == :unknown))
-      |> Enum.reject(fn n ->
-        is_nil(n.meta[:function]) or n.meta[:function] in [:__aliases__, :{}]
+      classified_calls
+      |> Enum.filter(fn {_node, classification} -> classification.effect == :unknown end)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.reject(fn node ->
+        is_nil(node.meta[:function]) or node.meta[:function] in [:__aliases__, :{}]
       end)
-      |> Enum.map(fn n -> {n.meta[:module], n.meta[:function]} end)
+      |> Enum.map(fn node ->
+        {unknown_call_module(node), node.meta[:function], node.meta[:kind] || :unknown}
+      end)
       |> Enum.frequencies()
-      |> Enum.sort_by(&elem(&1, 1), :desc)
+      |> Enum.sort_by(fn {{module, function, kind}, count} ->
+        {-count, module, to_string(function), to_string(kind)}
+      end)
       |> Enum.take(top)
-      |> Enum.map(fn {{mod, fun}, count} ->
+      |> Enum.map(fn {{module, function, kind}, count} ->
         UnknownCall.new(
-          module: if(mod, do: inspect(mod), else: "Kernel"),
-          function: to_string(fun),
+          module: module,
+          function: to_string(function),
+          kind: kind,
           count: count
         )
       end)
@@ -387,8 +427,23 @@ defmodule Reach.Map.Analysis do
             ratio: Float.round(count / max(total, 1), 3)
           )
         end),
+      sources: sources,
       unknown_calls: unknown_calls
     )
+  end
+
+  defp unknown_call_module(%IR.Node{meta: %{kind: :local} = meta}) do
+    case meta[:owner_module] do
+      module when is_atom(module) -> inspect(module)
+      _unknown -> "local"
+    end
+  end
+
+  defp unknown_call_module(%IR.Node{meta: meta}) do
+    case meta[:module] do
+      module when not is_nil(module) -> inspect(module)
+      _unknown -> "unresolved"
+    end
   end
 
   defp function_effects(func, plugins) do
@@ -609,21 +664,6 @@ defmodule Reach.Map.Analysis do
     do: Enum.filter(modules, &(&1.afferent == 0 and &1.efferent > 0))
 
   defp maybe_filter_orphans(modules, _), do: modules
-
-  defp filter_by_module(call_nodes, _module_nodes, nil), do: call_nodes
-
-  defp filter_by_module(call_nodes, module_nodes, module_filter) do
-    case Enum.find(module_nodes, &(to_string(&1.meta[:name]) =~ module_filter)) do
-      nil ->
-        call_nodes
-
-      module ->
-        call_nodes
-        |> MapSet.new()
-        |> MapSet.intersection(MapSet.new(IR.all_nodes(module)))
-        |> MapSet.to_list()
-    end
-  end
 
   defp function_id(func), do: {func.meta[:module], func.meta[:name], func.meta[:arity]}
 

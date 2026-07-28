@@ -12,6 +12,15 @@ defmodule Reach.Plugins.GettextTest do
       end
     end
 
+    test "reports which plugin supplied a classification" do
+      node = call_node(:put_locale, 1)
+
+      assert {:write, Plugin} = Reach.Plugin.classify_effect_with_plugin([Plugin], node)
+
+      assert %{effect: :write, source: :plugin, confidence: :high, classifier: Plugin} =
+               Reach.Effects.classify_with_provenance(node, [Plugin])
+    end
+
     test "does not classify unrelated or invalid Gettext calls" do
       assert Plugin.classify_effect(call_node(:get_locale, 0)) == nil
       assert Plugin.classify_effect(call_node(:put_locale!, 1)) == nil

@@ -862,7 +862,13 @@ defmodule Reach.Frontend.Elixir do
           id: Counter.next(counter),
           type: :call,
           meta:
-            %{function: fun_name, arity: arity, module: module, kind: kind}
+            %{
+              function: fun_name,
+              arity: arity,
+              module: module,
+              kind: kind,
+              owner_module: Process.get(:reach_current_module)
+            }
             |> Map.merge(origin_meta(meta)),
           children: arg_nodes,
           source_span: span_from_meta(meta, file)

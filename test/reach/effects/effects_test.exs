@@ -34,6 +34,7 @@ defmodule Reach.EffectsTest do
       assert Effects.classify(node_for("Map.get(map, key)")) == :pure
       assert Effects.classify(node_for("String.upcase(s)")) == :pure
       assert Effects.classify(node_for("List.first(l)")) == :pure
+      assert Effects.classify(node_for("match?(%{}, value)")) == :pure
     end
 
     test "IO calls are :io" do
@@ -74,6 +75,24 @@ defmodule Reach.EffectsTest do
 
     test "unknown calls default to :unknown" do
       assert Effects.classify(node_for("some_function(x)")) == :unknown
+    end
+  end
+
+  describe "classification provenance" do
+    test "reports intrinsic and built-in classifications" do
+      assert %{effect: :pure, source: :intrinsic, confidence: :high} =
+               Effects.classify_with_provenance(node_for("42"))
+
+      assert %{effect: :io, source: :builtin, confidence: :high} =
+               Effects.classify_with_provenance(node_for("IO.puts(value)"))
+    end
+
+    test "reports typespec-derived and unknown classifications" do
+      assert %{effect: :pure, source: :typespec, confidence: :medium} =
+               Effects.classify_with_provenance(node_for(":crypto.hash(:sha256, <<>>)"))
+
+      assert %{effect: :unknown, source: :unknown, confidence: :low} =
+               Effects.classify_with_provenance(node_for("UnknownEffects.run()"), [])
     end
   end
 

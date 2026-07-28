@@ -194,6 +194,24 @@ defmodule Reach.Frontend.ElixirTest do
       assert length(node.children) == 2
     end
 
+    test "local calls retain their owning module" do
+      [module] =
+        IR.from_string!("""
+        defmodule LocalCallOwner do
+          def run(value), do: helper(value)
+          defp helper(value), do: value
+        end
+        """)
+
+      call =
+        module
+        |> IR.all_nodes()
+        |> Enum.find(&(&1.type == :call and &1.meta[:function] == :helper))
+
+      assert call.meta.kind == :local
+      assert call.meta.owner_module == LocalCallOwner
+    end
+
     test "remote call" do
       [node] = IR.from_string!("Enum.map(list, fun)")
 

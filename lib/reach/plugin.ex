@@ -207,10 +207,30 @@ defmodule Reach.Plugin do
   Returns the first non-nil result, or `nil` if no plugin matches.
   """
   def classify_effect(plugins, node) do
-    Enum.find_value(plugins, fn plugin ->
-      if exports?(plugin, :classify_effect, 1), do: plugin.classify_effect(node)
-    end)
+    case classify_effect_with_plugin(plugins, node) do
+      {effect, _plugin} -> effect
+      nil -> nil
+    end
   end
+
+  @doc """
+  Classifies a call node and returns the plugin that supplied the result.
+
+  Returns `{effect, plugin}` for the first matching plugin, or `nil`.
+  """
+  def classify_effect_with_plugin(plugins, node) do
+    Enum.find_value(plugins, &plugin_effect(&1, node))
+  end
+
+  defp plugin_effect(plugin, node) do
+    if exports?(plugin, :classify_effect, 1) do
+      plugin.classify_effect(node)
+      |> plugin_effect_result(plugin)
+    end
+  end
+
+  defp plugin_effect_result(nil, _plugin), do: nil
+  defp plugin_effect_result(effect, plugin), do: {effect, plugin}
 
   @doc "Returns whether any configured plugin owns reinterpreted semantics for an AST node."
   def reinterpreted_ast?(plugins, ast) do

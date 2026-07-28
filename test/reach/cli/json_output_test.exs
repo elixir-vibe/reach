@@ -18,6 +18,21 @@ defmodule Reach.CLI.JSONOutputTest do
     assert is_map(data["sections"])
   end
 
+  test "reach.map effect json includes provenance and unresolved call kinds" do
+    project = fixture_project()
+
+    output =
+      capture_io(fn -> Map.run(format: "json", effects: true, top: 10, project: project) end)
+
+    assert {:ok, %{"sections" => %{"effects" => effects}}} = JSON.decode(output)
+    assert Enum.all?(effects["sources"], &:maps.is_key("confidence", &1))
+
+    assert Enum.any?(effects["unknown_calls"], fn call ->
+             call["module"] == "Graph" and call["function"] == "to_dot" and
+               call["kind"] == "remote"
+           end)
+  end
+
   test "reach.inspect emits graph-backed candidates as json" do
     project = fixture_project()
 

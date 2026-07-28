@@ -7,6 +7,7 @@ defmodule Reach.Effects do
   queries to determine whether reordering is safe.
   """
 
+  alias Reach.Effects.Classification
   alias Reach.IR.Node
 
   @type effect ::
@@ -85,6 +86,7 @@ defmodule Reach.Effects do
     :char,
     :as_boolean,
     :struct!,
+    :match?,
     :unquote,
     :quote
   ]
@@ -119,28 +121,56 @@ defmodule Reach.Effects do
   ]
 
   @spec classify(Node.t(), [module()] | nil) :: effect()
-  def classify(node, plugins \\ nil)
+  def classify(node, plugins \\ nil) do
+    node
+    |> classify_with_provenance(plugins)
+    |> Map.fetch!(:effect)
+  end
 
-  def classify(%Node{type: type}, _plugins) when type in @pure_node_types, do: :pure
+  @doc """
+  Classifies an IR node and explains the source and confidence of the result.
+  """
+  @spec classify_with_provenance(Node.t(), [module()] | nil) :: Classification.t()
+  def classify_with_provenance(node, plugins \\ nil)
 
-  def classify(%Node{type: :receive}, _plugins), do: :receive
+  def classify_with_provenance(%Node{type: type}, _plugins) when type in @pure_node_types,
+    do: classification(:pure, :intrinsic, :high)
 
-  def classify(%Node{type: :call, meta: %{kind: :field_access}}, _plugins), do: :pure
+  def classify_with_provenance(%Node{type: :receive}, _plugins),
+    do: classification(:receive, :intrinsic, :high)
 
-  def classify(%Node{type: :call, meta: %{kind: :local, function: fun}}, _plugins)
+  def classify_with_provenance(
+        %Node{type: :call, meta: %{kind: :field_access}},
+        _plugins
+      ),
+      do: classification(:pure, :intrinsic, :high)
+
+  def classify_with_provenance(
+        %Node{type: :call, meta: %{kind: :local, function: fun}},
+        _plugins
+      )
       when fun in @compile_time_ops,
-      do: :pure
+      do: classification(:pure, :intrinsic, :high)
 
-  def classify(%Node{type: :call} = node, plugins) do
+  def classify_with_provenance(%Node{type: :call} = node, plugins) do
     plugins = resolve_plugins(plugins)
 
-    case Reach.Plugin.classify_effect(plugins, node) do
-      nil -> classify_call(node.meta[:module], node.meta[:function], node.meta[:arity], plugins)
-      effect -> effect
+    case Reach.Plugin.classify_effect_with_plugin(plugins, node) do
+      {effect, plugin} ->
+        classification(effect, :plugin, :high, classifier: plugin)
+
+      nil ->
+        classify_call(
+          effect_call_module(node),
+          node.meta[:function],
+          node.meta[:arity],
+          plugins
+        )
     end
   end
 
-  def classify(_node, _plugins), do: :unknown
+  def classify_with_provenance(_node, _plugins),
+    do: classification(:unknown, :unknown, :low)
 
   @doc """
   Returns true if the node is pure (no side effects).
@@ -202,7 +232,7 @@ defmodule Reach.Effects do
         {{f.meta[:module], f.meta[:name], f.meta[:arity]}, calls}
       end)
 
-    do_infer(func_calls, module_map, plugins, 0)
+    do_infer(func_calls, module_map, plugins)
   end
 
   defp build_module_func_map(all_nodes) do
@@ -245,12 +275,12 @@ defmodule Reach.Effects do
 
   defp collect_calls(_), do: []
 
-  defp do_infer(func_calls, module_map, plugins, prev_classified) do
+  defp do_infer(func_calls, module_map, plugins) do
     newly_classified =
       Enum.count(func_calls, &try_infer_function(&1, module_map, plugins))
 
-    if newly_classified > 0 and newly_classified != prev_classified do
-      do_infer(func_calls, module_map, plugins, newly_classified)
+    if newly_classified > 0 do
+      do_infer(func_calls, module_map, plugins)
     else
       :ok
     end
@@ -476,21 +506,35 @@ defmodule Reach.Effects do
     ArgumentError -> :ok
   end
 
+  defp effect_call_module(%Node{
+         meta: %{kind: :local, function: function}
+       })
+       when function in @pure_kernel_functions or function in [:raise, :throw, :exit, :send],
+       do: nil
+
+  defp effect_call_module(%Node{meta: %{kind: :local} = meta}),
+    do: meta[:owner_module] || meta[:module]
+
+  defp effect_call_module(%Node{meta: meta}), do: meta[:module]
+
   defp classify_call(nil, function, _arity, _plugins) when function in @pure_kernel_functions,
-    do: :pure
+    do: classification(:pure, :intrinsic, :high)
 
   defp classify_call(nil, function, _arity, _plugins) when function in [:raise, :throw, :exit],
-    do: :exception
+    do: classification(:exception, :intrinsic, :high)
 
-  defp classify_call(nil, :send, _arity, _plugins), do: :send
+  defp classify_call(nil, :send, _arity, _plugins),
+    do: classification(:send, :intrinsic, :high)
 
   defp classify_call(Kernel, function, _arity, _plugins) when function in @pure_kernel_functions,
-    do: :pure
+    do: classification(:pure, :intrinsic, :high)
 
-  defp classify_call(Kernel, function, _arity, _plugins) when function in [:raise, :throw, :exit],
-    do: :exception
+  defp classify_call(Kernel, function, _arity, _plugins)
+       when function in [:raise, :throw, :exit],
+       do: classification(:exception, :intrinsic, :high)
 
-  defp classify_call(Kernel, :send, _arity, _plugins), do: :send
+  defp classify_call(Kernel, :send, _arity, _plugins),
+    do: classification(:send, :intrinsic, :high)
 
   # Shared ETS cache — survives across Task.async_stream workers.
   # Assumes no hot code reloads (CLI tool, not a server).
@@ -499,7 +543,7 @@ defmodule Reach.Effects do
 
     case lookup_local_cache(key, plugins) do
       {:ok, result} ->
-        result
+        normalize_classification(result, :local_inference)
 
       :miss ->
         classify_builtin_call(module, function, arity)
@@ -511,7 +555,7 @@ defmodule Reach.Effects do
 
     case lookup_cache(key) do
       {:ok, result} ->
-        result
+        normalize_classification(result, :builtin)
 
       :miss ->
         ensure_cache()
@@ -535,7 +579,10 @@ defmodule Reach.Effects do
   end
 
   defp put_local_cache(key, result, plugins) do
-    put_cache(local_cache_key(key, plugins), result)
+    put_cache(
+      local_cache_key(key, plugins),
+      normalize_classification(result, :local_inference)
+    )
   end
 
   defp local_cache_key({module, function, arity}, plugins) do
@@ -548,6 +595,18 @@ defmodule Reach.Effects do
     |> Enum.sort()
     |> List.to_tuple()
   end
+
+  defp classification(effect, source, confidence, opts \\ []) do
+    Classification.new(effect, source, confidence, opts)
+  end
+
+  defp normalize_classification(%Classification{} = result, _source), do: result
+
+  defp normalize_classification(effect, :local_inference),
+    do: classification(effect, :local_inference, :medium)
+
+  defp normalize_classification(effect, :builtin),
+    do: classification(effect, :builtin, :high)
 
   defp lookup_cache(key) do
     case :ets.lookup(@classify_cache, key) do
@@ -565,14 +624,22 @@ defmodule Reach.Effects do
   end
 
   defp do_classify_call(module, function, arity) do
-    classify_pure(module, function, arity) ||
-      classify_io(module, function) ||
-      classify_messaging(module, function) ||
-      classify_state(module, function) ||
-      classify_exception(module, function) ||
-      classify_config(module, function) ||
-      classify_from_spec(module, function, arity) ||
-      :unknown
+    builtin_effect =
+      classify_pure(module, function, arity) ||
+        classify_io(module, function) ||
+        classify_messaging(module, function) ||
+        classify_state(module, function) ||
+        classify_exception(module, function) ||
+        classify_config(module, function)
+
+    case builtin_effect do
+      nil ->
+        classify_from_spec(module, function, arity) ||
+          classification(:unknown, :unknown, :low)
+
+      effect ->
+        classification(effect, :builtin, :high)
+    end
   end
 
   # Both Elixir (GenServer) and Erlang (:gen_server) atoms are listed
@@ -615,24 +682,31 @@ defmodule Reach.Effects do
   defp classify_from_spec(module, _function, _arity) when module in @impure_modules, do: nil
 
   defp classify_from_spec(module, function, arity) when is_atom(module) do
-    case Code.Typespec.fetch_specs(module) do
-      {:ok, specs} ->
-        case List.keyfind(specs, {function, arity}, 0) do
-          {_, clauses} ->
-            infer_effect_from_spec(clauses) || classify_from_inferred(module, function, arity)
-
-          nil ->
-            nil
-        end
-
-      :error ->
-        nil
+    with {:ok, specs} <- Code.Typespec.fetch_specs(module),
+         {_, clauses} <- List.keyfind(specs, {function, arity}, 0) do
+      classify_spec_clauses(clauses, module, function, arity)
+    else
+      _unavailable -> nil
     end
   rescue
     _error in [ArgumentError, ErlangError] -> nil
   end
 
   defp classify_from_spec(_, _, _), do: nil
+
+  defp classify_spec_clauses(clauses, module, function, arity) do
+    case infer_effect_from_spec(clauses) do
+      nil -> classify_from_inferred_result(module, function, arity)
+      effect -> classification(effect, :typespec, :medium)
+    end
+  end
+
+  defp classify_from_inferred_result(module, function, arity) do
+    case classify_from_inferred(module, function, arity) do
+      nil -> nil
+      effect -> classification(effect, :inferred_type, :medium)
+    end
+  end
 
   # Use Elixir 1.19+ inferred types from the ExCk BEAM chunk.
   # Returns :pure for functions returning data, nil otherwise.

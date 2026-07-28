@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- `Reach.Effects.classify_with_provenance/2` reports each effect classification's source, confidence, and contributing plugin; `mix reach.map --effects` summarizes those sources and distinguishes unresolved local calls.
+
+### Fixed
+
+- Effect inference now resolves unqualified project calls against their owning module and runs to a complete fixed point, preventing unrelated same-named functions from sharing classifications and reducing unknown effects.
+- `mix reach.map --effects` now summarizes runtime function bodies instead of counting compile-time types and module DSL declarations as application calls.
+
 ## 2.8.2 - 2026-07-26
 
 ### Breaking changes

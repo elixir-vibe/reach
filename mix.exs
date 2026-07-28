@@ -170,6 +170,7 @@ defmodule Reach.MixProject do
         Reach.ControlDependence,
         Reach.Dominator,
         Reach.Effects,
+        Reach.Effects.Classification,
         Reach.SystemDependence
       ],
       Frontends: [~r/Reach\.Frontend/],
