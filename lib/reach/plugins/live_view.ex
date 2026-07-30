@@ -17,7 +17,6 @@ defmodule Reach.Plugins.LiveView do
     :live_render,
     :live_component,
     :on_mount,
-    :__live_event__,
     :sigil_H,
     :sigil_p
   ]
