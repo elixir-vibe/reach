@@ -161,7 +161,8 @@ defmodule Reach.DataDependence do
     :fn,
     :receive,
     :try,
-    :guard
+    :guard,
+    :quote
   ]
 
   defp add_match_binding_edges(graph, all_nodes) do
