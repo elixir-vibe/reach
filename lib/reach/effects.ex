@@ -938,9 +938,17 @@ defmodule Reach.Effects do
 
   defp classify_messaging(module, function) do
     cond do
-      send_function?(module, function) -> :send
-      receive_function?(module, function) -> :receive
-      true -> nil
+      module == Phoenix.PubSub and function in [:broadcast, :broadcast_from, :broadcast_from!] ->
+        :send
+
+      send_function?(module, function) ->
+        :send
+
+      receive_function?(module, function) ->
+        :receive
+
+      true ->
+        nil
     end
   end
 
@@ -1115,6 +1123,7 @@ defmodule Reach.Effects do
   defp send_function?(GenServer, :cast), do: true
   defp send_function?(GenServer, :reply), do: true
   defp send_function?(Process, :send_after), do: true
+  defp send_function?(Task.Supervisor, :start_child), do: true
   defp send_function?(_, _), do: false
 
   defp receive_function?(GenServer, :handle_call), do: true

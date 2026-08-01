@@ -51,6 +51,22 @@ defmodule Reach.EffectsTest do
       assert Effects.classify(node_for("GenServer.cast(pid, msg)")) == :send
     end
 
+    test "PubSub broadcasts are :send" do
+      assert Effects.classify(node_for("Phoenix.PubSub.broadcast(server, topic, msg)")) == :send
+
+      assert Effects.classify(node_for("Phoenix.PubSub.broadcast_from(server, from, topic, msg)")) ==
+               :send
+
+      assert Effects.classify(
+               node_for("Phoenix.PubSub.broadcast_from!(server, from, topic, msg)")
+             ) ==
+               :send
+    end
+
+    test "Task.Supervisor.start_child is :send" do
+      assert Effects.classify(node_for("Task.Supervisor.start_child(sup, fun)")) == :send
+    end
+
     test "ETS writes are :write" do
       assert Effects.classify(node_for(":ets.insert(tab, val)")) == :write
       assert Effects.classify(node_for(":ets.delete(tab, key)")) == :write
