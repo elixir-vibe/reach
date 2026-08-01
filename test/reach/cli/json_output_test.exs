@@ -28,8 +28,9 @@ defmodule Reach.CLI.JSONOutputTest do
     assert Enum.all?(effects["sources"], &:maps.is_key("confidence", &1))
 
     assert Enum.any?(effects["unknown_calls"], fn call ->
-             call["module"] == "Graph" and call["function"] == "to_dot" and
-               call["kind"] == "remote"
+             call["module"] == "Unknown.Service" and call["function"] == "call" and
+               call["arity"] == 1 and call["kind"] == "remote" and
+               call["reason"] == "unresolved_module"
            end)
   end
 
@@ -100,6 +101,7 @@ defmodule Reach.CLI.JSONOutputTest do
     defmodule Demo.Main do
       def to_dot(graph), do: Graph.to_dot(graph)
       def context(value), do: Demo.Helper.clean(value)
+      def unresolved(value), do: Unknown.Service.call(value)
 
       def candidate(a, b) do
         x = a + 1

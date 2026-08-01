@@ -396,23 +396,30 @@ defmodule Reach.Map.Analysis do
     unknown_calls =
       classified_calls
       |> Enum.filter(fn {_node, classification} -> classification.effect == :unknown end)
-      |> Enum.map(&elem(&1, 0))
-      |> Enum.reject(fn node ->
+      |> Enum.reject(fn {node, _classification} ->
         is_nil(node.meta[:function]) or node.meta[:function] in [:__aliases__, :{}]
       end)
-      |> Enum.map(fn node ->
-        {unknown_call_module(node), node.meta[:function], node.meta[:kind] || :unknown}
+      |> Enum.map(fn {node, classification} ->
+        {
+          unknown_call_module(node),
+          node.meta[:function],
+          node.meta[:arity],
+          node.meta[:kind] || :unknown,
+          classification.reason
+        }
       end)
       |> Enum.frequencies()
-      |> Enum.sort_by(fn {{module, function, kind}, count} ->
-        {-count, module, to_string(function), to_string(kind)}
+      |> Enum.sort_by(fn {{module, function, arity, kind, reason}, count} ->
+        {-count, module, to_string(function), arity || -1, to_string(kind), to_string(reason)}
       end)
       |> Enum.take(top)
-      |> Enum.map(fn {{module, function, kind}, count} ->
+      |> Enum.map(fn {{module, function, arity, kind, reason}, count} ->
         UnknownCall.new(
           module: module,
           function: to_string(function),
+          arity: arity,
           kind: kind,
+          reason: reason,
           count: count
         )
       end)

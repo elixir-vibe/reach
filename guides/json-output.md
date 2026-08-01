@@ -16,7 +16,7 @@ Prefer JSON for agents and CI. Human text output is intentionally summarized, co
 
 Project-backed `reach.check` results include an `analysis` object with `mix_env`, `source`, `source_roots`, and `file_count`. Use it to verify that local and CI checks analyzed the same scope; `source: "paths"` indicates an explicit `--path` or `checks[:source_paths]` scope independent of `MIX_ENV`.
 
-`reach.map --effects --format json` includes a `sources` distribution alongside effect totals. Each source row contains `source`, `confidence`, and an optional plugin `classifier`. Unknown-call rows include `kind` and retain the owning module for unresolved local calls.
+`reach.map --effects --format json` includes a `sources` distribution alongside effect totals. Each source row contains `source`, `confidence`, and an optional plugin `classifier`; `dependency_inference` identifies effects derived from compiled BEAM code. Unknown-call rows retain the owning module and include `function`, `arity`, `kind`, and `reason`. Reasons distinguish `unresolved_local`, `unresolved_module`, `dynamic_dispatch`, `insufficient_semantics`, and unsupported call shapes.
 
 Contract candidates include structured `canonical_site`, `keys`, `draft_contract`, and `blast_radius` fields in addition to the common candidate proof and suggestion fields. `canonical_site` names an existing producer, literal construction function, or normalization boundary proven from source; it remains `null` when Reach cannot prove one. Decoded-boundary candidates also include `decoder` and `boundary`. Agents should treat `draft_contract` as a starting shape, review every function listed in `blast_radius`, and complete every proof step before editing.
 

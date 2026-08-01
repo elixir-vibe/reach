@@ -39,7 +39,10 @@ lib/credo/cli/command/diff/task/get_git_diff.ex:91  suboptimal
 lib/credo/cli/command/explain/explain_command.ex:105  suboptimal
 lib/credo/cli/command/explain/explain_command.ex:131  suboptimal
 lib/credo/cli/command/explain/output/default.ex:143  unsafe_atom_creation
+lib/credo/cli/command/explain/output/default.ex:199  redundant_computation
+lib/credo/cli/command/explain/output/default.ex:212  redundant_computation
 lib/credo/cli/command/explain/output/default.ex:61  unsafe_atom_creation
+lib/credo/cli/command/explain/output/default.ex:94  redundant_computation
 lib/credo/cli/command/info/info_command.ex:54  suboptimal
 lib/credo/cli/command/info/info_command.ex:62  suboptimal
 lib/credo/cli/command/list/output/default.ex:60  unsafe_atom_creation

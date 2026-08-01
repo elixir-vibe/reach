@@ -4,11 +4,13 @@
 
 ### Added
 
-- `Reach.Effects.classify_with_provenance/2` reports each effect classification's source, confidence, and contributing plugin; `mix reach.map --effects` summarizes those sources and distinguishes unresolved local calls.
+- `Reach.Effects.classify_with_provenance/2` reports each effect classification's source, confidence, contributing plugin, and explicit reason for unknown results; `mix reach.map --effects` summarizes those sources and reports unresolved call arity, kind, and reason.
 
 ### Fixed
 
-- Effect inference now resolves unqualified project calls against their owning module and runs to a complete fixed point, preventing unrelated same-named functions from sharing classifications and reducing unknown effects.
+- Effect inference now resolves unqualified project calls, default-argument wrappers, function references, and unique macro-injected aliases against their owning module, and runs to a complete fixed point without sharing classifications between unrelated same-named functions.
+- Dependency functions can now derive medium-confidence effects from BEAM code when plugins, built-ins, and typespecs provide no result.
+- Function captures are treated as pure values until an eager higher-order operation executes them, preventing stored or lazy callbacks from inheriting effects prematurely.
 - `mix reach.map --effects` now summarizes runtime function bodies instead of counting compile-time types and module DSL declarations as application calls.
 
 ## 2.8.2 - 2026-07-26

@@ -22,7 +22,7 @@ defmodule Reach.Map.AnalysisTest do
 
     assert Enum.any?(summary.unknown_calls, fn call ->
              call.module == "EffectSummaryExample" and call.function == "missing" and
-               call.kind == :local
+               call.arity == 1 and call.kind == :local and call.reason == :unresolved_local
            end)
 
     refute Enum.any?(summary.unknown_calls, &(&1.module == "Kernel"))

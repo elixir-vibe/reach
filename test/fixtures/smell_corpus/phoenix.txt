@@ -1,5 +1,6 @@
 lib/mix/phoenix.ex:116  manual_path_basename
 lib/mix/phoenix.ex:191  unsafe_atom_creation
+lib/mix/phoenix/schema.ex:124  redundant_computation
 lib/mix/phoenix/schema.ex:178  unsafe_atom_creation
 lib/mix/phoenix/schema.ex:293  unsafe_atom_creation
 lib/mix/phoenix/schema.ex:294  unsafe_atom_creation

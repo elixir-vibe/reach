@@ -577,6 +577,25 @@ defmodule Reach.Frontend.ElixirTest do
                node
     end
 
+    test "local function references retain their owning module" do
+      [module] =
+        IR.from_string!("""
+        defmodule LocalFunctionReferenceOwner do
+          def run(values), do: Enum.map(values, &normalize/1)
+          defp normalize(value), do: value
+        end
+        """)
+
+      reference =
+        module
+        |> IR.all_nodes()
+        |> Enum.find(&(&1.type == :call and &1.meta[:kind] == :fun_ref))
+
+      assert reference.meta.module == LocalFunctionReferenceOwner
+      assert reference.meta.owner_module == LocalFunctionReferenceOwner
+      assert reference.meta.function == :normalize
+    end
+
     test "&(&1 + 1) produces fn node" do
       [node] = IR.from_string!("&(&1 + 1)")
       assert %Node{type: :fn, meta: %{kind: :capture}} = node

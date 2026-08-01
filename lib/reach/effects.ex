@@ -7,7 +7,7 @@ defmodule Reach.Effects do
   queries to determine whether reordering is safe.
   """
 
-  alias Reach.Effects.Classification
+  alias Reach.Effects.{Classification, Dependency}
   alias Reach.IR.Node
 
   @type effect ::
@@ -140,9 +140,10 @@ defmodule Reach.Effects do
     do: classification(:receive, :intrinsic, :high)
 
   def classify_with_provenance(
-        %Node{type: :call, meta: %{kind: :field_access}},
+        %Node{type: :call, meta: %{kind: kind}},
         _plugins
-      ),
+      )
+      when kind in [:field_access, :fun_ref],
       do: classification(:pure, :intrinsic, :high)
 
   def classify_with_provenance(
@@ -155,22 +156,25 @@ defmodule Reach.Effects do
   def classify_with_provenance(%Node{type: :call} = node, plugins) do
     plugins = resolve_plugins(plugins)
 
-    case Reach.Plugin.classify_effect_with_plugin(plugins, node) do
-      {effect, plugin} ->
-        classification(effect, :plugin, :high, classifier: plugin)
+    result =
+      case Reach.Plugin.classify_effect_with_plugin(plugins, node) do
+        {effect, plugin} ->
+          classification(effect, :plugin, :high, classifier: plugin)
 
-      nil ->
-        classify_call(
-          effect_call_module(node),
-          node.meta[:function],
-          node.meta[:arity],
-          plugins
-        )
-    end
+        nil ->
+          classify_call(
+            effect_call_module(node),
+            node.meta[:function],
+            node.meta[:arity],
+            plugins
+          )
+      end
+
+    put_unknown_reason(result, node)
   end
 
   def classify_with_provenance(_node, _plugins),
-    do: classification(:unknown, :unknown, :low)
+    do: classification(:unknown, :unknown, :low, reason: :unsupported_node)
 
   @doc """
   Returns true if the node is pure (no side effects).
@@ -216,77 +220,133 @@ defmodule Reach.Effects do
 
     all_nodes = Map.values(node_map)
 
-    module_map = build_module_func_map(all_nodes)
+    module_aliases = inferred_module_aliases(all_nodes)
 
     func_calls =
       all_nodes
       |> Enum.filter(&(&1.type == :function_def))
-      |> Map.new(fn f ->
+      |> Map.new(fn function_def ->
         calls =
-          f.children
+          function_def.children
           |> collect_calls()
-          |> Enum.reject(fn c ->
-            c.meta[:kind] in [:field_access] or c.meta[:function] in @compile_time_ops
+          |> Enum.reject(fn call ->
+            call.meta[:kind] in [:field_access] or call.meta[:function] in @compile_time_ops
           end)
 
-        {{f.meta[:module], f.meta[:name], f.meta[:arity]}, calls}
+        key = function_key(function_def)
+
+        aliases =
+          default_arity_keys(function_def) ++ module_alias_keys(function_def, module_aliases)
+
+        {key, {calls, aliases}}
       end)
 
-    do_infer(func_calls, module_map, plugins)
+    do_infer(func_calls, plugins)
   end
 
-  defp build_module_func_map(all_nodes) do
-    all_nodes
-    |> Enum.filter(&(&1.type == :module_def))
-    |> Enum.reduce(%{}, &add_module_functions/2)
+  defp function_key(function_def) do
+    {function_def.meta[:module], function_def.meta[:name], function_def.meta[:arity]}
   end
 
-  defp add_module_functions(mod_def, acc) do
-    mod_name = mod_def.meta[:name]
-
-    mod_def.children
-    |> Enum.flat_map(&extract_func_defs/1)
-    |> Enum.reduce(acc, fn func, inner ->
-      key = {nil, func.meta[:name], func.meta[:arity]}
-
-      Map.update(inner, key, [mod_name], fn mods ->
-        # credo:disable-for-next-line Credo.Check.Refactor.Nesting
-        if mod_name in mods, do: mods, else: [mod_name | mods]
-      end)
+  defp default_arity_keys(function_def) do
+    Enum.map(function_def.meta[:default_arities] || [], fn arity ->
+      {function_def.meta[:module], function_def.meta[:name], arity}
     end)
   end
 
-  defp extract_func_defs(%{type: :function_def} = node), do: [node]
+  defp inferred_module_aliases(all_nodes) do
+    all_nodes
+    |> Enum.filter(&(&1.type == :function_def and is_atom(&1.meta[:module])))
+    |> Enum.map(& &1.meta[:module])
+    |> Enum.uniq()
+    |> Enum.group_by(&short_module_alias/1)
+    |> Map.new(fn
+      {short, [module]} -> {module, short}
+      {_ambiguous_short, _modules} -> {nil, nil}
+    end)
+    |> Map.delete(nil)
+  end
 
-  defp extract_func_defs(%{type: :block, children: children}),
-    do: Enum.filter(children, &(&1.type == :function_def))
+  defp short_module_alias(module) do
+    module
+    |> Module.split()
+    |> List.last()
+    |> then(&Module.concat([&1]))
+  end
 
-  defp extract_func_defs(_), do: []
+  defp module_alias_keys(function_def, module_aliases) do
+    case Map.get(module_aliases, function_def.meta[:module]) do
+      nil ->
+        []
+
+      short ->
+        if short == function_def.meta[:module] or Code.ensure_loaded?(short) do
+          []
+        else
+          arities = [function_def.meta[:arity] | function_def.meta[:default_arities] || []]
+          Enum.map(arities, &{short, function_def.meta[:name], &1})
+        end
+    end
+  end
 
   defp collect_calls(nodes) when is_list(nodes), do: Enum.flat_map(nodes, &collect_calls/1)
 
-  defp collect_calls(%Reach.IR.Node{type: :call} = node) do
-    [node | Enum.flat_map(node.children, &collect_calls/1)]
+  defp collect_calls(%Node{type: :fn}), do: []
+  defp collect_calls(%Node{type: :call, meta: %{kind: :fun_ref}}), do: []
+
+  defp collect_calls(%Node{type: :call} = node) do
+    nested_calls = Enum.flat_map(node.children, &collect_calls/1)
+    [node | nested_calls ++ executed_callback_calls(node)]
   end
 
-  defp collect_calls(%Reach.IR.Node{children: children}) do
+  defp collect_calls(%Node{children: children}) do
     Enum.flat_map(children, &collect_calls/1)
   end
 
   defp collect_calls(_), do: []
 
-  defp do_infer(func_calls, module_map, plugins) do
-    newly_classified =
-      Enum.count(func_calls, &try_infer_function(&1, module_map, plugins))
+  defp executed_callback_calls(node) do
+    if eager_callback_call?(node) do
+      Enum.flat_map(node.children, fn
+        %Node{type: :fn, children: children} -> Enum.flat_map(children, &collect_calls/1)
+        %Node{type: :call, meta: %{kind: :fun_ref}} = ref -> [executed_fun_ref(ref)]
+        _other -> []
+      end)
+    else
+      []
+    end
+  end
+
+  defp executed_fun_ref(ref) do
+    kind = if is_atom(ref.meta[:module]), do: :remote, else: :local
+    %{ref | meta: Map.put(ref.meta, :kind, kind)}
+  end
+
+  defp eager_callback_call?(%Node{meta: %{module: module}})
+       when module in [Enum, :lists],
+       do: true
+
+  defp eager_callback_call?(%Node{meta: %{module: module, function: function}})
+       when module in [nil, Kernel] and function in [:then, :tap],
+       do: true
+
+  defp eager_callback_call?(%Node{meta: %{module: module, function: :get_and_update}})
+       when module in [Map, Access],
+       do: true
+
+  defp eager_callback_call?(_node), do: false
+
+  defp do_infer(func_calls, plugins) do
+    newly_classified = Enum.count(func_calls, &try_infer_function(&1, plugins))
 
     if newly_classified > 0 do
-      do_infer(func_calls, module_map, plugins)
+      do_infer(func_calls, plugins)
     else
       :ok
     end
   end
 
-  defp try_infer_function({key, calls}, module_map, plugins) do
+  defp try_infer_function({key, {calls, aliases}}, plugins) do
     if lookup_local_cache(key, plugins) != :miss do
       false
     else
@@ -296,38 +356,26 @@ defmodule Reach.Effects do
         |> Enum.uniq()
         |> Enum.reject(&(&1 == :pure))
 
-      infer_from_effects(key, effects, module_map, plugins)
+      infer_from_effects(key, aliases, effects, plugins)
     end
   end
 
-  defp infer_from_effects(key, [], module_map, plugins) do
-    cache_with_modules(key, :pure, module_map, plugins)
+  defp infer_from_effects(key, aliases, [], plugins) do
+    cache_function_effect(key, aliases, :pure, plugins)
     true
   end
 
-  defp infer_from_effects(key, effects, module_map, plugins) do
+  defp infer_from_effects(key, aliases, effects, plugins) do
     if :unknown in effects do
       false
     else
-      cache_with_modules(key, merge_effects(effects), module_map, plugins)
+      cache_function_effect(key, aliases, merge_effects(effects), plugins)
       true
     end
   end
 
-  defp cache_with_modules({nil, name, arity} = key, effect, module_map, plugins) do
-    put_local_cache(key, effect, plugins)
-
-    case Map.get(module_map, key) do
-      nil ->
-        :ok
-
-      modules ->
-        Enum.each(modules, fn mod -> put_local_cache({mod, name, arity}, effect, plugins) end)
-    end
-  end
-
-  defp cache_with_modules(key, effect, _module_map, plugins) do
-    put_local_cache(key, effect, plugins)
+  defp cache_function_effect(key, aliases, effect, plugins) do
+    Enum.each([key | aliases], &put_local_cache(&1, effect, plugins))
   end
 
   defp merge_effects(effects) do
@@ -408,6 +456,11 @@ defmodule Reach.Effects do
     :in,
     :..,
     :<>,
+    :++,
+    :--,
+    :&&,
+    :||,
+    :=~,
     :abs,
     :ceil,
     :floor,
@@ -448,7 +501,9 @@ defmodule Reach.Effects do
     :is_struct,
     :to_string,
     :to_charlist,
-    :inspect
+    :inspect,
+    :then,
+    :tap
   ]
 
   @pure_erlang_functions [
@@ -554,16 +609,38 @@ defmodule Reach.Effects do
     key = {:builtin, module, function, arity}
 
     case lookup_cache(key) do
+      {:ok, %Classification{effect: :unknown} = result} ->
+        classify_dependency_call(module, function, arity) || result
+
       {:ok, result} ->
         normalize_classification(result, :builtin)
 
       :miss ->
         ensure_cache()
         result = do_classify_call(module, function, arity)
+        result = classify_unknown_dependency(result, module, function, arity)
         put_cache(key, result)
         result
     end
   end
+
+  defp put_unknown_reason(%Classification{effect: effect} = result, _node)
+       when effect != :unknown,
+       do: result
+
+  defp put_unknown_reason(%Classification{} = result, node) do
+    %{result | reason: unknown_reason(node)}
+  end
+
+  defp unknown_reason(%Node{meta: %{kind: :dynamic}}), do: :dynamic_dispatch
+  defp unknown_reason(%Node{meta: %{kind: :local}}), do: :unresolved_local
+
+  defp unknown_reason(%Node{meta: %{kind: :remote, module: module}}) when is_atom(module) do
+    if Code.ensure_loaded?(module), do: :insufficient_semantics, else: :unresolved_module
+  end
+
+  defp unknown_reason(%Node{meta: %{kind: :remote}}), do: :unresolved_module
+  defp unknown_reason(_node), do: :unsupported_call
 
   defp resolve_plugins(nil) do
     case :persistent_term.get(:reach_effect_plugins, nil) do
@@ -621,6 +698,24 @@ defmodule Reach.Effects do
     :ets.insert(@classify_cache, {key, result})
   rescue
     ArgumentError -> :ok
+  end
+
+  defp classify_unknown_dependency(
+         %Classification{effect: :unknown} = result,
+         module,
+         function,
+         arity
+       ) do
+    classify_dependency_call(module, function, arity) || result
+  end
+
+  defp classify_unknown_dependency(result, _module, _function, _arity), do: result
+
+  defp classify_dependency_call(module, function, arity) do
+    case Dependency.classify(module, function, arity) do
+      nil -> nil
+      effect -> classification(effect, :dependency_inference, :medium)
+    end
   end
 
   defp do_classify_call(module, function, arity) do
@@ -877,8 +972,22 @@ defmodule Reach.Effects do
             ],
        do: :read
 
-  defp classify_config(Mix, :env), do: :read
-  defp classify_config(Mix, :target), do: :read
+  defp classify_config(Mix, function) when function in [:env, :target, :shell], do: :read
+
+  defp classify_config(Code, function)
+       when function in [:ensure_loaded, :ensure_loaded?, :ensure_compiled, :ensure_compiled?],
+       do: :read
+
+  defp classify_config(Code, function)
+       when function in [
+              :string_to_quoted,
+              :string_to_quoted!,
+              :quoted_to_algebra,
+              :format_string!
+            ],
+       do: :pure
+
+  defp classify_config(Module, function) when function in [:concat, :split], do: :pure
 
   defp classify_config(Supervisor, :child_spec), do: :pure
 
@@ -997,6 +1106,7 @@ defmodule Reach.Effects do
 
   defp io_function?(IO, _), do: true
   defp io_function?(Logger, _), do: true
+  defp io_function?(System, function) when function in [:cmd, :shell], do: true
   defp io_function?(:io, _), do: true
   defp io_function?(_, _), do: false
 
@@ -1083,6 +1193,7 @@ defmodule Reach.Effects do
   defp persistent_term_read?(_, _), do: false
 
   defp exception_function?(Kernel, f) when f in [:raise, :throw, :exit], do: true
+  defp exception_function?(Mix, :raise), do: true
   defp exception_function?(:erlang, f) when f in [:error, :throw, :exit], do: true
   defp exception_function?(_, _), do: false
 end

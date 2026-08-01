@@ -183,7 +183,8 @@ defmodule Reach.Frontend.Elixir do
         arity: arity,
         kind: def_kind,
         has_body: false,
-        module: Process.get(:reach_current_module)
+        module: Process.get(:reach_current_module),
+        default_arities: default_arities(head)
       },
       children: [],
       source_span: span_from_meta(meta, file)
@@ -595,10 +596,19 @@ defmodule Reach.Frontend.Elixir do
   # Capture operator: &fun/arity
   defp translate({:&, meta, [{:/, _, [{name, _, ctx}, arity]}]}, counter, file)
        when is_atom(name) and is_atom(ctx) and is_integer(arity) do
+    owner_module = Process.get(:reach_current_module)
+    {imported_module, _kind} = resolve_import(name, arity)
+
     %Node{
       id: Counter.next(counter),
       type: :call,
-      meta: %{function: name, arity: arity, kind: :fun_ref},
+      meta: %{
+        module: imported_module || owner_module,
+        owner_module: owner_module,
+        function: name,
+        arity: arity,
+        kind: :fun_ref
+      },
       source_span: span_from_meta(meta, file)
     }
   end
@@ -611,7 +621,13 @@ defmodule Reach.Frontend.Elixir do
     %Node{
       id: Counter.next(counter),
       type: :call,
-      meta: %{module: resolved, function: fun, arity: arity, kind: :fun_ref},
+      meta: %{
+        module: resolved,
+        owner_module: Process.get(:reach_current_module),
+        function: fun,
+        arity: arity,
+        kind: :fun_ref
+      },
       source_span: span_from_meta(meta, file)
     }
   end
@@ -976,7 +992,8 @@ defmodule Reach.Frontend.Elixir do
         name: name,
         arity: arity,
         kind: def_kind,
-        module: Process.get(:reach_current_module)
+        module: Process.get(:reach_current_module),
+        default_arities: default_arities(head)
       },
       children: [clause],
       source_span: span_from_meta(meta, file)
@@ -1104,6 +1121,18 @@ defmodule Reach.Frontend.Elixir do
   defp fun_params({:when, _, [{_, _, args} | _]}) when is_list(args), do: args
   defp fun_params({_, _, args}) when is_list(args), do: args
   defp fun_params(_), do: []
+
+  defp default_arities(head) do
+    params = fun_params(head)
+    max_arity = length(params)
+    default_count = Enum.count(params, &match?({:\\, _, _}, &1))
+
+    if default_count > 0 do
+      Enum.to_list((max_arity - default_count)..(max_arity - 1))
+    else
+      []
+    end
+  end
 
   defp receiver_var_name({name, _meta, context}) when is_atom(name) and is_atom(context), do: name
   defp receiver_var_name({{:., _, _}, _, _}), do: nil

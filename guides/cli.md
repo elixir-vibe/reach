@@ -17,7 +17,7 @@ mix reach.map --depth --top 20
 mix reach.map --data
 ```
 
-The project summary includes source-suppression totals and the number lacking justification reasons, making suppression growth visible even outside changed-code checks. The `--effects` view includes classification-source totals and labels unresolved calls as local, remote, dynamic, or unknown instead of presenting local calls as Kernel calls.
+The project summary includes source-suppression totals and the number lacking justification reasons, making suppression growth visible even outside changed-code checks. The `--effects` view includes classification-source totals and reports every unresolved call's module, function/arity, call kind, and unknown reason. Sources distinguish project-local inference from dependency BEAM inference.
 
 ## `mix reach.inspect TARGET`
 

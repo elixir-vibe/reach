@@ -203,9 +203,7 @@ defmodule Reach.CLI.Render.Map do
     if unknown_calls != [] do
       IO.puts("  unknown calls:")
 
-      Enum.each(unknown_calls, fn call ->
-        IO.puts("    #{call.module}.#{call.function} [#{call.kind}]: #{call.count}")
-      end)
+      Enum.each(unknown_calls, &render_unknown_call/1)
     end
   end
 
@@ -249,6 +247,14 @@ defmodule Reach.CLI.Render.Map do
 
     render_cross_function_flows(Map.get(data, :cross_function_edges, []))
     render_top_data_functions(data.top_functions)
+  end
+
+  defp render_unknown_call(call) do
+    arity = if is_integer(call.arity), do: "/#{call.arity}", else: ""
+
+    IO.puts(
+      "    #{call.module}.#{call.function}#{arity} [#{call.kind}; #{call.reason}]: #{call.count}"
+    )
   end
 
   defp effect_source_label(%{

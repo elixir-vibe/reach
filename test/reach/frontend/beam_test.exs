@@ -1,6 +1,8 @@
 defmodule Reach.Frontend.BEAMTest do
   use ExUnit.Case, async: false
 
+  alias Reach.Frontend.BEAM
+
   describe "compiled_to_graph/2" do
     test "captures macro-injected callbacks from use GenServer" do
       mod = :"ReachTestGS#{System.unique_integer([:positive])}"
@@ -70,6 +72,22 @@ end"
 
       assert :fetch in func_names
       assert :get in func_names
+    end
+
+    test "selects a target function and its local dependencies" do
+      assert {:ok, nodes} =
+               BEAM.from_module(Graph,
+                 functions: [new: 0],
+                 max_functions: 10
+               )
+
+      functions = Enum.filter(nodes, &(&1.type == :function_def))
+      function_ids = MapSet.new(functions, &{&1.meta[:name], &1.meta[:arity]})
+
+      assert MapSet.member?(function_ids, {:new, 0})
+      assert MapSet.member?(function_ids, {:new, 1})
+      refute Enum.any?(functions, &(&1.meta[:name] == :add_vertex))
+      assert Enum.all?(functions, &(&1.meta[:module] == Graph))
     end
 
     test "returns error for non-existing module" do

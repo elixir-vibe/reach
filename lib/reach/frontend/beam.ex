@@ -18,7 +18,7 @@ defmodule Reach.Frontend.BEAM do
       :non_existing ->
         {:error, :module_not_found}
 
-      path ->
+      path when is_list(path) or is_binary(path) ->
         case File.read(path) do
           {:ok, bytecode} ->
             from_bytecode(bytecode, Keyword.put_new(opts, :file, to_string(path)))
@@ -26,6 +26,9 @@ defmodule Reach.Frontend.BEAM do
           {:error, reason} ->
             {:error, reason}
         end
+
+      _preloaded_or_cover_compiled ->
+        {:error, :bytecode_unavailable}
     end
   end
 
@@ -96,7 +99,8 @@ defmodule Reach.Frontend.BEAM do
   defp from_abstract_code(bytecode, opts) do
     case :beam_lib.chunks(bytecode, [:abstract_code]) do
       {:ok, {module, [{:abstract_code, {:raw_abstract_v1, forms}}]}} ->
-        translate_forms(forms, Keyword.put_new(opts, :file, to_string(module)))
+        opts = opts |> Keyword.put_new(:file, to_string(module)) |> Keyword.put(:module, module)
+        translate_forms(forms, opts)
 
       _ ->
         {:error, :no_abstract_code}
@@ -108,7 +112,10 @@ defmodule Reach.Frontend.BEAM do
       {:ok, {module, [{:debug_info, {:debug_info_v1, backend, data}}]}} ->
         case backend.debug_info(:erlang_v1, module, data, []) do
           {:ok, forms} ->
-            translate_forms(forms, Keyword.put_new(opts, :file, to_string(module)))
+            opts =
+              opts |> Keyword.put_new(:file, to_string(module)) |> Keyword.put(:module, module)
+
+            translate_forms(forms, opts)
 
           _ ->
             {:error, :debug_info_decode_failed}
@@ -121,10 +128,12 @@ defmodule Reach.Frontend.BEAM do
 
   defp translate_forms(forms, opts) do
     file = Keyword.get(opts, :file, "nofile")
+    module = Keyword.get(opts, :module)
     counter = Counter.new()
 
     nodes =
       forms
+      |> select_function_forms(opts)
       |> Enum.reject(fn
         {:eof, _} -> true
         {:attribute, _, :file, _} -> true
@@ -133,7 +142,93 @@ defmodule Reach.Frontend.BEAM do
         _ -> false
       end)
       |> Enum.map(&Erlang.translate_form(&1, counter, file))
+      |> Enum.map(&put_owner_module(&1, module))
 
     {:ok, nodes}
+  end
+
+  defp select_function_forms(forms, opts) do
+    case Keyword.get(opts, :functions) do
+      nil -> forms
+      targets when is_list(targets) -> reachable_function_forms(forms, targets, opts)
+    end
+  end
+
+  defp reachable_function_forms(forms, targets, opts) do
+    function_forms =
+      Map.new(forms, fn
+        {:function, _line, name, arity, _clauses} = form -> {{name, arity}, form}
+        other -> {{:non_function, :erlang.phash2(other)}, other}
+      end)
+
+    max_functions = Keyword.get(opts, :max_functions, map_size(function_forms))
+
+    targets
+    |> collect_reachable_forms(function_forms, MapSet.new(), max_functions)
+    |> Enum.map(&Map.fetch!(function_forms, &1))
+  end
+
+  defp collect_reachable_forms([], _forms, seen, _remaining), do: MapSet.to_list(seen)
+  defp collect_reachable_forms(_pending, _forms, seen, 0), do: MapSet.to_list(seen)
+
+  defp collect_reachable_forms([key | pending], forms, seen, remaining) do
+    cond do
+      MapSet.member?(seen, key) ->
+        collect_reachable_forms(pending, forms, seen, remaining)
+
+      not Map.has_key?(forms, key) ->
+        collect_reachable_forms(pending, forms, seen, remaining)
+
+      true ->
+        form = Map.fetch!(forms, key)
+        callees = local_function_calls(form)
+
+        collect_reachable_forms(
+          pending ++ callees,
+          forms,
+          MapSet.put(seen, key),
+          remaining - 1
+        )
+    end
+  end
+
+  defp local_function_calls(form) do
+    form
+    |> collect_local_function_calls(MapSet.new())
+    |> MapSet.to_list()
+  end
+
+  defp collect_local_function_calls({:call, _line, {:atom, _, name}, args}, calls)
+       when is_list(args) do
+    Enum.reduce(args, MapSet.put(calls, {name, length(args)}), &collect_local_function_calls/2)
+  end
+
+  defp collect_local_function_calls(tuple, calls) when is_tuple(tuple) do
+    tuple
+    |> Tuple.to_list()
+    |> Enum.reduce(calls, &collect_local_function_calls/2)
+  end
+
+  defp collect_local_function_calls(list, calls) when is_list(list),
+    do: Enum.reduce(list, calls, &collect_local_function_calls/2)
+
+  defp collect_local_function_calls(_other, calls), do: calls
+
+  defp put_owner_module(%Reach.IR.Node{} = node, module) do
+    meta =
+      case node do
+        %{type: :function_def} ->
+          Map.put(node.meta, :module, module)
+
+        %{type: :call, meta: %{kind: kind}} when kind in [:local, :fun_ref] ->
+          node.meta
+          |> Map.put(:owner_module, module)
+          |> Map.put_new(:module, module)
+
+        _other ->
+          node.meta
+      end
+
+    %{node | meta: meta, children: Enum.map(node.children, &put_owner_module(&1, module))}
   end
 end

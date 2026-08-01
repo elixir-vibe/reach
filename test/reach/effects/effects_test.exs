@@ -71,6 +71,20 @@ defmodule Reach.EffectsTest do
     test "raise is :exception" do
       node = node_for("raise \"boom\"")
       assert Effects.classify(node) == :exception
+      assert Effects.classify(node_for("Mix.raise(\"boom\")")) == :exception
+    end
+
+    test "precise platform operations use built-in semantics" do
+      assert Effects.classify(node_for("Code.ensure_loaded?(Example)")) == :read
+      assert Effects.classify(node_for("Mix.shell()")) == :read
+      assert Effects.classify(node_for("System.cmd(\"echo\", [])")) == :io
+      assert Effects.classify(node_for("Module.concat([Example, Nested])")) == :pure
+      assert Effects.classify(node_for("Module.split(Example.Nested)")) == :pure
+    end
+
+    test "taking a function reference is intrinsically pure" do
+      assert %{effect: :pure, source: :intrinsic, confidence: :high} =
+               Effects.classify_with_provenance(node_for("&File.write!/2"))
     end
 
     test "unknown calls default to :unknown" do
@@ -91,8 +105,15 @@ defmodule Reach.EffectsTest do
       assert %{effect: :pure, source: :typespec, confidence: :medium} =
                Effects.classify_with_provenance(node_for(":crypto.hash(:sha256, <<>>)"))
 
-      assert %{effect: :unknown, source: :unknown, confidence: :low} =
-               Effects.classify_with_provenance(node_for("UnknownEffects.run()"), [])
+      assert %{
+               effect: :unknown,
+               source: :unknown,
+               confidence: :low,
+               reason: :unresolved_module
+             } = Effects.classify_with_provenance(node_for("UnknownEffects.run()"), [])
+
+      assert %{effect: :unknown, reason: :dynamic_dispatch} =
+               Effects.classify_with_provenance(node_for("handler.(value)"), [])
     end
   end
 

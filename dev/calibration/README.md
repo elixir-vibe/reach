@@ -22,3 +22,5 @@ Use repeated `--paths` options to override candidate-scoped hydration. Without e
 ```bash
 mix ci
 ```
+
+The calibration suite also dogfoods `reach.map --effects` against Reach's own runtime source. Its named precision budget requires unknown classifications to remain at or below 10% of runtime calls.
