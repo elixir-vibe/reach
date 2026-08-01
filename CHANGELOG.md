@@ -12,6 +12,7 @@
 - Dependency functions can now derive medium-confidence effects from BEAM code when plugins, built-ins, and typespecs provide no result.
 - Function captures are treated as pure values until an eager higher-order operation executes them, preventing stored or lazy callbacks from inheriting effects prematurely.
 - `mix reach.map --effects` now summarizes runtime function bodies instead of counting compile-time types and module DSL declarations as application calls.
+- Unquoted expressions and pure HEEx event attributes now flow into their generated output, preventing dead-code false positives without treating synthetic event calls as effectful.
 
 ## 2.8.2 - 2026-07-26
 

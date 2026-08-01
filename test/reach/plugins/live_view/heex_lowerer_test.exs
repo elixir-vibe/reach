@@ -1,8 +1,10 @@
 defmodule Reach.Plugins.LiveView.HEExLowererTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Reach.Frontend.Elixir, as: ElixirFrontend
+  alias Reach.IR
   alias Reach.IR.Counter
+  alias Reach.Plugins.LiveView
   alias Reach.Plugins.LiveView.HEEx.Lowerer
   alias Reach.Plugins.LiveView.HEEx.Node
   alias Reach.Source.Span
@@ -83,6 +85,73 @@ defmodule Reach.Plugins.LiveView.HEExLowererTest do
     nodes = ElixirFrontend.translate_ast(ast, Counter.new(), "demo.heex") |> flatten()
 
     assert Enum.any?(nodes, &(&1.type == :call and &1.meta[:function] == :__live_event__))
+  end
+
+  test "pure event attributes flow into template output" do
+    span = %Span{file: "demo.heex", start_line: 1, start_col: 1}
+
+    tree = %Node.Template{
+      children: [
+        %Node.Tag{
+          type: :tag,
+          name: "button",
+          open_span: span,
+          span: span,
+          attrs: [%Node.Attr{name: "phx-click", value: {:string, "save"}, span: span}],
+          special: [],
+          children: [%Node.Text{text: "Save", span: span}]
+        },
+        %Node.Tag{
+          type: :tag,
+          name: "span",
+          open_span: span,
+          span: span,
+          attrs: [],
+          special: [],
+          children: [%Node.Text{text: "Ready", span: span}]
+        }
+      ],
+      span: span
+    }
+
+    template_ast = Lowerer.to_ast(tree)
+
+    wrapper =
+      quote do
+        defmodule EventComponent do
+          def render(assigns), do: unquote(template_ast)
+        end
+      end
+
+    plugins = [LiveView]
+    nodes = ElixirFrontend.translate_ast(wrapper, Counter.new(), "demo.heex", plugins: plugins)
+    graph = Reach.SystemDependence.build(nodes, plugins: plugins)
+
+    event =
+      nodes
+      |> IR.all_nodes()
+      |> Enum.find(&(&1.type == :call and &1.meta[:function] == :__live_event__))
+
+    assert Reach.Effects.classify(event, plugins) == :pure
+
+    output_edge =
+      Enum.find(Reach.edges(graph), fn edge ->
+        edge.v1 == event.id and match?({:heex_output, _kind}, edge.label)
+      end)
+
+    assert output_edge
+    assert event.id in Reach.backward_slice(graph, output_edge.v2)
+
+    old_plugins = :persistent_term.get(:reach_effect_plugins, nil)
+    :persistent_term.put(:reach_effect_plugins, plugins)
+
+    try do
+      refute event in Reach.dead_code(graph)
+    after
+      if old_plugins,
+        do: :persistent_term.put(:reach_effect_plugins, old_plugins),
+        else: :persistent_term.erase(:reach_effect_plugins)
+    end
   end
 
   test "lowers atom-named component attributes from Phoenix metadata" do

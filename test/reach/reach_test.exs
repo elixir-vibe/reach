@@ -499,6 +499,20 @@ defmodule ReachTest do
       assert dead == []
     end
 
+    test "unquoted expressions flow into a returned quote" do
+      graph =
+        Reach.string_to_graph!("""
+        def quoted(value) do
+          quote do
+            unquote(String.upcase(value))
+          end
+        end
+        """)
+
+      dead = Reach.dead_code(graph)
+      refute Enum.any?(dead, &(&1.meta[:function] == :upcase))
+    end
+
     test "side-effecting call is never dead" do
       graph =
         Reach.string_to_graph!("""
