@@ -10,6 +10,7 @@
 
 - Effect inference now resolves unqualified project calls against their owning module and runs to a complete fixed point, preventing unrelated same-named functions from sharing classifications and reducing unknown effects.
 - `mix reach.map --effects` now summarizes runtime function bodies instead of counting compile-time types and module DSL declarations as application calls.
+- Unquoted expressions and pure HEEx event attributes now flow into their generated output, preventing dead-code false positives without treating synthetic event calls as effectful.
 
 ## 2.8.2 - 2026-07-26
 

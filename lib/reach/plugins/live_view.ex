@@ -17,6 +17,7 @@ defmodule Reach.Plugins.LiveView do
     :live_render,
     :live_component,
     :on_mount,
+    :__live_event__,
     :sigil_H,
     :sigil_p
   ]
@@ -40,7 +41,8 @@ defmodule Reach.Plugins.LiveView do
   def analyze(all_nodes, _opts) do
     function_defs = Enum.filter(all_nodes, &(&1.type == :function_def))
 
-    live_event_edges(function_defs) ++
+    heex_output_edges(all_nodes) ++
+      live_event_edges(function_defs) ++
       live_assign_edges(function_defs) ++
       live_component_attr_edges(function_defs) ++
       live_stream_edges(function_defs)
@@ -99,6 +101,38 @@ defmodule Reach.Plugins.LiveView do
       do: true
 
   def ignore_call_edge?(_edge), do: false
+
+  defp heex_output_edges(all_nodes) do
+    Enum.flat_map(all_nodes, fn
+      %Node{type: :block, meta: %{origin: %{language: :heex}}} = block ->
+        connect_heex_parts(block)
+
+      _other ->
+        []
+    end)
+  end
+
+  defp connect_heex_parts(%Node{children: []}), do: []
+
+  defp connect_heex_parts(%Node{children: children, meta: %{origin: origin}}) do
+    output = children |> List.last() |> heex_output_node()
+
+    children
+    |> Enum.drop(-1)
+    |> Enum.map(fn child ->
+      {heex_output_node(child).id, output.id, {:heex_output, origin.kind}}
+    end)
+  end
+
+  defp heex_output_node(%Node{
+         type: :block,
+         meta: %{origin: %{language: :heex}},
+         children: [_ | _] = children
+       }) do
+    children |> List.last() |> heex_output_node()
+  end
+
+  defp heex_output_node(node), do: node
 
   defp live_event_edges(function_defs) do
     handlers = event_handlers(function_defs)
