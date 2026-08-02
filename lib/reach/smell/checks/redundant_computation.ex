@@ -110,7 +110,7 @@ defmodule Reach.Smell.Checks.RedundantComputation do
                   @type_check_fns ++
                     @compiler_directives ++
                     @pattern_operators ++
-                    [:__aliases__, :get]
+                    [:__aliases__, :__live_event__, :get]
                 )
 
   @excluded_kinds MapSet.new([:attribute, :field_access, :binary_size])

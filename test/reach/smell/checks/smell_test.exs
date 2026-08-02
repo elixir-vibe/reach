@@ -104,6 +104,20 @@ defmodule Reach.SmellTest do
 
       assert length(field_calls) >= 2
     end
+
+    test "HEEx event registrations are excluded even with same event name" do
+      findings =
+        run_smell_task("""
+        defmodule TagStripProbe do
+          def render(assigns) do
+            __live_event__(\"filter_tag\")
+            __live_event__(\"filter_tag\")
+          end
+        end
+        """)
+
+      refute Enum.any?(findings, &(&1.kind == :redundant_computation))
+    end
   end
 
   describe "false positive prevention" do
