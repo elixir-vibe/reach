@@ -119,9 +119,68 @@ defmodule Reach.Plugins.LiveView do
 
     children
     |> Enum.drop(-1)
-    |> Enum.map(fn child ->
-      {heex_output_node(child).id, output.id, {:heex_output, origin.kind}}
+    |> Enum.flat_map(fn child ->
+      [{heex_output_node(child).id, output.id, {:heex_output, origin.kind}}] ++
+        connect_control_flow(child, output, origin)
     end)
+  end
+
+  # `:if`/`:unless`/`:cond` desugar to `:case` and `:for` to `:comprehension`,
+  # so their branch bodies are not direct block children. Connect those bodies
+  # to the block output as well, otherwise component calls and event nodes
+  # inside conditionals look like dead code.
+  defp connect_control_flow(%Node{type: type} = node, output, origin)
+       when type in [:case, :comprehension] do
+    branch_nodes =
+      case type do
+        :case ->
+          node.children
+          |> Enum.flat_map(fn
+            %Node{type: :clause} = clause -> List.wrap(List.last(clause.children))
+            _ -> []
+          end)
+
+        :comprehension ->
+          List.wrap(List.last(node.children))
+      end
+
+    branch_nodes
+    |> Enum.flat_map(&connect_branch(&1, output, origin))
+  end
+
+  defp connect_control_flow(_node, _output, _origin), do: []
+
+  # A branch body may be a plain block without a HEEx origin (e.g. an EEx
+  # `<%= if %>` expression). Connect every child inside it to the branch
+  # output, not just the final expression, so events/components in the
+  # middle of the branch stay reachable.
+  defp connect_branch(%Node{type: :block, children: [_ | _] = children} = branch, output, origin) do
+    branch_output = heex_output_node(branch)
+
+    inner =
+      children
+      |> Enum.drop(-1)
+      |> Enum.flat_map(&connect_branch_child(&1, branch_output, origin))
+
+    inner ++ [{branch_output.id, output.id, {:heex_output, origin.kind}}]
+  end
+
+  defp connect_branch(branch, output, origin) do
+    [{heex_output_node(branch).id, output.id, {:heex_output, origin.kind}}]
+  end
+
+  defp connect_branch_child(%Node{type: :block} = block, target, origin) do
+    connect_branch(block, target, origin)
+  end
+
+  defp connect_branch_child(%Node{type: type} = node, target, origin)
+       when type in [:case, :comprehension] do
+    connect_control_flow(node, target, origin) ++
+      [{heex_output_node(node).id, target.id, {:heex_output, origin.kind}}]
+  end
+
+  defp connect_branch_child(child, target, origin) do
+    [{heex_output_node(child).id, target.id, {:heex_output, origin.kind}}]
   end
 
   defp heex_output_node(%Node{

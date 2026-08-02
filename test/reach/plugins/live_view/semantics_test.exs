@@ -3,7 +3,11 @@ defmodule Reach.Plugins.LiveView.SemanticsTest do
 
   alias Reach.Frontend.Elixir, as: ElixirFrontend
   alias Reach.IR
+  alias Reach.IR.Counter
   alias Reach.Plugins.LiveView
+  alias Reach.Plugins.LiveView.HEEx.Lowerer
+  alias Reach.Plugins.LiveView.HEEx.Node
+  alias Reach.Source.Span
 
   test "connects template events to handle_event clauses" do
     nodes =
@@ -96,6 +100,82 @@ defmodule Reach.Plugins.LiveView.SemanticsTest do
              LiveView.analyze(IR.all_nodes(nodes), []),
              &match?({_, _, {:live_stream, :posts}}, &1)
            )
+  end
+
+  test "events and components inside :if branches get heex_output edges" do
+    span = %Span{file: "demo.heex", start_line: 1, start_col: 1}
+
+    tree = %Node.Template{
+      children: [
+        %Node.Tag{
+          type: :tag,
+          name: "div",
+          open_span: span,
+          span: span,
+          attrs: [],
+          special: [],
+          children: [
+            %Node.Tag{
+              type: :tag,
+              name: "button",
+              open_span: span,
+              span: span,
+              attrs: [%Node.Attr{name: "phx-click", value: {:string, "toggle"}, span: span}],
+              special: [
+                %Node.SpecialAttr{
+                  name: :if,
+                  code: "@show",
+                  ast: {:@, [line: 1], [{:show, [line: 1], nil}]},
+                  span: span
+                }
+              ],
+              children: [%Node.Text{text: "T", span: span}]
+            },
+            %Node.Tag{
+              type: :local_component,
+              name: "icon",
+              open_span: span,
+              span: span,
+              attrs: [%Node.Attr{name: "name", value: {:string, "hero-check"}, span: span}],
+              special: [
+                %Node.SpecialAttr{
+                  name: :if,
+                  code: "@show",
+                  ast: {:@, [line: 1], [{:show, [line: 1], nil}]},
+                  span: span
+                }
+              ],
+              children: []
+            }
+          ]
+        }
+      ],
+      span: span
+    }
+
+    template_ast = Lowerer.to_ast(tree)
+
+    wrapper =
+      quote do
+        defmodule EventComponent do
+          def render(assigns), do: unquote(template_ast)
+        end
+      end
+
+    plugins = [LiveView]
+    nodes = ElixirFrontend.translate_ast(wrapper, Counter.new(), "demo.heex", plugins: plugins)
+    graph = Reach.SystemDependence.build(nodes, plugins: plugins)
+    all = IR.all_nodes(nodes)
+
+    event = Enum.find(all, &(&1.type == :call and &1.meta[:function] == :__live_event__))
+    icon = Enum.find(all, &(&1.type == :call and &1.meta[:function] == :icon))
+    event_id = event.id
+
+    event_edges = Enum.filter(Reach.edges(graph), &(&1.v1 == event_id))
+
+    assert Enum.any?(event_edges, &match?({:heex_output, _}, &1.label))
+    refute event in Reach.dead_code(graph)
+    refute icon in Reach.dead_code(graph)
   end
 
   defp parse!(source) do
