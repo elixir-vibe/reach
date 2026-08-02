@@ -46,6 +46,24 @@ defmodule Reach.EffectsTest do
       assert Effects.classify(node_for("File.write(path, data)")) == :write
     end
 
+    test "result-wrapper return types are not pure" do
+      # {:ok, _} | {:error, _} signatures come from side-effecting operations
+      refute Effects.classify(node_for("File.read(path)")) == :pure
+      refute Effects.classify(node_for("GenServer.call(pid, msg)")) == :pure
+      refute Effects.classify(node_for(":ets.lookup(tab, key)")) == :pure
+    end
+
+    test "inferred {:ok, _} tuple returns are not pure" do
+      Code.compile_string("""
+      defmodule Reach.EffectsTest.SideEffectProbe do
+        @spec run() :: {:ok, integer()} | {:error, atom()}
+        def run, do: {:ok, 1}
+      end
+      """)
+
+      assert Effects.classify(node_for("Reach.EffectsTest.SideEffectProbe.run()")) != :pure
+    end
+
     test "send calls are :send" do
       assert Effects.classify(node_for("GenServer.call(pid, msg)")) == :send
       assert Effects.classify(node_for("GenServer.cast(pid, msg)")) == :send

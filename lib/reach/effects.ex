@@ -837,7 +837,27 @@ defmodule Reach.Effects do
 
     defp returns_ok_atom?(%{dynamic: inner}), do: returns_ok_atom?(inner)
     defp returns_ok_atom?(%{atom: {:union, %{ok: []}}}), do: true
+
+    # Result-wrapped unions (`{:ok, _} | {:error, _}`) come from side-effecting
+    # operations (Repo, GenServer, HTTP) — treat them as non-pure too.
+    defp returns_ok_atom?(%{union: subtypes}) when is_map(subtypes),
+      do: Map.has_key?(subtypes, :ok) or Map.has_key?(subtypes, :error)
+
+    # Same for `{:ok, _}` / `{:error, _}` tuples, which the ExCk inferred sig
+    # represents as a tuple whose leading element is an :ok/:error atom union.
+    defp returns_ok_atom?(%{tuple: {_id, _tag, [leading | _]}}),
+      do: ok_error_leading?(leading)
+
     defp returns_ok_atom?(_), do: false
+
+    defp ok_error_leading?(%{dynamic: inner}), do: ok_error_leading?(inner)
+    defp ok_error_leading?(%{atom: {:union, %{ok: []}}}), do: true
+    defp ok_error_leading?(%{atom: {:union, %{error: []}}}), do: true
+
+    defp ok_error_leading?(%{atom: {:union, subtypes}}) when is_map(subtypes),
+      do: Map.has_key?(subtypes, :ok) or Map.has_key?(subtypes, :error)
+
+    defp ok_error_leading?(_), do: false
 
     defp concrete_data_type?(%{dynamic: inner}), do: concrete_data_type?(inner)
     defp concrete_data_type?(%{list: _}), do: true
@@ -884,7 +904,11 @@ defmodule Reach.Effects do
   defp pure_return_type?(nil), do: false
   defp pure_return_type?({:atom, _, :ok}), do: false
 
-  defp pure_return_type?({:type, _, :tuple, [{:atom, _, :ok} | _]}), do: false
+  # `{:ok, _} | {:error, _}` is the signature of side-effecting operations
+  # (Repo, GenServer, HTTP) — a result wrapper, not a pure data return.
+  defp pure_return_type?({:type, _, :tuple, [{:atom, _, tag} | _]})
+       when tag in [:ok, :error],
+       do: false
 
   defp pure_return_type?({:type, _, type, _})
        when type in [
