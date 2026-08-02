@@ -93,6 +93,10 @@ defmodule Reach.Plugins.Phoenix do
 
   @pure_remote_modules [Phoenix.Component, Phoenix.LiveView, Phoenix.Controller, Plug.Conn]
 
+  # Functions that mutate process/conn state despite living in a module that
+  # is otherwise treated as pure (rendering helpers).
+  @impure_remote_functions [{Phoenix.Controller, :delete_csrf_token}]
+
   @impl true
   def refine_macro_fact(%MacroFact{name: :use, target: module} = fact, _context)
       when module in @use_modules do
@@ -251,6 +255,12 @@ defmodule Reach.Plugins.Phoenix do
   def classify_effect(%Node{type: :call, meta: %{kind: :local, function: fun}})
       when fun in @pure_local,
       do: :pure
+
+  # Side-effecting controller/conn functions that must not be treated as pure
+  # even though their module is in @pure_remote_modules.
+  def classify_effect(%Node{type: :call, meta: %{kind: :remote, module: mod, function: fun}})
+      when {mod, fun} in @impure_remote_functions,
+      do: :write
 
   def classify_effect(%Node{type: :call, meta: %{kind: :remote, module: mod}})
       when mod in @pure_remote_modules,
