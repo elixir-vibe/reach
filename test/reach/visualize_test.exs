@@ -53,6 +53,44 @@ defmodule Reach.VisualizeTest do
       assert cg.modules != []
     end
 
+    test "call graph preserves source modules and files across a project" do
+      dir =
+        Path.join(System.tmp_dir!(), "reach-call-graph-#{System.unique_integer([:positive])}")
+
+      alpha_path = Path.join(dir, "alpha.ex")
+      beta_path = Path.join(dir, "beta.ex")
+      File.mkdir_p!(dir)
+
+      File.write!(alpha_path, """
+      defmodule CallGraphAlpha do
+        def run(value) when is_binary(value), do: CallGraphBeta.consume(value)
+      end
+      """)
+
+      File.write!(beta_path, """
+      defmodule CallGraphBeta do
+        def consume(value), do: String.length(value)
+      end
+      """)
+
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      project = Reach.Project.from_sources([alpha_path, beta_path], plugins: [])
+      %{call_graph: call_graph} = Reach.Visualize.to_graph_json(project)
+
+      assert MapSet.new(call_graph.edges, & &1.source) ==
+               MapSet.new(["CallGraphAlpha.run/1", "CallGraphBeta.consume/1"])
+
+      modules = Map.new(call_graph.modules, &{&1.name, &1})
+      assert modules["CallGraphAlpha"].file == alpha_path
+      assert modules["CallGraphBeta"].file == beta_path
+
+      refute Enum.any?(
+               call_graph.modules,
+               &Enum.any?(&1.functions, fn f -> f.name == "is_binary/1" end)
+             )
+    end
+
     test "data flow has functions and edges" do
       graph =
         Reach.string_to_graph!("""

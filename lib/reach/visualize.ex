@@ -31,30 +31,37 @@ defmodule Reach.Visualize do
     all_nodes = Reach.nodes(graph)
     call_graph = extract_call_graph(graph)
     call_graph = add_cross_language_edges(call_graph, graph, all_nodes)
-    module_name = detect_module(all_nodes)
+    fallback_module = detect_single_module(all_nodes)
+    node_map = Map.new(all_nodes, &{&1.id, &1})
+
+    function_nodes = Enum.filter(all_nodes, &(&1.type == :function_def))
+    node_to_func = build_node_to_func_map(function_nodes)
 
     internal_funcs =
-      all_nodes
-      |> Enum.filter(&(&1.type == :function_def))
-      |> Enum.map(fn f ->
-        mod = f.meta[:module] || module_name
-        {mod, f.meta[:name], f.meta[:arity] || 0}
+      function_nodes
+      |> Enum.map(fn function ->
+        {function_module(function) || fallback_module, function.meta[:name],
+         function.meta[:arity] || 0}
       end)
       |> MapSet.new()
 
-    raw_edges = Graph.edges(call_graph)
+    module_files = module_files(function_nodes, fallback_module)
     plugins = Reach.Plugin.detect()
 
     clean_edges =
-      raw_edges
+      call_graph
+      |> Graph.edges()
       |> Enum.reject(&garbage_call?(&1, plugins))
-      |> Enum.map(fn e ->
-        # Resolve nil module to the detected module
-        src = resolve_nil_module(e.v1, module_name)
-        tgt = resolve_nil_module(e.v2, module_name)
-        {src, tgt}
+      |> Enum.map(fn edge ->
+        module = call_site_module(edge, node_to_func, node_map) || fallback_module
+        src = resolve_nil_module(edge.v1, module)
+        tgt = resolve_nil_module(edge.v2, module)
+        {src, tgt, edge}
       end)
-      |> Enum.reject(fn {src, tgt} -> src == tgt end)
+      |> Enum.reject(fn {src, tgt, edge} ->
+        src == tgt or unresolved_local_call?(src, tgt, edge, internal_funcs, node_map)
+      end)
+      |> Enum.map(fn {src, tgt, _edge} -> {src, tgt} end)
       |> Enum.uniq()
 
     # Build module groups
@@ -67,12 +74,10 @@ defmodule Reach.Visualize do
       all_func_ids
       |> Enum.group_by(fn {mod, _, _} -> mod end)
       |> Enum.map(fn {mod, funcs} ->
-        is_internal = Enum.any?(funcs, &(&1 in internal_funcs))
-
         %{
           id: safe_module_name(mod),
           name: display_module(mod),
-          file: if(is_internal, do: detect_file(all_nodes), else: nil),
+          file: Map.get(module_files, mod),
           functions:
             funcs
             |> Enum.uniq()
@@ -83,8 +88,10 @@ defmodule Reach.Visualize do
                 arity: a
               }
             end)
+            |> Enum.sort_by(& &1.id)
         }
       end)
+      |> Enum.sort_by(& &1.id)
 
     edges =
       clean_edges
@@ -93,10 +100,11 @@ defmodule Reach.Visualize do
           id: "call_#{call_id(sm, sf, sa)}_#{call_id(tm, tf, ta)}",
           source: call_id(sm, sf, sa),
           target: call_id(tm, tf, ta),
-          color: edge_color(sm, tm, module_name)
+          color: edge_color(sm, tm)
         }
       end)
       |> Enum.uniq_by(& &1.id)
+      |> Enum.sort_by(& &1.id)
 
     %{modules: modules, edges: edges}
   end
@@ -123,10 +131,10 @@ defmodule Reach.Visualize do
     end)
   end
 
-  defp edge_color(sm, tm, module_name) do
+  defp edge_color(sm, tm) do
     cond do
       sm == :"<javascript>" or tm == :"<javascript>" -> "#f97316"
-      tm == module_name -> "#7c3aed"
+      sm == tm -> "#7c3aed"
       true -> "#94a3b8"
     end
   end
@@ -143,9 +151,8 @@ defmodule Reach.Visualize do
     end
   end
 
-  defp func_key(%{type: :function_def, meta: meta}) do
-    mod = meta[:module] || if meta[:language] == :javascript, do: :"<javascript>"
-    if mod, do: {mod, meta[:name], meta[:arity] || 0}
+  defp func_key(%{type: :function_def, meta: meta} = function) do
+    if mod = function_module(function), do: {mod, meta[:name], meta[:arity] || 0}
   end
 
   defp func_key(%{type: :call, meta: meta}) do
@@ -154,6 +161,10 @@ defmodule Reach.Visualize do
 
   defp func_key(%{type: :fn}), do: nil
   defp func_key(_), do: nil
+
+  defp function_module(%{meta: meta}) do
+    meta[:module] || if meta[:language] == :javascript, do: :"<javascript>"
+  end
 
   @noise_functions MapSet.new([:!, :&&, :||, :|>, :"~~~", :not, :and, :or, :in, :\\])
 
@@ -292,18 +303,61 @@ defmodule Reach.Visualize do
   defp extract_call_graph(%Reach.Project{call_graph: cg}), do: cg
   defp extract_call_graph(%Reach.SystemDependence{call_graph: cg}), do: cg
 
-  defp detect_module(all_nodes) do
-    Enum.find_value(all_nodes, fn
-      %{type: :module_def, meta: %{name: name}} -> name
-      _ -> nil
+  defp detect_single_module(all_nodes) do
+    modules =
+      all_nodes
+      |> Enum.flat_map(fn
+        %{type: :module_def, meta: %{name: name}} -> [name]
+        %{type: :function_def} = function -> List.wrap(function_module(function))
+        _node -> []
+      end)
+      |> Enum.uniq()
+
+    case modules do
+      [module] -> module
+      _multiple_or_missing -> nil
+    end
+  end
+
+  defp module_files(function_nodes, fallback_module) do
+    function_nodes
+    |> Enum.reduce(%{}, fn function, files ->
+      module = function_module(function) || fallback_module
+      file = get_in(function, [Access.key(:source_span), Access.key(:file)])
+
+      if module && file do
+        Map.update(files, module, file, &min(&1, file))
+      else
+        files
+      end
     end)
   end
 
-  defp detect_file(nodes) do
-    Enum.find_value(nodes, fn n ->
-      get_in(n, [Access.key(:source_span), Access.key(:file)])
-    end)
+  defp call_site_module(%{label: {:call, node_id}}, node_to_func, nodes) do
+    with function_id when not is_nil(function_id) <- Map.get(node_to_func, node_id),
+         %{type: :function_def} = function <- Map.get(nodes, function_id) do
+      function_module(function)
+    else
+      _missing_function -> nil
+    end
   end
+
+  defp call_site_module(_edge, _node_to_func, _nodes), do: nil
+
+  defp unresolved_local_call?({module, _, _}, {module, _, _} = target, edge, internal, nodes) do
+    target not in internal and local_call_edge?(edge, nodes)
+  end
+
+  defp unresolved_local_call?(_source, _target, _edge, _internal, _nodes), do: false
+
+  defp local_call_edge?(%{label: {:call, node_id}}, nodes) do
+    case Map.get(nodes, node_id) do
+      %{type: :call, meta: meta} -> is_nil(meta[:module])
+      _node -> false
+    end
+  end
+
+  defp local_call_edge?(_edge, _nodes), do: false
 
   defp node_label_short(%{type: :call, meta: meta}) do
     case meta[:module] do
