@@ -1,5 +1,7 @@
 # Reach
 
+[![Hex.pm](https://img.shields.io/hexpm/v/reach.svg)](https://hex.pm/packages/reach) [![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/reach)
+
 Program dependence graph and release-safety toolkit for Elixir, Erlang, Gleam, JavaScript, and TypeScript.
 
 Reach builds a graph of **what depends on what** in your code: control flow, call graph, data flow, effects, and OTP/process relationships. Use it to inspect risky functions, trace values, validate architecture policy, and generate interactive HTML reports.
