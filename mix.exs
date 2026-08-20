@@ -59,6 +59,7 @@ defmodule Reach.MixProject do
         "calibration.ci"
       ],
       "assets.build": [
+        "cmd npm ci --prefix assets",
         "volt.build --name reach"
       ],
       "calibration.ci": &run_calibration_ci/1
@@ -93,7 +94,7 @@ defmodule Reach.MixProject do
       {:makeup, "~> 1.0", optional: true},
       {:makeup_elixir, "~> 1.0", optional: true},
       {:makeup_js, "~> 0.1", optional: true},
-      {:volt, "~> 0.14", only: :dev, runtime: false},
+      {:volt, "~> 0.17.10", only: :dev, runtime: false},
       {:ex_doc, "~> 0.34", only: [:dev, :docs], runtime: false},
       {:quickbeam, "~> 0.10", optional: true},
       {:ex_ast, "~> 0.12.0"},
@@ -177,21 +178,6 @@ defmodule Reach.MixProject do
       Visualization: [~r/Reach\.Visualize/],
       Plugins: [Reach.Plugin, ~r/Reach\.Plugins/]
     ]
-  end
-
-  def build_assets(_) do
-    {:ok, _result} =
-      Volt.Builder.build(
-        entry: "assets/js/app.ts",
-        outdir: "priv/static",
-        hash: false,
-        name: "reach",
-        sourcemap: false,
-        code_splitting: false,
-        define: %{"process.env.NODE_ENV" => ~s("production")},
-        aliases: %{"@reach" => "assets/js"},
-        node_modules: Path.expand("assets/node_modules")
-      )
   end
 
   defp package do

@@ -7,22 +7,15 @@ defmodule Reach.CLI.Render.Report do
 
   @template_path Path.join(@priv_dir, "template.html.eex")
   @js_bundle_path Path.join([@priv_dir, "static", "js", "reach.js"])
-  @elk_bundle_path Path.join([@priv_dir, "static", "js", "elk.bundled.js"])
-  @vue_flow_css_path Path.join([@priv_dir, "static", "css", "vue-flow.css"])
+  @css_bundle_path Path.join([@priv_dir, "static", "js", "reach.css"])
 
-  for path <- [
-        @template_path,
-        @js_bundle_path,
-        @elk_bundle_path,
-        @vue_flow_css_path
-      ] do
+  for path <- [@template_path, @js_bundle_path, @css_bundle_path] do
     @external_resource path
   end
 
   @template File.read!(@template_path)
-  @js_bundle if File.exists?(@js_bundle_path), do: File.read!(@js_bundle_path), else: ""
-  @elk_bundle if File.exists?(@elk_bundle_path), do: File.read!(@elk_bundle_path), else: ""
-  @vue_flow_css if File.exists?(@vue_flow_css_path), do: File.read!(@vue_flow_css_path), else: ""
+  @js_bundle File.read!(@js_bundle_path)
+  @css_bundle File.read!(@css_bundle_path)
 
   def render("html", graph_data, _graph, output_dir, opts),
     do: render_html(graph_data, output_dir, opts)
@@ -43,9 +36,8 @@ defmodule Reach.CLI.Render.Report do
     html =
       EEx.eval_string(@template,
         graph_json: graph_json,
-        elk_bundle: @elk_bundle,
         js_bundle: @js_bundle,
-        vue_flow_css: @vue_flow_css,
+        css_bundle: @css_bundle,
         makeup_css: makeup_css,
         file: nil,
         module: nil

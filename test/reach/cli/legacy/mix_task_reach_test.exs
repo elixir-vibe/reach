@@ -37,6 +37,12 @@ defmodule Mix.Tasks.ReachTest do
 
     content = File.read!(html_path)
     assert content =~ "graphData"
+    assert content =~ "@vue/runtime"
+    assert content =~ "vue-flow__viewport"
+    assert content =~ "elk.algorithm"
+    assert content =~ ".vue-flow__controls"
+    refute content =~ "__vue_flow_core"
+    refute content =~ "window.ELK"
   end
 
   test "generates DOT output" do

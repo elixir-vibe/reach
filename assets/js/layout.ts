@@ -1,3 +1,5 @@
+import ELK from "elkjs/lib/elk.bundled.js"
+
 interface ElkNode {
   id: string
   width: number
@@ -15,16 +17,6 @@ interface ElkGraph {
   layoutOptions: Record<string, string>
   children: ElkNode[]
   edges: ElkEdge[]
-}
-
-interface ElkResult {
-  children?: { id: string; x?: number; y?: number }[]
-}
-
-declare global {
-  interface Window {
-    ELK: new () => { layout: (graph: ElkGraph) => Promise<ElkResult> }
-  }
 }
 
 const DEFAULT_OPTIONS: Record<string, string> = {
@@ -51,7 +43,7 @@ export async function computeLayout(
   edges: { source: string; target: string; id: string }[],
   overrides: Record<string, string> = {}
 ): Promise<Map<string, { x: number; y: number }>> {
-  const elk = new window.ELK()
+  const elk = new ELK()
 
   const children: ElkNode[] = nodeIds.map((id) => {
     const size = nodeSizes.get(id) ?? { width: 200, height: 60 }
