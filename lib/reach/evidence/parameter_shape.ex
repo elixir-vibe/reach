@@ -506,5 +506,7 @@ defmodule Reach.Evidence.ParameterShape do
   end
 
   defp function_clauses(function), do: Enum.filter(function.children, &(&1.type == :clause))
-  defp function_id(function), do: {function.meta.module, function.meta.name, function.meta.arity}
+
+  defp function_id(function),
+    do: {function.meta[:module], function.meta.name, function.meta.arity}
 end

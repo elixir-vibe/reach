@@ -339,16 +339,49 @@ defmodule Reach.Evidence.NilParameterTest do
     assert [%{safe?: false, target: {Map, :get, 2}}] = fact.uses
   end
 
-  defp collect(source) do
+  test "supports functions without module metadata" do
+    facts =
+      collect(
+        """
+        defmodule ModulelessNilDefault do
+          def read(options \\\\ nil), do: Map.get(options, :name)
+        end
+        """,
+        without_module: :read
+      )
+
+    assert [%{module: nil, function: :read}] = facts
+  end
+
+  defp collect(source, opts \\ []) do
     path =
       Path.join(System.tmp_dir!(), "reach-nil-parameter-#{System.unique_integer([:positive])}.ex")
 
     File.write!(path, source)
     on_exit(fn -> File.rm(path) end)
 
-    path
-    |> List.wrap()
-    |> Project.from_sources()
-    |> NilParameter.collect_project()
+    project = Project.from_sources([path])
+
+    project =
+      case opts[:without_module] do
+        nil -> project
+        name -> delete_function_module(project, name)
+      end
+
+    NilParameter.collect_project(project)
+  end
+
+  defp delete_function_module(project, name) do
+    {id, _function} =
+      Enum.find(project.nodes, fn {_id, node} ->
+        node.type == :function_def and node.meta[:name] == name
+      end)
+
+    nodes =
+      Map.update!(project.nodes, id, fn function ->
+        %{function | meta: Map.delete(function.meta, :module)}
+      end)
+
+    %{project | nodes: nodes}
   end
 end

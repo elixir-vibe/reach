@@ -129,14 +129,49 @@ defmodule Reach.Evidence.ParameterShapeTest do
     assert fact.role == :non_contract
   end
 
-  defp collect(source) do
+  test "supports target functions without module metadata" do
+    facts =
+      collect(
+        """
+        defmodule ModulelessShapeTarget do
+          def first(value), do: consume(%{id: value, name: "first"})
+          def second(value), do: consume(%{id: value, status: :active})
+          def consume(params), do: params
+        end
+        """,
+        without_module: :consume
+      )
+
+    assert [%{target: {nil, :consume, 1}}] = facts
+  end
+
+  defp collect(source, opts \\ []) do
     path = Path.join(System.tmp_dir!(), "reach-shape-#{System.unique_integer([:positive])}.ex")
     File.write!(path, source)
     on_exit(fn -> File.rm(path) end)
 
-    path
-    |> List.wrap()
-    |> Project.from_sources()
-    |> ParameterShape.collect_project()
+    project = Project.from_sources([path])
+
+    project =
+      case opts[:without_module] do
+        nil -> project
+        name -> delete_function_module(project, name)
+      end
+
+    ParameterShape.collect_project(project)
+  end
+
+  defp delete_function_module(project, name) do
+    {id, _function} =
+      Enum.find(project.nodes, fn {_id, node} ->
+        node.type == :function_def and node.meta[:name] == name
+      end)
+
+    nodes =
+      Map.update!(project.nodes, id, fn function ->
+        %{function | meta: Map.delete(function.meta, :module)}
+      end)
+
+    %{project | nodes: nodes}
   end
 end

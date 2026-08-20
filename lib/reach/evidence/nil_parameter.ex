@@ -171,7 +171,7 @@ defmodule Reach.Evidence.NilParameter do
     span = function.source_span || %{}
 
     %Fact{
-      module: function.meta.module,
+      module: function.meta[:module],
       function: function.meta.name,
       arity: function.meta.arity,
       parameter: parameter_label(clauses, parameter_index, function.meta.arity),
@@ -1443,7 +1443,9 @@ defmodule Reach.Evidence.NilParameter do
   end
 
   defp function_clauses(function), do: Enum.filter(function.children, &(&1.type == :clause))
-  defp function_id(function), do: {function.meta.module, function.meta.name, function.meta.arity}
+
+  defp function_id(function),
+    do: {function.meta[:module], function.meta.name, function.meta.arity}
 
   defp clause_parameters(clause, arity), do: Enum.take(clause.children, arity)
 
