@@ -194,9 +194,12 @@ defmodule Reach.Map.Analysis do
   end
 
   defp module_metrics(project, path) do
-    project
-    |> module_defs(path)
-    |> Enum.map(fn module ->
+    modules = module_defs(project, path)
+    internal = MapSet.new(module_defs(project, nil), & &1.meta[:name])
+    dependencies = module_dependency_map(modules, internal)
+    dependents = invert_deps(dependencies)
+
+    Enum.map(modules, fn module ->
       funcs = module |> IR.all_nodes() |> Enum.filter(&(&1.type == :function_def))
 
       public_count = Enum.count(funcs, &(&1.meta[:kind] == :def))
@@ -219,8 +222,8 @@ defmodule Reach.Map.Analysis do
         total_complexity: total_complexity,
         biggest_function: biggest_function(funcs),
         callbacks: callbacks,
-        fan_in: count_fan_in(project.call_graph, funcs),
-        fan_out: count_fan_out(project.call_graph, funcs)
+        fan_in: dependencies_count(dependents, module.meta[:name]),
+        fan_out: dependencies_count(dependencies, module.meta[:name])
       )
     end)
     |> Enum.reject(&(&1.functions == 0))
@@ -622,24 +625,8 @@ defmodule Reach.Map.Analysis do
     if length(effects) >= min, do: [{func, effects}], else: []
   end
 
-  defp count_fan_in(call_graph, funcs) do
-    Enum.sum_by(funcs, &fan_in(call_graph, function_vertex(&1)))
-  end
-
-  defp count_fan_out(call_graph, funcs) do
-    Enum.sum_by(funcs, &fan_out(call_graph, function_vertex(&1)))
-  end
-
-  defp fan_in(call_graph, vertex) do
-    if Graph.has_vertex?(call_graph, vertex),
-      do: length(Graph.in_neighbors(call_graph, vertex)),
-      else: 0
-  end
-
-  defp fan_out(call_graph, vertex) do
-    if Graph.has_vertex?(call_graph, vertex),
-      do: length(Graph.out_neighbors(call_graph, vertex)),
-      else: 0
+  defp dependencies_count(dependencies, module) do
+    dependencies |> Map.get(module, []) |> length()
   end
 
   defp function_vertex(func), do: {func.meta[:module], func.meta[:name], func.meta[:arity]}

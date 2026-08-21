@@ -45,6 +45,43 @@ defmodule Reach.Map.AnalysisTest do
     assert summary.unknown_calls == []
   end
 
+  test "module fan counts match coupling dependencies" do
+    project =
+      project("""
+      defmodule FanAlpha do
+        def run(value), do: FanBeta.consume(value)
+      end
+
+      defmodule FanBeta do
+        def consume(value), do: value
+      end
+
+      defmodule FanGamma do
+        def run(value), do: FanBeta.consume(value)
+      end
+      """)
+
+    modules =
+      Analysis.section_data(project, :modules, %{top: 20, sort: "name"}, nil)
+      |> Map.new(&{&1.name, &1})
+
+    coupling =
+      Analysis.section_data(project, :coupling, %{top: 20, sort: "name"}, nil).modules
+      |> Map.new(&{&1.name, &1})
+
+    assert modules["FanAlpha"].fan_in == 0
+    assert modules["FanAlpha"].fan_out == 1
+    assert modules["FanBeta"].fan_in == 2
+    assert modules["FanBeta"].fan_out == 0
+    assert modules["FanGamma"].fan_in == 0
+    assert modules["FanGamma"].fan_out == 1
+
+    assert Enum.all?(modules, fn {name, metric} ->
+             metric.fan_in == coupling[name].afferent and
+               metric.fan_out == coupling[name].efferent
+           end)
+  end
+
   test "project summary exposes total and reasonless source suppressions" do
     source = """
     # reach:disable-for-this-file default_drift -- legacy input contract
