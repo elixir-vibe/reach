@@ -1,7 +1,7 @@
 defmodule Reach.Visualize do
   @moduledoc "Generates interactive HTML reports from project analysis."
 
-  alias Reach.Visualize.ControlFlow
+  alias Reach.Visualize.{ControlFlow, Source}
 
   # ── Public API ──
 
@@ -59,7 +59,8 @@ defmodule Reach.Visualize do
         {src, tgt, edge}
       end)
       |> Enum.reject(fn {src, tgt, edge} ->
-        src == tgt or unresolved_local_call?(src, tgt, edge, internal_funcs, node_map)
+        invalid_call_module?(src) or invalid_call_module?(tgt) or src == tgt or
+          unresolved_local_call?(src, tgt, edge, internal_funcs, node_map)
       end)
       |> Enum.map(fn {src, tgt, _edge} -> {src, tgt} end)
       |> Enum.uniq()
@@ -171,7 +172,8 @@ defmodule Reach.Visualize do
   defp garbage_call?(edge, plugins) do
     {_target_module, target_function, _target_arity} = edge.v2
 
-    not is_atom(elem(edge.v2, 0)) or
+    not is_atom(elem(edge.v1, 0)) or
+      not is_atom(elem(edge.v2, 0)) or
       target_function in @noise_functions or
       Reach.Plugin.ignore_call_edge?(plugins, edge)
   end
@@ -191,7 +193,8 @@ defmodule Reach.Visualize do
     mod |> Atom.to_string() |> String.replace("Elixir.", "") |> sanitize_id()
   end
 
-  defp safe_module_name(mod), do: mod |> to_string() |> sanitize_id()
+  defp safe_module_name(mod) when is_binary(mod), do: sanitize_id(mod)
+  defp safe_module_name(mod), do: mod |> inspect() |> sanitize_id()
 
   defp safe_name(name) when is_atom(name), do: name |> Atom.to_string() |> sanitize_id()
   defp safe_name(name), do: name |> to_string() |> sanitize_id()
@@ -222,6 +225,7 @@ defmodule Reach.Visualize do
     involved_ids =
       data_edges
       |> Enum.flat_map(&[&1.v1, &1.v2])
+      |> MapSet.new()
 
     functions = build_data_flow_nodes(all_nodes, involved_ids, node_to_func, node_map)
 
@@ -263,23 +267,34 @@ defmodule Reach.Visualize do
   defp extract_var_name(_), do: nil
 
   defp build_data_flow_nodes(all_nodes, involved_ids, node_to_func, node_map) do
-    for n <- all_nodes,
-        n.id in involved_ids,
-        n.type not in [:module_def, :function_def, :clause],
-        n.source_span[:start_line] != nil do
-      func_id = Map.get(node_to_func, n.id)
-      func = if func_id, do: Map.get(node_map, func_id)
-      prefix = if func, do: "#{func.meta[:name]}/#{func.meta[:arity]} ", else: ""
+    for node <- all_nodes,
+        MapSet.member?(involved_ids, node.id),
+        node.type not in [:module_def, :function_def, :clause],
+        node.source_span[:start_line] != nil do
+      function_id = Map.get(node_to_func, node.id)
+      function = if function_id, do: Map.get(node_map, function_id)
+
+      function_prefix =
+        if function, do: "#{function.meta[:name]}/#{function.meta[:arity]} ", else: ""
+
+      module = if function, do: function_module(function)
+      file = node.source_span[:file] || source_file(function)
+      line = node.source_span[:start_line]
 
       %{
-        id: to_string(n.id),
-        label: "#{prefix}L#{n.source_span[:start_line]}: #{ir_node_label(n)}",
-        module: nil,
-        start_line: n.source_span[:start_line],
-        source_html: nil
+        id: to_string(node.id),
+        function_id: if(function_id, do: to_string(function_id)),
+        label: "#{function_prefix}L#{line}: #{ir_node_label(node)}",
+        module: if(module, do: display_module(module)),
+        file: file,
+        start_line: line,
+        source_html: Source.highlight_line(file, line)
       }
     end
   end
+
+  defp source_file(nil), do: nil
+  defp source_file(function), do: get_in(function, [Access.key(:source_span), Access.key(:file)])
 
   defp ir_node_label(%{type: :var, meta: %{name: name}}), do: to_string(name)
   defp ir_node_label(%{type: :call, meta: meta}), do: to_string(meta[:function]) <> "(...)"
@@ -343,6 +358,8 @@ defmodule Reach.Visualize do
   end
 
   defp call_site_module(_edge, _node_to_func, _nodes), do: nil
+
+  defp invalid_call_module?({module, _, _}), do: not is_atom(module)
 
   defp unresolved_local_call?({module, _, _}, {module, _, _} = target, edge, internal, nodes) do
     target not in internal and local_call_edge?(edge, nodes)

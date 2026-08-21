@@ -58,8 +58,12 @@ defmodule Reach.Visualize.Source do
 
   def highlight_line(file, line) when is_binary(file) and is_integer(line) do
     case read_line(file, line) do
-      nil -> nil
-      text -> highlight_source(String.trim_leading(text), lang_for_file(file))
+      nil ->
+        nil
+
+      text ->
+        source = String.trim_leading(text)
+        highlight_source(source, lang_for_file(file)) || escape_html(source)
     end
   end
 
@@ -163,6 +167,15 @@ defmodule Reach.Visualize.Source do
 
   def source_file?(nil), do: false
   def source_file?(file), do: Path.extname(file) in @source_extensions
+
+  defp escape_html(source) do
+    source
+    |> String.replace("&", "&amp;")
+    |> String.replace("<", "&lt;")
+    |> String.replace(">", "&gt;")
+    |> String.replace("\"", "&quot;")
+    |> String.replace("'", "&#39;")
+  end
 
   defp lexer_opts(:javascript) do
     if Code.ensure_loaded?(Makeup.Lexers.JsLexer) do

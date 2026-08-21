@@ -106,6 +106,59 @@ defmodule Reach.VisualizeTest do
       assert is_list(df.edges)
       assert is_list(df.taint_paths)
     end
+
+    test "handles dynamically named implementation modules" do
+      graph =
+        Reach.string_to_graph!("""
+        for protocol <- [String.Chars] do
+          defimpl protocol, for: URI do
+            def to_string(value) do
+              path = value.path
+              path
+            end
+          end
+        end
+        """)
+
+      assert {:ok, _payload} = graph |> Reach.Visualize.to_json() |> JSON.decode()
+    end
+
+    test "data flow nodes identify their owning function and source" do
+      dir =
+        Path.join(System.tmp_dir!(), "reach-data-flow-#{System.unique_integer([:positive])}")
+
+      path = Path.join(dir, "owner.ex")
+      File.mkdir_p!(dir)
+
+      File.write!(path, """
+      defmodule DataFlowOwner do
+        def normalize(input) do
+          normalized = String.trim(input)
+          normalized
+        end
+      end
+      """)
+
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      project = Reach.Project.from_sources([path], plugins: [])
+      result = Reach.Visualize.to_graph_json(project)
+      data_nodes = result.data_flow.functions
+
+      assert data_nodes != []
+
+      function_ids =
+        result.control_flow
+        |> Enum.flat_map(& &1.functions)
+        |> MapSet.new(& &1.id)
+
+      assert Enum.all?(data_nodes, fn node ->
+               node.module == "DataFlowOwner" and
+                 node.file == path and
+                 node.function_id in function_ids and
+                 is_binary(node.source_html) and node.source_html != ""
+             end)
+    end
   end
 
   describe "to_json/2" do
