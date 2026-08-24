@@ -1,6 +1,43 @@
 defmodule ReachTest do
   use ExUnit.Case, async: true
 
+  describe "Phoenix plugin effect classification" do
+    test "Phoenix.Controller.delete_csrf_token is :write, not :pure" do
+      node = %Reach.IR.Node{
+        id: 0,
+        type: :call,
+        meta: %{kind: :remote, module: Phoenix.Controller, function: :delete_csrf_token}
+      }
+
+      assert Reach.Plugin.classify_effect([Reach.Plugins.Phoenix], node) == :write
+    end
+
+    test "Phoenix.PubSub messaging functions are :send" do
+      functions = [
+        :broadcast,
+        :broadcast!,
+        :broadcast_from,
+        :broadcast_from!,
+        :direct_broadcast,
+        :direct_broadcast!,
+        :local_broadcast,
+        :local_broadcast_from,
+        :subscribe,
+        :unsubscribe
+      ]
+
+      for function <- functions do
+        node = %Reach.IR.Node{
+          id: 0,
+          type: :call,
+          meta: %{kind: :remote, module: Phoenix.PubSub, function: function}
+        }
+
+        assert Reach.Plugin.classify_effect([Reach.Plugins.Phoenix], node) == :send
+      end
+    end
+  end
+
   describe "string_to_graph/2" do
     test "parses source and returns graph" do
       assert {:ok, graph} =

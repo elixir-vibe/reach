@@ -120,8 +120,12 @@ defmodule Reach.Smell.Checks.RedundantComputation do
       node.meta[:function] not in @excluded_fns and
       node.meta[:kind] not in @excluded_kinds and
       node.meta[:module] != Access and
-      Effects.pure?(node) and not formatting_call?(node) and not stateful_helper?(node)
+      not generated_source_call?(node) and Effects.pure?(node) and not formatting_call?(node) and
+      not stateful_helper?(node)
   end
+
+  defp generated_source_call?(%{meta: %{origin: %{generated?: true}}}), do: true
+  defp generated_source_call?(_node), do: false
 
   defp collect_block_calls(node, acc) do
     acc = if redundancy_candidate?(node), do: [node | acc], else: acc

@@ -11,8 +11,14 @@ defmodule Reach.Plugins.Phoenix do
   @impl true
   def inference_hints do
     %{
-      deps: [:phoenix, :phoenix_html, :phoenix_live_view],
-      source: ["Phoenix.Router", "Phoenix.LiveView", "Phoenix.LiveComponent", "Phoenix.Component"]
+      deps: [:phoenix, :phoenix_html, :phoenix_live_view, :phoenix_pubsub],
+      source: [
+        "Phoenix.Router",
+        "Phoenix.LiveView",
+        "Phoenix.LiveComponent",
+        "Phoenix.Component",
+        "Phoenix.PubSub"
+      ]
     }
   end
 
@@ -92,6 +98,23 @@ defmodule Reach.Plugins.Phoenix do
   @use_modules [Phoenix.Router, Phoenix.Component, Phoenix.LiveView, Phoenix.LiveComponent]
 
   @pure_remote_modules [Phoenix.Component, Phoenix.LiveView, Phoenix.Controller, Plug.Conn]
+
+  # Functions that mutate process/conn state despite living in a module that
+  # is otherwise treated as pure (rendering helpers).
+  @impure_remote_functions [{Phoenix.Controller, :delete_csrf_token}]
+
+  @pubsub_functions [
+    :broadcast,
+    :broadcast!,
+    :broadcast_from,
+    :broadcast_from!,
+    :direct_broadcast,
+    :direct_broadcast!,
+    :local_broadcast,
+    :local_broadcast_from,
+    :subscribe,
+    :unsubscribe
+  ]
 
   @impl true
   def refine_macro_fact(%MacroFact{name: :use, target: module} = fact, _context)
@@ -251,6 +274,19 @@ defmodule Reach.Plugins.Phoenix do
   def classify_effect(%Node{type: :call, meta: %{kind: :local, function: fun}})
       when fun in @pure_local,
       do: :pure
+
+  def classify_effect(%Node{
+        type: :call,
+        meta: %{kind: :remote, module: Phoenix.PubSub, function: function}
+      })
+      when function in @pubsub_functions,
+      do: :send
+
+  # Side-effecting controller/conn functions that must not be treated as pure
+  # even though their module is in @pure_remote_modules.
+  def classify_effect(%Node{type: :call, meta: %{kind: :remote, module: mod, function: fun}})
+      when {mod, fun} in @impure_remote_functions,
+      do: :write
 
   def classify_effect(%Node{type: :call, meta: %{kind: :remote, module: mod}})
       when mod in @pure_remote_modules,
