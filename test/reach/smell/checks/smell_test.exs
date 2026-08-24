@@ -4,10 +4,32 @@ defmodule Reach.SmellTest do
   alias Reach.Check.Smells
 
   defp run_smell_task(code, config \\ [], project_opts \\ []) do
+    code
+    |> smell_project(project_opts)
+    |> Smells.run(config)
+  end
+
+  defp smell_project(code, project_opts) do
     path = Path.join(System.tmp_dir!(), "smell_test_#{:erlang.unique_integer([:positive])}.ex")
     File.write!(path, code)
-    project = Reach.Project.from_sources([path], project_opts)
-    Smells.run(project, config)
+    Reach.Project.from_sources([path], project_opts)
+  end
+
+  defp mark_generated_event(%Reach.IR.Node{children: children} = node) do
+    node = %{node | children: Enum.map(children, &mark_generated_event/1)}
+
+    if node.type == :call and node.meta[:function] == :__live_event__ do
+      origin = %Reach.Source.Origin{
+        language: :heex,
+        kind: :event,
+        plugin: Reach.Plugins.LiveView,
+        generated?: true
+      }
+
+      %{node | meta: Map.put(node.meta, :origin, origin)}
+    else
+      node
+    end
   end
 
   describe "check registry" do
@@ -103,6 +125,37 @@ defmodule Reach.SmellTest do
         end)
 
       assert length(field_calls) >= 2
+    end
+
+    test "generated source calls are excluded without reserving their function names" do
+      project =
+        smell_project(
+          """
+          defmodule TagStripProbe do
+            defp __live_event__(event), do: event
+
+            def render(_assigns) do
+              __live_event__(\"filter_tag\")
+              __live_event__(\"filter_tag\")
+            end
+          end
+          """,
+          []
+        )
+
+      assert Enum.any?(Smells.run(project, []), &(&1.kind == :redundant_computation))
+
+      nodes =
+        project.nodes
+        |> Map.values()
+        |> Map.new(fn node ->
+          node = mark_generated_event(node)
+          {node.id, node}
+        end)
+
+      refute Enum.any?(Smells.run(%{project | nodes: nodes}, []), fn finding ->
+               finding.kind == :redundant_computation
+             end)
     end
   end
 

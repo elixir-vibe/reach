@@ -150,6 +150,7 @@ defmodule Reach.Plugin do
 
   @known_plugins [
     {Phoenix.Router, Reach.Plugins.Phoenix},
+    {Phoenix.PubSub, Reach.Plugins.Phoenix},
     {Phoenix.LiveView, Reach.Plugins.LiveView},
     {Ecto, Reach.Plugins.Ecto},
     {Ash, Reach.Plugins.Ash},
@@ -163,6 +164,7 @@ defmodule Reach.Plugin do
     {Poison, Reach.Plugins.Poison},
     {Zoi, Reach.Plugins.Zoi},
     {NimbleOptions, Reach.Plugins.NimbleOptions},
+    {Mint.HTTP, Reach.Plugins.Mint},
     {Nx, Reach.Plugins.Nx},
     {QuickBEAM, Reach.Plugins.QuickBEAM}
   ]

@@ -1115,6 +1115,7 @@ defmodule Reach.Effects do
   defp send_function?(GenServer, :cast), do: true
   defp send_function?(GenServer, :reply), do: true
   defp send_function?(Process, :send_after), do: true
+  defp send_function?(Task.Supervisor, :start_child), do: true
   defp send_function?(_, _), do: false
 
   defp receive_function?(GenServer, :handle_call), do: true
