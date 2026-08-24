@@ -268,10 +268,16 @@ defmodule Reach.Effects do
   end
 
   defp short_module_alias(module) do
-    module
-    |> Module.split()
-    |> List.last()
-    |> then(&Module.concat([&1]))
+    case Atom.to_string(module) do
+      "Elixir." <> _ ->
+        module
+        |> Module.split()
+        |> List.last()
+        |> then(&Module.concat([&1]))
+
+      _erlang_module ->
+        module
+    end
   end
 
   defp module_alias_keys(function_def, module_aliases) do

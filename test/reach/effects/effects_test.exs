@@ -291,4 +291,19 @@ defmodule Reach.EffectsTest do
       assert Reach.dead_code(graph) == []
     end
   end
+
+  describe "erlang-sourced function defs" do
+    test "infer_local_effects does not crash on a raw (non-Elixir) module atom" do
+      {:ok, ir_nodes} =
+        Reach.Frontend.Erlang.parse_string("""
+        -module(fix_client).
+        fix_client(X) -> X.
+        """)
+
+      node_map = ir_nodes |> IR.all_nodes() |> Map.new(&{&1.id, &1})
+
+      Effects.ensure_cache()
+      assert :ok = Effects.infer_local_effects(node_map)
+    end
+  end
 end
