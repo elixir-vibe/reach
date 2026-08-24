@@ -116,11 +116,17 @@ defmodule Reach.Smell.Checks.RedundantComputation do
   @excluded_kinds MapSet.new([:attribute, :field_access, :binary_size])
 
   defp redundancy_candidate?(node) do
+    eligible_call?(node) and pure_source_call?(node)
+  end
+
+  defp eligible_call?(node) do
     node.type == :call and node.meta[:function] != nil and node.source_span != nil and
       node.meta[:function] not in @excluded_fns and
-      node.meta[:kind] not in @excluded_kinds and
-      node.meta[:module] != Access and
-      not generated_source_call?(node) and Effects.pure?(node) and not formatting_call?(node) and
+      node.meta[:kind] not in @excluded_kinds and node.meta[:module] != Access
+  end
+
+  defp pure_source_call?(node) do
+    not generated_source_call?(node) and Effects.pure?(node) and not formatting_call?(node) and
       not stateful_helper?(node)
   end
 
