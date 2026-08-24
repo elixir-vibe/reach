@@ -1,6 +1,7 @@
 defmodule Reach.Frontend.ErlangTest do
   use ExUnit.Case, async: true
 
+  alias Reach.Check.Smells
   alias Reach.Frontend.Erlang
   alias Reach.IR
 
@@ -25,6 +26,7 @@ defmodule Reach.Frontend.ErlangTest do
       nodes = parse!("-module(test).\nfoo(X) -> X + 1.\n")
       funcs = function_nodes(nodes)
       assert [func] = funcs
+      assert func.meta[:module] == :test
       assert func.meta[:name] == :foo
       assert func.meta[:arity] == 1
     end
@@ -97,6 +99,8 @@ defmodule Reach.Frontend.ErlangTest do
       bar = Enum.find(all, &(&1.type == :call and &1.meta[:function] == :bar))
       assert bar != nil
       assert bar.meta[:kind] == :local
+      assert bar.meta[:module] == :test
+      assert bar.meta[:owner_module] == :test
     end
 
     test "remote call" do
@@ -232,6 +236,27 @@ defmodule Reach.Frontend.ErlangTest do
       try do
         {:ok, graph} = Reach.file_to_graph(path)
         assert Reach.nodes(graph) != []
+      after
+        File.rm(path)
+      end
+    end
+
+    test "smell analysis handles Erlang function metadata" do
+      path =
+        Path.join(System.tmp_dir!(), "reach_smell_#{:erlang.unique_integer([:positive])}.erl")
+
+      File.write!(path, "-module(smell_probe).\n-export([fix_client/1]).\nfix_client(X) -> X.\n")
+
+      try do
+        project = Reach.Project.from_sources([path])
+
+        function =
+          Enum.find(Map.values(project.nodes), fn node ->
+            node.type == :function_def and node.meta[:name] == :fix_client
+          end)
+
+        assert function.meta[:module] == :smell_probe
+        assert is_list(Smells.run(project, []))
       after
         File.rm(path)
       end

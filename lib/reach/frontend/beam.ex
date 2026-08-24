@@ -142,7 +142,7 @@ defmodule Reach.Frontend.BEAM do
         _ -> false
       end)
       |> Enum.map(&Erlang.translate_form(&1, counter, file))
-      |> Enum.map(&put_owner_module(&1, module))
+      |> Enum.map(&Erlang.put_owner_module(&1, module))
 
     {:ok, nodes}
   end
@@ -213,22 +213,4 @@ defmodule Reach.Frontend.BEAM do
     do: Enum.reduce(list, calls, &collect_local_function_calls/2)
 
   defp collect_local_function_calls(_other, calls), do: calls
-
-  defp put_owner_module(%Reach.IR.Node{} = node, module) do
-    meta =
-      case node do
-        %{type: :function_def} ->
-          Map.put(node.meta, :module, module)
-
-        %{type: :call, meta: %{kind: kind}} when kind in [:local, :fun_ref] ->
-          node.meta
-          |> Map.put(:owner_module, module)
-          |> Map.put_new(:module, module)
-
-        _other ->
-          node.meta
-      end
-
-    %{node | meta: meta, children: Enum.map(node.children, &put_owner_module(&1, module))}
-  end
 end

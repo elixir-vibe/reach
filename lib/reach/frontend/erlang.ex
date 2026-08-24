@@ -19,6 +19,7 @@ defmodule Reach.Frontend.Erlang do
     case :epp.parse_file(to_charlist(path), include_dirs) do
       {:ok, forms} ->
         counter = Counter.new()
+        module = source_module(forms)
 
         nodes =
           forms
@@ -28,6 +29,7 @@ defmodule Reach.Frontend.Erlang do
             _ -> false
           end)
           |> Enum.map(&translate_form(&1, counter, path))
+          |> Enum.map(&put_owner_module(&1, module))
 
         {:ok, nodes}
 
@@ -55,6 +57,32 @@ defmodule Reach.Frontend.Erlang do
   end
 
   # --- Translation ---
+
+  defp source_module(forms) do
+    Enum.find_value(forms, fn
+      {:attribute, _line, :module, module} -> module
+      _other -> nil
+    end)
+  end
+
+  @doc false
+  def put_owner_module(%Node{} = node, module) do
+    meta =
+      case node do
+        %{type: :function_def} ->
+          Map.put(node.meta, :module, module)
+
+        %{type: :call, meta: %{kind: kind}} when kind in [:local, :fun_ref] ->
+          node.meta
+          |> Map.put(:owner_module, module)
+          |> Map.put_new(:module, module)
+
+        _other ->
+          node.meta
+      end
+
+    %{node | meta: meta, children: Enum.map(node.children, &put_owner_module(&1, module))}
+  end
 
   # Module attribute
   def translate_form({:attribute, line, name, value}, counter, file) do

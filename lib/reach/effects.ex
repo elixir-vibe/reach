@@ -256,7 +256,7 @@ defmodule Reach.Effects do
 
   defp inferred_module_aliases(all_nodes) do
     all_nodes
-    |> Enum.filter(&(&1.type == :function_def and is_atom(&1.meta[:module])))
+    |> Enum.filter(&(&1.type == :function_def and elixir_module?(&1.meta[:module])))
     |> Enum.map(& &1.meta[:module])
     |> Enum.uniq()
     |> Enum.group_by(&short_module_alias/1)
@@ -266,6 +266,11 @@ defmodule Reach.Effects do
     end)
     |> Map.delete(nil)
   end
+
+  defp elixir_module?(module) when is_atom(module),
+    do: module |> Atom.to_string() |> String.starts_with?("Elixir.")
+
+  defp elixir_module?(_module), do: false
 
   defp short_module_alias(module) do
     module
