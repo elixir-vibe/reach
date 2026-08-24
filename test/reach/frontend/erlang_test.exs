@@ -116,6 +116,19 @@ defmodule Reach.Frontend.ErlangTest do
       assert call != nil
       assert call.meta[:kind] == :remote
     end
+
+    test "remote function reference normalizes abstract atom and integer forms" do
+      nodes = parse!("-module(test).\nhandler() -> fun telemetry:handle_event/4.\n")
+
+      fun_ref =
+        nodes
+        |> IR.all_nodes()
+        |> Enum.find(&(&1.type == :call and &1.meta[:kind] == :fun_ref))
+
+      assert fun_ref.meta[:module] == :telemetry
+      assert fun_ref.meta[:function] == :handle_event
+      assert fun_ref.meta[:arity] == 4
+    end
   end
 
   describe "control flow" do

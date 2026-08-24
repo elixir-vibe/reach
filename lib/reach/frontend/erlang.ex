@@ -447,6 +447,14 @@ defmodule Reach.Frontend.Erlang do
   end
 
   # Fun reference: fun Module:Function/Arity
+  defp translate_expr(
+         {:fun, line, {:function, {:atom, _, mod}, {:atom, _, fun}, {:integer, _, arity}}},
+         counter,
+         file
+       ) do
+    translate_expr({:fun, line, {:function, mod, fun, arity}}, counter, file)
+  end
+
   defp translate_expr({:fun, line, {:function, mod, fun, arity}}, counter, file) do
     %Node{
       id: Counter.next(counter),

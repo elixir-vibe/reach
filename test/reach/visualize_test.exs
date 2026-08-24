@@ -159,6 +159,35 @@ defmodule Reach.VisualizeTest do
                  is_binary(node.source_html) and node.source_html != ""
              end)
     end
+
+    test "data flow excludes Erlang module attributes without a function owner" do
+      dir =
+        Path.join(
+          System.tmp_dir!(),
+          "reach-erlang-data-flow-#{System.unique_integer([:positive])}"
+        )
+
+      path = Path.join(dir, "owner.erl")
+      File.mkdir_p!(dir)
+
+      File.write!(path, """
+      -module(data_flow_owner).
+      -export([normalize/1]).
+      -spec normalize(binary()) -> binary().
+      normalize(Input) -> Normalized = Input, Normalized.
+      """)
+
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      project = Reach.Project.from_sources([path], plugins: [])
+      result = Reach.Visualize.to_graph_json(project)
+      data_nodes = result.data_flow.functions
+
+      assert data_nodes != []
+      assert Enum.all?(data_nodes, &(&1.module == "data_flow_owner"))
+      assert Enum.all?(data_nodes, &(is_binary(&1.function_id) and &1.function_id != ""))
+      refute Enum.any?(data_nodes, &(&1.label =~ "export(...)" or &1.label =~ "spec(...)"))
+    end
   end
 
   describe "to_json/2" do

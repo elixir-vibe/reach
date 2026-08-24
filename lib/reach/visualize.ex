@@ -270,14 +270,12 @@ defmodule Reach.Visualize do
     for node <- all_nodes,
         MapSet.member?(involved_ids, node.id),
         node.type not in [:module_def, :function_def, :clause],
-        node.source_span[:start_line] != nil do
-      function_id = Map.get(node_to_func, node.id)
-      function = if function_id, do: Map.get(node_map, function_id)
-
-      function_prefix =
-        if function, do: "#{function.meta[:name]}/#{function.meta[:arity]} ", else: ""
-
-      module = if function, do: function_module(function)
+        node.source_span[:start_line] != nil,
+        function_id = Map.get(node_to_func, node.id),
+        function_id != nil,
+        function = Map.get(node_map, function_id) do
+      function_prefix = "#{function.meta[:name]}/#{function.meta[:arity]} "
+      module = function_module(function)
       file = node.source_span[:file] || source_file(function)
       line = node.source_span[:start_line]
 
@@ -293,7 +291,6 @@ defmodule Reach.Visualize do
     end
   end
 
-  defp source_file(nil), do: nil
   defp source_file(function), do: get_in(function, [Access.key(:source_span), Access.key(:file)])
 
   defp ir_node_label(%{type: :var, meta: %{name: name}}), do: to_string(name)
