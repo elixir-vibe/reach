@@ -29,6 +29,26 @@ defmodule Reach.Frontend.ErlangTest do
       assert func.meta[:arity] == 1
     end
 
+    test "function_def metadata includes the enclosing module" do
+      nodes = parse!("-module(fix_client).\nfoo(X) -> X + 1.\n")
+      funcs = function_nodes(nodes)
+      assert [func] = funcs
+      assert func.meta[:module] == :fix_client
+    end
+
+    test "multiple functions all carry the same module" do
+      nodes =
+        parse!("""
+        -module(fix_client).
+        foo(X) -> X.
+        bar(X) -> X.
+        """)
+
+      funcs = function_nodes(nodes)
+      assert length(funcs) == 2
+      assert Enum.all?(funcs, &(&1.meta[:module] == :fix_client))
+    end
+
     test "parses multi-clause function" do
       nodes =
         parse!("""

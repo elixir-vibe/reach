@@ -19,6 +19,7 @@ defmodule Reach.Frontend.Erlang do
     case :epp.parse_file(to_charlist(path), include_dirs) do
       {:ok, forms} ->
         counter = Counter.new()
+        module = erlang_module_name(forms)
 
         nodes =
           forms
@@ -28,6 +29,7 @@ defmodule Reach.Frontend.Erlang do
             _ -> false
           end)
           |> Enum.map(&translate_form(&1, counter, path))
+          |> Enum.map(&attach_module(&1, module))
 
         {:ok, nodes}
 
@@ -53,6 +55,19 @@ defmodule Reach.Frontend.Erlang do
       File.rm_rf(tmp_dir)
     end
   end
+
+  defp erlang_module_name(forms) do
+    Enum.find_value(forms, fn
+      {:attribute, _line, :module, name} -> name
+      _other -> nil
+    end)
+  end
+
+  defp attach_module(%Node{type: :function_def} = node, module) do
+    %{node | meta: Map.put(node.meta, :module, module)}
+  end
+
+  defp attach_module(node, _module), do: node
 
   # --- Translation ---
 
