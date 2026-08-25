@@ -32,13 +32,17 @@ defmodule Reach.Check.DeadCode do
     plugins = Keyword.get(opts, :plugins, Reach.Plugin.detect())
     declaration_lines = value_discard_safe_lines(files, plugins)
 
+    task_timeout = Keyword.get(opts, :task_timeout, 30_000)
+
     files
     |> Task.async_stream(&find_in_file(&1, opts),
       max_concurrency: System.schedulers_online(),
-      ordered: false,
-      timeout: Keyword.get(opts, :task_timeout, 30_000)
+      ordered: true,
+      timeout: task_timeout,
+      on_timeout: :kill_task
     )
-    |> Enum.flat_map(fn {:ok, results} -> results end)
+    |> Stream.zip(files)
+    |> Enum.flat_map(&task_findings(&1, task_timeout))
     |> Enum.reject(&value_discard_safe?(&1, declaration_lines))
     |> Enum.sort_by(&{&1.file, &1.line})
     |> Enum.uniq_by(&{&1.file, &1.line})
@@ -77,6 +81,30 @@ defmodule Reach.Check.DeadCode do
       _ ->
         []
     end
+  end
+
+  defp task_findings({{:ok, findings}, _file}, _task_timeout), do: findings
+
+  defp task_findings({{:exit, :timeout}, file}, task_timeout) do
+    [
+      Finding.new(
+        file: file,
+        line: 1,
+        kind: :analysis_timeout,
+        description: "analysis timed out after #{task_timeout}ms"
+      )
+    ]
+  end
+
+  defp task_findings({{:exit, reason}, file}, _task_timeout) do
+    [
+      Finding.new(
+        file: file,
+        line: 1,
+        kind: :analysis_error,
+        description: "analysis failed: #{inspect(reason)}"
+      )
+    ]
   end
 
   defp finding_from_node(node, file) do
