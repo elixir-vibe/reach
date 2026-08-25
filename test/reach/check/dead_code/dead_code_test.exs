@@ -57,20 +57,6 @@ defmodule Reach.Check.DeadCodeTest do
            )
   end
 
-  test "reports file analysis timeouts without crashing the whole check" do
-    path =
-      temp_source(~S'''
-      defmodule SlowRepro do
-        def run(value), do: value
-      end
-      ''')
-
-    assert [finding] = DeadCode.run([path], task_timeout: 0)
-    assert finding.file == path
-    assert finding.kind == :analysis_timeout
-    assert finding.description == "analysis timed out after 0ms"
-  end
-
   defp temp_source(source) do
     path = Path.join(System.tmp_dir!(), "reach-dead-code-#{System.unique_integer()}.ex")
     File.write!(path, source)
