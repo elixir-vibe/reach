@@ -18,7 +18,7 @@ defmodule Reach.Frontend.Erlang do
 
     case :epp.parse_file(to_charlist(path), include_dirs) do
       {:ok, forms} ->
-        counter = Counter.new()
+        counter = Keyword.get_lazy(opts, :counter, &Counter.new/0)
         module = source_module(forms)
 
         nodes =

@@ -4,6 +4,7 @@ defmodule Reach.Frontend.ErlangTest do
   alias Reach.Check.Smells
   alias Reach.Frontend.Erlang
   alias Reach.IR
+  alias Reach.IR.Counter
 
   defp parse!(source) do
     {:ok, nodes} = Erlang.parse_string(source)
@@ -29,6 +30,18 @@ defmodule Reach.Frontend.ErlangTest do
       assert func.meta[:module] == :test
       assert func.meta[:name] == :foo
       assert func.meta[:arity] == 1
+    end
+
+    test "uses a shared counter across Erlang source files" do
+      counter = Counter.new()
+
+      {:ok, first} = Erlang.parse_string("-module(first).\nrun(X) -> X.\n", counter: counter)
+      {:ok, second} = Erlang.parse_string("-module(second).\nrun(X) -> X.\n", counter: counter)
+
+      first_ids = first |> IR.all_nodes() |> MapSet.new(& &1.id)
+      second_ids = second |> IR.all_nodes() |> MapSet.new(& &1.id)
+
+      assert MapSet.disjoint?(first_ids, second_ids)
     end
 
     test "parses multi-clause function" do
