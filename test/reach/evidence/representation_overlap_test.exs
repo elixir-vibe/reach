@@ -165,6 +165,25 @@ defmodule Reach.Evidence.RepresentationOverlapTest do
     assert is_nil(fact.map.normalized_into)
   end
 
+  test "does not treat collection mapping as a presentation boundary" do
+    [fact] =
+      collect("""
+      defmodule Domain.Stream do
+        defstruct [:id, :uuid, :version]
+      end
+
+      defmodule StreamLoader do
+        def load(rows), do: Enum.map(rows, &row_to_stream/1)
+
+        defp row_to_stream([id, uuid, version]) do
+          %{id: id, uuid: uuid, version: version}
+        end
+      end
+      """)
+
+    assert is_nil(fact.map.normalized_into)
+  end
+
   test "requires near-equivalent shapes and excludes map patterns" do
     facts =
       collect("""

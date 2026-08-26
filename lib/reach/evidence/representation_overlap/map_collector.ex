@@ -12,6 +12,12 @@ defmodule Reach.Evidence.RepresentationOverlap.MapCollector do
   @accumulator_functions [:map_reduce, :reduce, :reduce_while, :scan]
   @struct_functions [:struct, :struct!]
   @struct_source_functions [:build_struct, :struct, :struct!]
+  @transparent_collection_calls [
+    {Enum, :flat_map},
+    {Enum, :map},
+    {Stream, :flat_map},
+    {Stream, :map}
+  ]
 
   @spec collect(Reach.Project.t()) :: [MapShape.t()]
   def collect(%{nodes: nodes, call_graph: _call_graph} = project) when is_map(nodes) do
@@ -164,6 +170,14 @@ defmodule Reach.Evidence.RepresentationOverlap.MapCollector do
       do: :struct_constructor,
       else: normalization_target(call, parents, remaining - 1)
   end
+
+  defp call_normalization_target(
+         %{meta: %{module: module, function: function}} = call,
+         parents,
+         remaining
+       )
+       when {module, function} in @transparent_collection_calls,
+       do: normalization_target(call, parents, remaining - 1)
 
   defp call_normalization_target(
          %{meta: %{module: Access, function: :get}},
