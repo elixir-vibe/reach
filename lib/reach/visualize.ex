@@ -278,15 +278,16 @@ defmodule Reach.Visualize do
       module = function_module(function)
       file = node.source_span[:file] || source_file(function)
       line = node.source_span[:start_line]
+      node_label = ir_node_label(node)
 
       %{
         id: to_string(node.id),
         function_id: if(function_id, do: to_string(function_id)),
-        label: "#{function_prefix}L#{line}: #{ir_node_label(node)}",
+        label: "#{function_prefix}L#{line}: #{node_label}",
         module: if(module, do: display_module(module)),
         file: file,
         start_line: line,
-        source_html: Source.highlight_line(file, line)
+        source_html: Source.highlight_line(file, line, node_label)
       }
     end
   end

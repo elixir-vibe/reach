@@ -69,6 +69,18 @@ defmodule Reach.Visualize.Source do
 
   def highlight_line(_, _), do: nil
 
+  def highlight_line(file, line, fallback) when is_binary(fallback) do
+    case highlight_line(file, line) do
+      source when is_binary(source) ->
+        if String.trim(source) == "", do: highlight_fallback(fallback, file), else: source
+
+      _missing_source ->
+        highlight_fallback(fallback, file)
+    end
+  end
+
+  def highlight_line(file, line, _fallback), do: highlight_line(file, line)
+
   def highlight_lines(file, from, to) when is_binary(file) do
     case cached_file_lines(file) do
       nil ->
@@ -167,6 +179,10 @@ defmodule Reach.Visualize.Source do
 
   def source_file?(nil), do: false
   def source_file?(file), do: Path.extname(file) in @source_extensions
+
+  defp highlight_fallback(fallback, file) do
+    highlight_source(fallback, lang_for_file(file)) || escape_html(fallback)
+  end
 
   defp escape_html(source) do
     source

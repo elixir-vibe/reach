@@ -188,6 +188,32 @@ defmodule Reach.VisualizeTest do
       assert Enum.all?(data_nodes, &(is_binary(&1.function_id) and &1.function_id != ""))
       refute Enum.any?(data_nodes, &(&1.label =~ "export(...)" or &1.label =~ "spec(...)"))
     end
+
+    test "data flow falls back to labels for generated Erlang source locations" do
+      dir =
+        Path.join(
+          System.tmp_dir!(),
+          "reach-generated-erlang-data-flow-#{System.unique_integer([:positive])}"
+        )
+
+      path = Path.join(dir, "generated_parser.erl")
+      File.mkdir_p!(dir)
+
+      File.write!(path, """
+      -file("grammar.yrl", 42).
+      -module(generated_parser).
+      -export([normalize/1]).
+      normalize(Input) -> Normalized = Input, Normalized.
+      """)
+
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      project = Reach.Project.from_sources([path], plugins: [])
+      data_nodes = Reach.Visualize.to_graph_json(project).data_flow.functions
+
+      assert data_nodes != []
+      assert Enum.all?(data_nodes, &(is_binary(&1.source_html) and &1.source_html != ""))
+    end
   end
 
   describe "to_json/2" do
