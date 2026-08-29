@@ -38,6 +38,9 @@ defmodule Reach.Project do
   @enforce_keys [:modules, :graph, :nodes, :call_graph]
   defstruct [:modules, :graph, :nodes, :call_graph, summaries: %{}, plugins: [], cache_key: nil]
 
+  # A deterministic range per source file keeps IDs stable while files parse concurrently.
+  @node_id_file_stride 4_294_967_296
+
   @doc """
   Builds a project graph from source file paths.
 
@@ -286,19 +289,38 @@ defmodule Reach.Project do
   # --- Private ---
 
   defp parse_files(paths, opts) do
-    counter = Keyword.get_lazy(opts, :counter, &Counter.new/0)
+    shared_counter = Keyword.get(opts, :counter)
     timeout = Keyword.get(opts, :parse_timeout, :infinity)
+    max_concurrency = Keyword.get(opts, :parse_concurrency, System.schedulers_online())
 
-    paths
-    |> Task.async_stream(&parse_path(&1, counter, opts),
-      max_concurrency: System.schedulers_online(),
-      ordered: false,
-      timeout: timeout
-    )
+    {erlang_paths, parallel_paths} =
+      paths
+      |> Enum.with_index()
+      |> Enum.split_with(fn {path, _index} -> Path.extname(path) == ".erl" end)
+
+    parallel_results =
+      parallel_paths
+      |> Task.async_stream(
+        &parse_indexed_path(&1, shared_counter, opts),
+        max_concurrency: max_concurrency,
+        ordered: false,
+        timeout: timeout
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
+    erlang_results = Enum.map(erlang_paths, &parse_indexed_path(&1, shared_counter, opts))
+
+    (parallel_results ++ erlang_results)
+    |> Enum.sort_by(&elem(&1, 0))
     |> Enum.flat_map(fn
-      {:ok, nil} -> []
-      {:ok, result} -> [result]
+      {_index, nil} -> []
+      {_index, result} -> [result]
     end)
+  end
+
+  defp parse_indexed_path({path, index}, shared_counter, opts) do
+    counter = shared_counter || Counter.new(index * @node_id_file_stride)
+    {index, parse_path(path, counter, opts)}
   end
 
   defp parse_path(path, counter, opts) do
@@ -359,6 +381,7 @@ defmodule Reach.Project do
     Reach.Effects.ensure_cache()
     summaries = Keyword.get(opts, :summaries, %{})
     timeout = Keyword.get(opts, :build_timeout, :infinity)
+    max_concurrency = Keyword.get(opts, :build_concurrency, System.schedulers_online())
 
     parsed_modules
     |> Task.async_stream(
@@ -371,7 +394,7 @@ defmodule Reach.Project do
 
         {module_name, sdg}
       end,
-      max_concurrency: System.schedulers_online(),
+      max_concurrency: max_concurrency,
       ordered: false,
       timeout: timeout
     )

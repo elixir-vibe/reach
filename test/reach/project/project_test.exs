@@ -9,6 +9,7 @@ defmodule Reach.ProjectTest do
              System.tmp_dir!(),
              "reach_project_test_#{:erlang.unique_integer([:positive])}"
            )
+  @node_id_file_stride 4_294_967_296
 
   setup do
     File.mkdir_p!(Path.join(@tmp_dir, "lib"))
@@ -42,6 +43,36 @@ defmodule Reach.ProjectTest do
       project = Project.from_sources([path_a, path_b])
       assert map_size(project.modules) == 2
       assert map_size(project.nodes) > 0
+    end
+
+    test "allocates deterministic node ID ranges per source file" do
+      first =
+        write_file("lib/first.ex", """
+        defmodule First do
+          def run(value), do: value
+        end
+        """)
+
+      second =
+        write_file("lib/second.erl", """
+        -module(second).
+        -export([run/1]).
+        run(Value) -> Value.
+        """)
+
+      project = Project.from_sources([first, second], source_only: true)
+
+      first_ids = ids_for_file(project, first)
+      second_ids = ids_for_file(project, second)
+
+      assert first_ids != []
+      assert second_ids != []
+      assert Enum.all?(first_ids, &(&1 < @node_id_file_stride))
+
+      assert Enum.all?(
+               second_ids,
+               &(&1 >= @node_id_file_stride and &1 < 2 * @node_id_file_stride)
+             )
     end
 
     test "can discard per-module dependence graphs after merging" do
@@ -246,5 +277,12 @@ defmodule Reach.ProjectTest do
       # Should have cross-module call edges
       assert :call in labels or :parameter_in in labels or :summary in labels
     end
+  end
+
+  defp ids_for_file(project, file) do
+    project.nodes
+    |> Map.values()
+    |> Enum.filter(&(&1.source_span && &1.source_span[:file] == file))
+    |> Enum.map(& &1.id)
   end
 end

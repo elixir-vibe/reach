@@ -4,8 +4,11 @@ defmodule Reach.IR.Counter do
   @opaque t :: :atomics.atomics_ref()
 
   @spec new() :: t()
-  def new do
-    :atomics.new(1, signed: true)
+  @spec new(non_neg_integer()) :: t()
+  def new(initial_value \\ 0) do
+    ref = :atomics.new(1, signed: true)
+    :ok = :atomics.put(ref, 1, initial_value)
+    ref
   end
 
   @spec next(t()) :: non_neg_integer()
