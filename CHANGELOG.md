@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.8.3 - 2026-08-29
+
 ### Added
 
 - `Reach.Effects.classify_with_provenance/2` reports each effect classification's source, confidence, contributing plugin, and explicit reason for unknown results; `mix reach.map --effects` summarizes those sources and reports unresolved call arity, kind, and reason.
@@ -11,8 +13,16 @@
 - Effect inference now resolves unqualified project calls, default-argument wrappers, function references, and unique macro-injected aliases against their owning module, and runs to a complete fixed point without sharing classifications between unrelated same-named functions.
 - Dependency functions can now derive medium-confidence effects from BEAM code when plugins, built-ins, and typespecs provide no result.
 - Function captures are treated as pure values until an eager higher-order operation executes them, preventing stored or lazy callbacks from inheriting effects prematurely.
+- Phoenix PubSub, `Task.Supervisor`, Mint, controller, and HEEx semantics now classify effects at the framework-plugin boundary instead of relying on broad generic heuristics.
 - `mix reach.map --effects` now summarizes runtime function bodies instead of counting compile-time types and module DSL declarations as application calls.
 - Unquoted expressions and pure HEEx event attributes now flow into their generated output, preventing dead-code false positives without treating synthetic event calls as effectful.
+- Smell evidence now handles functions without module metadata instead of crashing during analysis.
+- Same-entity representation analysis no longer treats `Enum` and `Stream` mapping callbacks as presentation boundaries that hide valid findings.
+- Call-graph and data-flow reports now preserve deterministic module, file, function, source-line, and source-HTML attribution across multi-module source files.
+- Module fan-in and fan-out metrics now use the same dependency graph as coupling analysis.
+- Erlang analysis now preserves function ownership, remote function-reference metadata, and stable project-wide node IDs; module attributes stay out of function-owned data flow, and generated logical source locations receive meaningful fallback labels.
+- Project parsing now allocates deterministic per-file node ranges and serializes Erlang preprocessing, preventing graph, effect, and report output from changing between identical runs.
+- Installed Hex packages now include the compiled JavaScript and CSS required for self-contained offline HTML reports.
 
 ## 2.8.2 - 2026-07-26
 
