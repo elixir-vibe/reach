@@ -1,7 +1,21 @@
 defmodule Reach.Effects.LocalInferenceTest do
   use ExUnit.Case, async: false
 
-  alias Reach.Effects
+  alias Reach.{Effects, Frontend}
+
+  defmodule CompiledProjectModule do
+    def unresolved(callback, value), do: callback.(value)
+    def caller(callback, value), do: unresolved(callback, value)
+  end
+
+  defmodule NestedDependency do
+    def double(value), do: value * 2
+  end
+
+  defmodule CompiledDependency do
+    def first(value), do: value + 1
+    def second(value), do: NestedDependency.double(value)
+  end
 
   setup do
     for cache <- [:reach_classify_cache, :reach_dependency_effect_cache],
@@ -37,6 +51,54 @@ defmodule Reach.Effects.LocalInferenceTest do
 
     assert %{effect: :write, source: :local_inference, confidence: :medium} =
              Effects.classify_with_provenance(write_call, [])
+  end
+
+  test "does not infer project modules from compiled dependency code" do
+    project("""
+    defmodule Reach.Effects.LocalInferenceTest.CompiledProjectModule do
+      def unresolved(callback, value), do: callback.(value)
+      def caller(callback, value), do: unresolved(callback, value)
+    end
+    """)
+
+    refute dependency_cached?(CompiledProjectModule)
+  end
+
+  test "batches effect inference for calls to the same dependency module" do
+    Code.ensure_loaded!(Frontend.BEAM)
+    :erlang.trace_pattern({Frontend.BEAM, :from_module, 2}, true, [:local, :call_count])
+
+    on_exit(fn ->
+      :erlang.trace_pattern({Frontend.BEAM, :from_module, 2}, false, [:local, :call_count])
+    end)
+
+    project("""
+    defmodule DependencyBatchConsumer do
+      def first(value), do: Reach.Effects.LocalInferenceTest.CompiledDependency.first(value)
+      def second(value), do: Reach.Effects.LocalInferenceTest.CompiledDependency.second(value)
+    end
+    """)
+
+    assert {:call_count, 1} =
+             :erlang.trace_info({Frontend.BEAM, :from_module, 2}, :call_count)
+  end
+
+  test "effect-only classification skips unknown-reason module resolution" do
+    :erlang.trace_pattern({Code, :ensure_loaded?, 1}, true, [:local, :call_count])
+
+    on_exit(fn ->
+      :erlang.trace_pattern({Code, :ensure_loaded?, 1}, false, [:local, :call_count])
+    end)
+
+    node = call_node("UnknownEffects.run()")
+
+    assert Effects.classify(node, []) == :unknown
+    assert {:call_count, 0} = :erlang.trace_info({Code, :ensure_loaded?, 1}, :call_count)
+
+    assert %{effect: :unknown, reason: :unresolved_module} =
+             Effects.classify_with_provenance(node, [])
+
+    assert {:call_count, 1} = :erlang.trace_info({Code, :ensure_loaded?, 1}, :call_count)
   end
 
   test "continues fixed-point inference while each pass resolves new functions" do
@@ -165,5 +227,10 @@ defmodule Reach.Effects.LocalInferenceTest do
   defp call_node(source) do
     [node] = Reach.IR.from_string!(source, plugins: [])
     node
+  end
+
+  defp dependency_cached?(module) do
+    :ets.whereis(:reach_dependency_effect_cache) != :undefined and
+      :ets.member(:reach_dependency_effect_cache, module)
   end
 end
