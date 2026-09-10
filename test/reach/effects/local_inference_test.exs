@@ -3,19 +3,11 @@ defmodule Reach.Effects.LocalInferenceTest do
 
   alias Reach.{Effects, Frontend}
 
-  defmodule CompiledProjectModule do
-    def unresolved(callback, value), do: callback.(value)
-    def caller(callback, value), do: unresolved(callback, value)
-  end
-
-  defmodule NestedDependency do
-    def double(value), do: value * 2
-  end
-
-  defmodule CompiledDependency do
-    def first(value), do: value + 1
-    def second(value), do: NestedDependency.double(value)
-  end
+  alias Reach.Test.Effects.InferenceFixtures.{
+    CompiledDependency,
+    CompiledProjectModule,
+    WideDependency
+  }
 
   setup do
     for cache <- [:reach_classify_cache, :reach_dependency_effect_cache],
@@ -55,7 +47,7 @@ defmodule Reach.Effects.LocalInferenceTest do
 
   test "does not infer project modules from compiled dependency code" do
     project("""
-    defmodule Reach.Effects.LocalInferenceTest.CompiledProjectModule do
+    defmodule #{inspect(CompiledProjectModule)} do
       def unresolved(callback, value), do: callback.(value)
       def caller(callback, value), do: unresolved(callback, value)
     end
@@ -72,15 +64,43 @@ defmodule Reach.Effects.LocalInferenceTest do
       :erlang.trace_pattern({Frontend.BEAM, :from_module, 2}, false, [:local, :call_count])
     end)
 
-    project("""
-    defmodule DependencyBatchConsumer do
-      def first(value), do: Reach.Effects.LocalInferenceTest.CompiledDependency.first(value)
-      def second(value), do: Reach.Effects.LocalInferenceTest.CompiledDependency.second(value)
-    end
-    """)
+    project =
+      project("""
+      defmodule DependencyBatchConsumer do
+        def first(value), do: #{inspect(CompiledDependency)}.first(value)
+        def second(value), do: #{inspect(CompiledDependency)}.second(value)
+      end
+      """)
 
     assert {:call_count, 1} =
              :erlang.trace_info({Frontend.BEAM, :from_module, 2}, :call_count)
+
+    assert function_call_effect(project, DependencyBatchConsumer, :first) == :pure
+    assert function_call_effect(project, DependencyBatchConsumer, :second) == :unknown
+  end
+
+  test "batched dependency targets retain their reachable helpers" do
+    targets = WideDependency.__info__(:functions)
+
+    functions =
+      Enum.map_join(targets, "\n", fn {name, 1} ->
+        "def #{name}(value), do: #{inspect(WideDependency)}.#{name}(value)"
+      end)
+
+    project = project("defmodule WideDependencyConsumer do\n#{functions}\nend")
+
+    for {name, 1} <- targets do
+      assert function_call_effect(project, WideDependencyConsumer, name) == :pure
+    end
+  end
+
+  test "unsupported nodes retain their provenance reason" do
+    node = %Reach.IR.Node{id: -1, type: :unsupported}
+
+    assert Effects.classify(node, []) == :unknown
+
+    assert %{effect: :unknown, reason: :unsupported_node} =
+             Effects.classify_with_provenance(node, [])
   end
 
   test "effect-only classification skips unknown-reason module resolution" do

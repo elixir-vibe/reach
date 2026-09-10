@@ -7,7 +7,7 @@ defmodule Reach.Effects do
   queries to determine whether reordering is safe.
   """
 
-  alias Reach.Effects.{Classification, Dependency}
+  alias Reach.Effects.{Cache, Classification, Dependency}
   alias Reach.IR.Node
 
   @dependency_collection_key {__MODULE__, :dependency_collection}
@@ -177,7 +177,8 @@ defmodule Reach.Effects do
     end
   end
 
-  defp classify_result(_node, _plugins), do: classification(:unknown, :unknown, :low)
+  defp classify_result(_node, _plugins),
+    do: classification(:unknown, :unknown, :low, reason: :unsupported_node)
 
   @doc """
   Returns true if the node is pure (no side effects).
@@ -598,13 +599,7 @@ defmodule Reach.Effects do
 
   @doc "Ensures the effect-classification ETS cache exists."
   def ensure_cache do
-    if :ets.whereis(@classify_cache) == :undefined do
-      :ets.new(@classify_cache, [:set, :public, :named_table, read_concurrency: true])
-    end
-
-    :ok
-  rescue
-    ArgumentError -> :ok
+    Cache.ensure_started()
   end
 
   defp effect_call_module(%Node{
@@ -672,6 +667,10 @@ defmodule Reach.Effects do
 
   defp put_unknown_reason(%Classification{effect: effect} = result, _node)
        when effect != :unknown,
+       do: result
+
+  defp put_unknown_reason(%Classification{reason: reason} = result, _node)
+       when not is_nil(reason),
        do: result
 
   defp put_unknown_reason(%Classification{} = result, node) do

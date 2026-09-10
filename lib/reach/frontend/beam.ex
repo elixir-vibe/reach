@@ -1,5 +1,12 @@
 defmodule Reach.Frontend.BEAM do
-  @moduledoc "BEAM bytecode frontend for analyzing compiled .beam files."
+  @moduledoc """
+  BEAM bytecode frontend for analyzing compiled .beam files.
+
+  The `:functions` option selects target `{name, arity}` pairs and their reachable
+  local functions. `:max_functions` caps the total selection. For batched analysis,
+  `:max_functions_per_target` instead caps each target's traversal independently
+  and returns the union, so targets do not consume one another's budget.
+  """
   alias Reach.IR.Counter
 
   alias Reach.Frontend.Erlang
@@ -161,11 +168,22 @@ defmodule Reach.Frontend.BEAM do
         other -> {{:non_function, :erlang.phash2(other)}, other}
       end)
 
-    max_functions = Keyword.get(opts, :max_functions, map_size(function_forms))
-
-    targets
-    |> collect_reachable_forms(function_forms, MapSet.new(), max_functions)
+    function_forms
+    |> reachable_function_keys(targets, opts)
     |> Enum.map(&Map.fetch!(function_forms, &1))
+  end
+
+  defp reachable_function_keys(forms, targets, opts) do
+    case Keyword.fetch(opts, :max_functions_per_target) do
+      {:ok, max_functions} ->
+        targets
+        |> Enum.flat_map(&collect_reachable_forms([&1], forms, MapSet.new(), max_functions))
+        |> Enum.uniq()
+
+      :error ->
+        max_functions = Keyword.get(opts, :max_functions, map_size(forms))
+        collect_reachable_forms(targets, forms, MapSet.new(), max_functions)
+    end
   end
 
   defp collect_reachable_forms([], _forms, seen, _remaining), do: MapSet.to_list(seen)

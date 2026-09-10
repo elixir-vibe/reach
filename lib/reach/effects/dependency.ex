@@ -2,6 +2,7 @@ defmodule Reach.Effects.Dependency do
   @moduledoc false
 
   alias Reach.{Effects, Frontend, IR}
+  alias Reach.Effects.Cache
   alias Reach.IR.Node
 
   @cache :reach_dependency_effect_cache
@@ -111,12 +112,7 @@ defmodule Reach.Effects.Dependency do
       end)
 
     if missing_targets != [] do
-      inferred =
-        build_targets(
-          module,
-          missing_targets,
-          max(@max_dependency_functions, length(missing_targets))
-        )
+      inferred = build_targets(module, missing_targets)
 
       requested =
         Map.new(missing_targets, fn {function, arity} ->
@@ -141,15 +137,15 @@ defmodule Reach.Effects.Dependency do
   end
 
   defp build(module, function, arity) do
-    build_targets(module, [{function, arity}], @max_dependency_functions)
+    build_targets(module, [{function, arity}])
   end
 
-  defp build_targets(module, targets, max_functions) do
+  defp build_targets(module, targets) do
     Process.put(@inference_key, module)
 
     case Frontend.BEAM.from_module(module,
            functions: targets,
-           max_functions: max_functions
+           max_functions_per_target: @max_dependency_functions
          ) do
       {:ok, nodes} -> build_summary(module, nodes)
       {:error, _reason} -> %{}
@@ -182,12 +178,6 @@ defmodule Reach.Effects.Dependency do
   end
 
   defp ensure_cache do
-    if :ets.whereis(@cache) == :undefined do
-      :ets.new(@cache, [:set, :public, :named_table, read_concurrency: true])
-    end
-
-    :ok
-  rescue
-    ArgumentError -> :ok
+    Cache.ensure_started()
   end
 end

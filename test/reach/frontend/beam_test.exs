@@ -3,6 +3,8 @@ defmodule Reach.Frontend.BEAMTest do
 
   alias Reach.Frontend.BEAM
 
+  alias Reach.Test.Effects.InferenceFixtures.BatchedTargets
+
   describe "compiled_to_graph/2" do
     test "captures macro-injected callbacks from use GenServer" do
       mod = :"ReachTestGS#{System.unique_integer([:positive])}"
@@ -88,6 +90,24 @@ end"
       assert MapSet.member?(function_ids, {:new, 1})
       refute Enum.any?(functions, &(&1.meta[:name] == :add_vertex))
       assert Enum.all?(functions, &(&1.meta[:module] == Graph))
+    end
+
+    test "applies a separate reachable-function budget to each batch target" do
+      assert {:ok, nodes} =
+               BEAM.from_module(BatchedTargets,
+                 functions: [first: 1, second: 1],
+                 max_functions_per_target: 2
+               )
+
+      assert MapSet.new(nodes, & &1.meta.name) == MapSet.new([:first, :second, :helper])
+
+      assert {:ok, globally_limited} =
+               BEAM.from_module(BatchedTargets,
+                 functions: [first: 1, second: 1],
+                 max_functions: 2
+               )
+
+      assert MapSet.new(globally_limited, & &1.meta.name) == MapSet.new([:first, :second])
     end
 
     test "returns error for non-existing module" do
