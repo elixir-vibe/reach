@@ -6,6 +6,7 @@ defmodule Reach.Effects.LocalInferenceTest do
   alias Reach.Test.Effects.InferenceFixtures.{
     CompiledDependency,
     CompiledProjectModule,
+    LateLoadedDependency,
     WideDependency
   }
 
@@ -92,6 +93,47 @@ defmodule Reach.Effects.LocalInferenceTest do
     for {name, 1} <- targets do
       assert function_call_effect(project, WideDependencyConsumer, name) == :pure
     end
+  end
+
+  test "loads referenced modules outside the project-owning process" do
+    :code.purge(LateLoadedDependency)
+    :code.delete(LateLoadedDependency)
+    refute :erlang.module_loaded(LateLoadedDependency)
+
+    owner = self()
+
+    tracer =
+      spawn(fn ->
+        receive do
+          {:trace, pid, :call, {Code, :ensure_loaded?, 1}} ->
+            send(owner, {:module_loader, pid})
+        end
+      end)
+
+    :erlang.trace_pattern(
+      {Code, :ensure_loaded?, 1},
+      [{[LateLoadedDependency], [], []}],
+      [:local]
+    )
+
+    :erlang.trace(owner, true, [:call, :arity, :set_on_spawn, {:tracer, tracer}])
+
+    on_exit(fn ->
+      :erlang.trace_pattern({Code, :ensure_loaded?, 1}, false, [:local])
+      Process.exit(tracer, :kill)
+    end)
+
+    project =
+      project("""
+      defmodule LateDependencyConsumer do
+        def run(value), do: #{inspect(LateLoadedDependency)}.run(value)
+      end
+      """)
+
+    assert_receive {:module_loader, loader}
+    refute loader == owner
+    assert :erlang.module_loaded(LateLoadedDependency)
+    assert function_call_effect(project, LateDependencyConsumer, :run) == :pure
   end
 
   test "unsupported nodes retain their provenance reason" do

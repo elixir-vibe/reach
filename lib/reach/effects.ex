@@ -225,6 +225,7 @@ defmodule Reach.Effects do
     all_nodes = Map.values(node_map)
 
     module_aliases = inferred_module_aliases(all_nodes)
+    preload_inference_modules(all_nodes, module_aliases, plugins)
 
     local_modules =
       all_nodes
@@ -253,6 +254,23 @@ defmodule Reach.Effects do
     with_local_inference_modules(local_modules, fn ->
       with_dependency_collection(fn -> do_infer(func_calls, plugins) end)
     end)
+  end
+
+  defp preload_inference_modules(nodes, module_aliases, plugins) do
+    modules =
+      nodes
+      |> Enum.filter(&(&1.type == :call))
+      |> Enum.map(&effect_call_module/1)
+      |> Enum.concat(Map.values(module_aliases))
+      |> Enum.concat(plugins)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.filter(&is_atom/1)
+      |> Enum.uniq()
+
+    # OTP may force a GC in the loading process. Keep the project graph out of
+    # that process: only copy module atoms into this short-lived worker.
+    Task.async(fn -> Enum.each(modules, &Code.ensure_loaded?/1) end)
+    |> Task.await(:infinity)
   end
 
   defp with_dependency_collection(fun) do
@@ -713,7 +731,6 @@ defmodule Reach.Effects do
 
   defp plugin_fingerprint(plugins) do
     plugins
-    |> Enum.map(&inspect/1)
     |> Enum.sort()
     |> List.to_tuple()
   end

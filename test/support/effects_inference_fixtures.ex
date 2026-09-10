@@ -18,6 +18,11 @@ defmodule Reach.Test.Effects.InferenceFixtures do
     def second(value), do: NestedDependency.double(value)
   end
 
+  defmodule LateLoadedDependency do
+    @moduledoc false
+    def run(value), do: value + 1
+  end
+
   defmodule WideDependency do
     @moduledoc false
     @target_count 100
