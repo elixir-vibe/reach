@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Project effect inference now avoids repeated compiled-module and provenance lookups, and batches dependency BEAM analysis by module, restoring large-project check performance.
+
 ## 2.8.3 - 2026-08-31
 
 ### Added

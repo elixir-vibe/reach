@@ -2,12 +2,38 @@ defmodule Reach.Effects.Dependency do
   @moduledoc false
 
   alias Reach.{Effects, Frontend, IR}
+  alias Reach.Effects.Cache
   alias Reach.IR.Node
 
   @cache :reach_dependency_effect_cache
   @inference_key {__MODULE__, :inference}
   @max_dependency_functions 100
   @inference_plugins [__MODULE__]
+
+  @spec preload(Enumerable.t()) :: :ok
+  def preload(calls) do
+    if Process.get(@inference_key) do
+      :ok
+    else
+      ensure_cache()
+
+      groups =
+        calls
+        |> Enum.filter(fn {module, function, arity} ->
+          is_atom(module) and is_atom(function) and is_integer(arity)
+        end)
+        |> Enum.group_by(&elem(&1, 0), fn {_module, function, arity} -> {function, arity} end)
+
+      groups
+      |> Task.async_stream(
+        fn {module, targets} -> preload_module(module, Enum.uniq(targets)) end,
+        max_concurrency: System.schedulers_online(),
+        ordered: false,
+        timeout: :infinity
+      )
+      |> Enum.each(fn {:ok, :ok} -> :ok end)
+    end
+  end
 
   @spec classify(module(), atom(), non_neg_integer()) :: Effects.effect() | nil
   def classify(module, function, arity)
@@ -68,6 +94,41 @@ defmodule Reach.Effects.Dependency do
     Map.fetch!(summary, key)
   end
 
+  defp preload_module(module, targets) do
+    ensure_cache()
+
+    :global.trans(
+      {{__MODULE__, module}, self()},
+      fn -> preload_missing_targets(module, targets) end
+    )
+
+    :ok
+  end
+
+  defp preload_missing_targets(module, targets) do
+    missing_targets =
+      Enum.reject(targets, fn {function, arity} ->
+        match?({:ok, _effect}, cached_effect(module, {module, function, arity}))
+      end)
+
+    if missing_targets != [] do
+      inferred = build_targets(module, missing_targets)
+
+      requested =
+        Map.new(missing_targets, fn {function, arity} ->
+          {{module, function, arity}, :unknown}
+        end)
+
+      summary =
+        module
+        |> cached_summary()
+        |> Map.merge(requested)
+        |> Map.merge(inferred)
+
+      :ets.insert(@cache, {module, summary})
+    end
+  end
+
   defp cached_summary(module) do
     case :ets.lookup(@cache, module) do
       [{^module, summary}] -> summary
@@ -76,11 +137,15 @@ defmodule Reach.Effects.Dependency do
   end
 
   defp build(module, function, arity) do
+    build_targets(module, [{function, arity}])
+  end
+
+  defp build_targets(module, targets) do
     Process.put(@inference_key, module)
 
     case Frontend.BEAM.from_module(module,
-           functions: [{function, arity}],
-           max_functions: @max_dependency_functions
+           functions: targets,
+           max_functions_per_target: @max_dependency_functions
          ) do
       {:ok, nodes} -> build_summary(module, nodes)
       {:error, _reason} -> %{}
@@ -113,12 +178,6 @@ defmodule Reach.Effects.Dependency do
   end
 
   defp ensure_cache do
-    if :ets.whereis(@cache) == :undefined do
-      :ets.new(@cache, [:set, :public, :named_table, read_concurrency: true])
-    end
-
-    :ok
-  rescue
-    ArgumentError -> :ok
+    Cache.ensure_started()
   end
 end

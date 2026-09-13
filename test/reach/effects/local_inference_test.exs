@@ -1,7 +1,14 @@
 defmodule Reach.Effects.LocalInferenceTest do
   use ExUnit.Case, async: false
 
-  alias Reach.Effects
+  alias Reach.{Effects, Frontend}
+
+  alias Reach.Test.Effects.InferenceFixtures.{
+    CompiledDependency,
+    CompiledProjectModule,
+    LateLoadedDependency,
+    WideDependency
+  }
 
   setup do
     for cache <- [:reach_classify_cache, :reach_dependency_effect_cache],
@@ -37,6 +44,123 @@ defmodule Reach.Effects.LocalInferenceTest do
 
     assert %{effect: :write, source: :local_inference, confidence: :medium} =
              Effects.classify_with_provenance(write_call, [])
+  end
+
+  test "does not infer project modules from compiled dependency code" do
+    project("""
+    defmodule #{inspect(CompiledProjectModule)} do
+      def unresolved(callback, value), do: callback.(value)
+      def caller(callback, value), do: unresolved(callback, value)
+    end
+    """)
+
+    refute dependency_cached?(CompiledProjectModule)
+  end
+
+  test "batches effect inference for calls to the same dependency module" do
+    Code.ensure_loaded!(Frontend.BEAM)
+    :erlang.trace_pattern({Frontend.BEAM, :from_module, 2}, true, [:local, :call_count])
+
+    on_exit(fn ->
+      :erlang.trace_pattern({Frontend.BEAM, :from_module, 2}, false, [:local, :call_count])
+    end)
+
+    project =
+      project("""
+      defmodule DependencyBatchConsumer do
+        def first(value), do: #{inspect(CompiledDependency)}.first(value)
+        def second(value), do: #{inspect(CompiledDependency)}.second(value)
+      end
+      """)
+
+    assert {:call_count, 1} =
+             :erlang.trace_info({Frontend.BEAM, :from_module, 2}, :call_count)
+
+    assert function_call_effect(project, DependencyBatchConsumer, :first) == :pure
+    assert function_call_effect(project, DependencyBatchConsumer, :second) == :unknown
+  end
+
+  test "batched dependency targets retain their reachable helpers" do
+    targets = WideDependency.__info__(:functions)
+
+    functions =
+      Enum.map_join(targets, "\n", fn {name, 1} ->
+        "def #{name}(value), do: #{inspect(WideDependency)}.#{name}(value)"
+      end)
+
+    project = project("defmodule WideDependencyConsumer do\n#{functions}\nend")
+
+    for {name, 1} <- targets do
+      assert function_call_effect(project, WideDependencyConsumer, name) == :pure
+    end
+  end
+
+  test "loads referenced modules outside the project-owning process" do
+    :code.purge(LateLoadedDependency)
+    :code.delete(LateLoadedDependency)
+    refute :erlang.module_loaded(LateLoadedDependency)
+
+    owner = self()
+
+    tracer =
+      spawn(fn ->
+        receive do
+          {:trace, pid, :call, {Code, :ensure_loaded?, 1}} ->
+            send(owner, {:module_loader, pid})
+        end
+      end)
+
+    :erlang.trace_pattern(
+      {Code, :ensure_loaded?, 1},
+      [{[LateLoadedDependency], [], []}],
+      [:local]
+    )
+
+    :erlang.trace(owner, true, [:call, :arity, :set_on_spawn, {:tracer, tracer}])
+
+    on_exit(fn ->
+      :erlang.trace_pattern({Code, :ensure_loaded?, 1}, false, [:local])
+      Process.exit(tracer, :kill)
+    end)
+
+    project =
+      project("""
+      defmodule LateDependencyConsumer do
+        def run(value), do: #{inspect(LateLoadedDependency)}.run(value)
+      end
+      """)
+
+    assert_receive {:module_loader, loader}
+    refute loader == owner
+    assert :erlang.module_loaded(LateLoadedDependency)
+    assert function_call_effect(project, LateDependencyConsumer, :run) == :pure
+  end
+
+  test "unsupported nodes retain their provenance reason" do
+    node = %Reach.IR.Node{id: -1, type: :unsupported}
+
+    assert Effects.classify(node, []) == :unknown
+
+    assert %{effect: :unknown, reason: :unsupported_node} =
+             Effects.classify_with_provenance(node, [])
+  end
+
+  test "effect-only classification skips unknown-reason module resolution" do
+    :erlang.trace_pattern({Code, :ensure_loaded?, 1}, true, [:local, :call_count])
+
+    on_exit(fn ->
+      :erlang.trace_pattern({Code, :ensure_loaded?, 1}, false, [:local, :call_count])
+    end)
+
+    node = call_node("UnknownEffects.run()")
+
+    assert Effects.classify(node, []) == :unknown
+    assert {:call_count, 0} = :erlang.trace_info({Code, :ensure_loaded?, 1}, :call_count)
+
+    assert %{effect: :unknown, reason: :unresolved_module} =
+             Effects.classify_with_provenance(node, [])
+
+    assert {:call_count, 1} = :erlang.trace_info({Code, :ensure_loaded?, 1}, :call_count)
   end
 
   test "continues fixed-point inference while each pass resolves new functions" do
@@ -165,5 +289,10 @@ defmodule Reach.Effects.LocalInferenceTest do
   defp call_node(source) do
     [node] = Reach.IR.from_string!(source, plugins: [])
     node
+  end
+
+  defp dependency_cached?(module) do
+    :ets.whereis(:reach_dependency_effect_cache) != :undefined and
+      :ets.member(:reach_dependency_effect_cache, module)
   end
 end

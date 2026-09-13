@@ -7,8 +7,11 @@ defmodule Reach.Effects do
   queries to determine whether reordering is safe.
   """
 
-  alias Reach.Effects.{Classification, Dependency}
+  alias Reach.Effects.{Cache, Classification, Dependency}
   alias Reach.IR.Node
+
+  @dependency_collection_key {__MODULE__, :dependency_collection}
+  @local_inference_modules_key {__MODULE__, :local_inference_modules}
 
   @type effect ::
           :pure
@@ -123,7 +126,7 @@ defmodule Reach.Effects do
   @spec classify(Node.t(), [module()] | nil) :: effect()
   def classify(node, plugins \\ nil) do
     node
-    |> classify_with_provenance(plugins)
+    |> classify_result(plugins)
     |> Map.fetch!(:effect)
   end
 
@@ -131,49 +134,50 @@ defmodule Reach.Effects do
   Classifies an IR node and explains the source and confidence of the result.
   """
   @spec classify_with_provenance(Node.t(), [module()] | nil) :: Classification.t()
-  def classify_with_provenance(node, plugins \\ nil)
-
-  def classify_with_provenance(%Node{type: type}, _plugins) when type in @pure_node_types,
-    do: classification(:pure, :intrinsic, :high)
-
-  def classify_with_provenance(%Node{type: :receive}, _plugins),
-    do: classification(:receive, :intrinsic, :high)
-
-  def classify_with_provenance(
-        %Node{type: :call, meta: %{kind: kind}},
-        _plugins
-      )
-      when kind in [:field_access, :fun_ref],
-      do: classification(:pure, :intrinsic, :high)
-
-  def classify_with_provenance(
-        %Node{type: :call, meta: %{kind: :local, function: fun}},
-        _plugins
-      )
-      when fun in @compile_time_ops,
-      do: classification(:pure, :intrinsic, :high)
-
-  def classify_with_provenance(%Node{type: :call} = node, plugins) do
-    plugins = resolve_plugins(plugins)
-
-    result =
-      case Reach.Plugin.classify_effect_with_plugin(plugins, node) do
-        {effect, plugin} ->
-          classification(effect, :plugin, :high, classifier: plugin)
-
-        nil ->
-          classify_call(
-            effect_call_module(node),
-            node.meta[:function],
-            node.meta[:arity],
-            plugins
-          )
-      end
-
-    put_unknown_reason(result, node)
+  def classify_with_provenance(node, plugins \\ nil) do
+    node
+    |> classify_result(plugins)
+    |> put_unknown_reason(node)
   end
 
-  def classify_with_provenance(_node, _plugins),
+  defp classify_result(%Node{type: type}, _plugins) when type in @pure_node_types,
+    do: classification(:pure, :intrinsic, :high)
+
+  defp classify_result(%Node{type: :receive}, _plugins),
+    do: classification(:receive, :intrinsic, :high)
+
+  defp classify_result(
+         %Node{type: :call, meta: %{kind: kind}},
+         _plugins
+       )
+       when kind in [:field_access, :fun_ref],
+       do: classification(:pure, :intrinsic, :high)
+
+  defp classify_result(
+         %Node{type: :call, meta: %{kind: :local, function: fun}},
+         _plugins
+       )
+       when fun in @compile_time_ops,
+       do: classification(:pure, :intrinsic, :high)
+
+  defp classify_result(%Node{type: :call} = node, plugins) do
+    plugins = resolve_plugins(plugins)
+
+    case Reach.Plugin.classify_effect_with_plugin(plugins, node) do
+      {effect, plugin} ->
+        classification(effect, :plugin, :high, classifier: plugin)
+
+      nil ->
+        classify_call(
+          effect_call_module(node),
+          node.meta[:function],
+          node.meta[:arity],
+          plugins
+        )
+    end
+  end
+
+  defp classify_result(_node, _plugins),
     do: classification(:unknown, :unknown, :low, reason: :unsupported_node)
 
   @doc """
@@ -221,6 +225,12 @@ defmodule Reach.Effects do
     all_nodes = Map.values(node_map)
 
     module_aliases = inferred_module_aliases(all_nodes)
+    preload_inference_modules(all_nodes, module_aliases, plugins)
+
+    local_modules =
+      all_nodes
+      |> Enum.filter(&(&1.type == :function_def and is_atom(&1.meta[:module])))
+      |> MapSet.new(& &1.meta[:module])
 
     func_calls =
       all_nodes
@@ -241,7 +251,55 @@ defmodule Reach.Effects do
         {key, {calls, aliases}}
       end)
 
-    do_infer(func_calls, plugins)
+    with_local_inference_modules(local_modules, fn ->
+      with_dependency_collection(fn -> do_infer(func_calls, plugins) end)
+    end)
+  end
+
+  defp preload_inference_modules(nodes, module_aliases, plugins) do
+    modules =
+      nodes
+      |> Enum.filter(&(&1.type == :call))
+      |> Enum.map(&effect_call_module/1)
+      |> Enum.concat(Map.values(module_aliases))
+      |> Enum.concat(plugins)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.filter(&is_atom/1)
+      |> Enum.uniq()
+
+    # OTP may force a GC in the loading process. Keep the project graph out of
+    # that process: only copy module atoms into this short-lived worker.
+    Task.async(fn -> Enum.each(modules, &Code.ensure_loaded?/1) end)
+    |> Task.await(:infinity)
+  end
+
+  defp with_dependency_collection(fun) do
+    state = %{attempted: MapSet.new(), pending: MapSet.new()}
+    previous = Process.put(@dependency_collection_key, state)
+
+    try do
+      fun.()
+    after
+      if is_nil(previous) do
+        Process.delete(@dependency_collection_key)
+      else
+        Process.put(@dependency_collection_key, previous)
+      end
+    end
+  end
+
+  defp with_local_inference_modules(modules, fun) do
+    previous = Process.put(@local_inference_modules_key, modules)
+
+    try do
+      fun.()
+    after
+      if is_nil(previous) do
+        Process.delete(@local_inference_modules_key)
+      else
+        Process.put(@local_inference_modules_key, previous)
+      end
+    end
   end
 
   defp function_key(function_def) do
@@ -343,8 +401,10 @@ defmodule Reach.Effects do
 
   defp do_infer(func_calls, plugins) do
     newly_classified = Enum.count(func_calls, &try_infer_function(&1, plugins))
+    dependencies = take_pending_dependencies()
+    Dependency.preload(dependencies)
 
-    if newly_classified > 0 do
+    if newly_classified > 0 or MapSet.size(dependencies) > 0 do
       do_infer(func_calls, plugins)
     else
       :ok
@@ -557,13 +617,7 @@ defmodule Reach.Effects do
 
   @doc "Ensures the effect-classification ETS cache exists."
   def ensure_cache do
-    if :ets.whereis(@classify_cache) == :undefined do
-      :ets.new(@classify_cache, [:set, :public, :named_table, read_concurrency: true])
-    end
-
-    :ok
-  rescue
-    ArgumentError -> :ok
+    Cache.ensure_started()
   end
 
   defp effect_call_module(%Node{
@@ -633,6 +687,10 @@ defmodule Reach.Effects do
        when effect != :unknown,
        do: result
 
+  defp put_unknown_reason(%Classification{reason: reason} = result, _node)
+       when not is_nil(reason),
+       do: result
+
   defp put_unknown_reason(%Classification{} = result, node) do
     %{result | reason: unknown_reason(node)}
   end
@@ -673,7 +731,6 @@ defmodule Reach.Effects do
 
   defp plugin_fingerprint(plugins) do
     plugins
-    |> Enum.map(&inspect/1)
     |> Enum.sort()
     |> List.to_tuple()
   end
@@ -717,9 +774,64 @@ defmodule Reach.Effects do
   defp classify_unknown_dependency(result, _module, _function, _arity), do: result
 
   defp classify_dependency_call(module, function, arity) do
+    cond do
+      local_inference_module?(module) ->
+        nil
+
+      dependency_collection_state() ->
+        classify_or_collect_dependency(module, function, arity)
+
+      true ->
+        classify_dependency(module, function, arity)
+    end
+  end
+
+  defp dependency_collection_state do
+    Process.get(@dependency_collection_key)
+  end
+
+  defp classify_or_collect_dependency(module, function, arity) do
+    key = {module, function, arity}
+    state = dependency_collection_state()
+
+    if MapSet.member?(state.attempted, key) do
+      classify_dependency(module, function, arity)
+    else
+      Process.put(
+        @dependency_collection_key,
+        %{state | pending: MapSet.put(state.pending, key)}
+      )
+
+      nil
+    end
+  end
+
+  defp classify_dependency(module, function, arity) do
     case Dependency.classify(module, function, arity) do
       nil -> nil
       effect -> classification(effect, :dependency_inference, :medium)
+    end
+  end
+
+  defp take_pending_dependencies do
+    case dependency_collection_state() do
+      %{attempted: attempted, pending: pending} = state ->
+        Process.put(
+          @dependency_collection_key,
+          %{state | attempted: MapSet.union(attempted, pending), pending: MapSet.new()}
+        )
+
+        pending
+
+      _other ->
+        MapSet.new()
+    end
+  end
+
+  defp local_inference_module?(module) do
+    case Process.get(@local_inference_modules_key) do
+      %MapSet{} = modules -> MapSet.member?(modules, module)
+      _other -> false
     end
   end
 
