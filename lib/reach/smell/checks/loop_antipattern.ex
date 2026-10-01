@@ -71,26 +71,25 @@ defmodule Reach.Smell.Checks.LoopAntipattern do
   end
 
   defp quadratic_concat?(node, function) do
-    Helpers.inside_accumulator?(node, function) or
+    Helpers.growing_accumulator_concat?(node, function) or
       recursive_operand?(node, function)
   end
 
-  defp recursive_operand?(%{children: [left, right]}, function) do
-    name = function.meta[:name]
-    arity = function.meta[:arity]
-
-    contains_self_call?(left, name, arity) or contains_self_call?(right, name, arity)
+  defp recursive_operand?(%{children: [left, right]} = node, function) do
+    self_call?(left, function) or
+      (node.meta[:operator] == :<> and self_call?(right, function))
   end
 
   defp recursive_operand?(_, _), do: false
 
-  defp contains_self_call?(node, name, arity) do
-    IR.all_nodes(node)
-    |> Enum.any?(fn n ->
-      n.type == :call and n.meta[:function] == name and
-        n.meta[:arity] == arity and n.meta[:module] == nil
-    end)
+  # ++ copies only its left operand. A recursive result on the right is
+  # an ordinary list tail, not the quadratic prefix described by this check.
+  defp self_call?(%{type: :call} = node, function) do
+    node.meta[:function] == function.meta[:name] and
+      node.meta[:arity] == function.meta[:arity] and node.meta[:module] == nil
   end
+
+  defp self_call?(_, _), do: false
 
   defp manual_min_reduce(all_nodes) do
     for node <- all_nodes, reduce_call?(node), callback_contains?(node, :min) do
@@ -143,22 +142,91 @@ defmodule Reach.Smell.Checks.LoopAntipattern do
   end
 
   defp frequencies_pattern?(call) do
-    empty_map_acc?(call) and simple_map_update_callback?(call)
+    case call.children do
+      [
+        _source,
+        %{type: :map, children: []},
+        %{type: :fn, meta: %{kind: :capture}, children: [update]}
+      ] ->
+        counting_update?(update, {:capture, 1}, {:capture, 2})
+
+      [_source, %{type: :map, children: []}, %{type: :fn, children: [clause]}] ->
+        case clause.children do
+          [%{type: :var} = item, %{type: :var} = accumulator, update] ->
+            counting_update?(update, item, accumulator)
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end
   end
 
-  defp empty_map_acc?(%{children: children}) do
-    Enum.any?(children, &(&1.type == :map and &1.children == []))
+  defp counting_update?(
+         %{
+           type: :call,
+           meta: %{module: Map, function: :update},
+           children: [map, key, %{type: :literal, meta: %{value: 1}}, increment]
+         },
+         item,
+         accumulator
+       ) do
+    same_variable?(map, accumulator) and same_variable?(key, item) and
+      increment_by_one?(increment)
   end
 
-  defp simple_map_update_callback?(call) do
-    body = Helpers.callback_body(call)
+  defp counting_update?(_, _, _), do: false
 
-    top_level_calls =
-      Enum.filter(body, fn node ->
-        node.type == :call and node.meta[:module] == Map and
-          node.meta[:function] in [:update, :update!]
-      end)
+  defp increment_by_one?(%{type: :fn, meta: %{kind: :capture}, children: [addition]}),
+    do: addition_by_one?(addition, {:capture, 1})
 
-    top_level_calls != [] and length(body) <= 15
-  end
+  defp increment_by_one?(%{
+         type: :fn,
+         children: [%{type: :clause, children: [parameter, addition]}]
+       }),
+       do: addition_by_one?(addition, parameter)
+
+  defp increment_by_one?(_), do: false
+
+  defp addition_by_one?(
+         %{
+           type: :binary_op,
+           meta: %{operator: :+},
+           children: [value, %{type: :literal, meta: %{value: 1}}]
+         },
+         parameter
+       ),
+       do: same_variable?(value, parameter)
+
+  defp addition_by_one?(
+         %{
+           type: :binary_op,
+           meta: %{operator: :+},
+           children: [%{type: :literal, meta: %{value: 1}}, value]
+         },
+         parameter
+       ),
+       do: same_variable?(value, parameter)
+
+  defp addition_by_one?(_, _), do: false
+
+  defp same_variable?(
+         %{
+           type: :fn,
+           meta: %{kind: :capture},
+           children: [%{type: :literal, meta: %{value: index}}]
+         },
+         {:capture, index}
+       ),
+       do: true
+
+  defp same_variable?(
+         %{type: :var, meta: %{name: name}},
+         %{type: :var, meta: %{name: name}}
+       ),
+       do: true
+
+  defp same_variable?(_, _), do: false
 end

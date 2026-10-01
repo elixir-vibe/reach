@@ -4,6 +4,7 @@ defmodule Reach.Smell.Checks.RedundantComputation do
   use Reach.Smell.Check
 
   alias Reach.Effects
+  alias Reach.Smell.ExecutionContext
   alias Reach.Smell.Finding
 
   @type_check_fns [
@@ -59,41 +60,25 @@ defmodule Reach.Smell.Checks.RedundantComputation do
 
   @pattern_operators [:|, :{}, :@, :"::", :<<>>, :size]
 
-  defp findings(func) do
+  def run(project) do
+    modules = for {_id, node} <- project.nodes, node.type == :module_def, do: node
+    contracts = ExecutionContext.function_contracts(modules)
+
+    project
+    |> Helpers.function_defs()
+    |> Enum.flat_map(&findings(&1, contracts))
+  end
+
+  defp findings(func, contracts) do
     func
-    |> collect_sequential_blocks()
-    |> Enum.flat_map(&find_redundant_in_block/1)
-  end
-
-  defp find_redundant_in_block(block_calls) do
-    block_calls
-    |> Enum.group_by(fn node -> {node.meta[:module], node.meta[:function], node.meta[:arity]} end)
-    |> Enum.flat_map(fn {_key, group} ->
-      if length(group) > 1, do: find_same_arg_calls(group), else: []
+    |> ExecutionContext.annotate(contracts)
+    |> IR.all_nodes()
+    |> Enum.filter(&redundancy_candidate?/1)
+    |> Enum.group_by(fn node ->
+      {node.meta[:smell_execution], node.meta[:module], node.meta[:function], node.meta[:arity],
+       Enum.map(node.children, &argument_identity/1)}
     end)
-  end
-
-  defp collect_sequential_blocks(node) do
-    calls = collect_block_calls(node, []) |> Enum.reverse()
-
-    nested =
-      (node.children || [])
-      |> Enum.flat_map(fn child ->
-        case child.type do
-          type when type in [:case, :fn] ->
-            child.children
-            |> Enum.filter(&(&1.type == :clause))
-            |> Enum.flat_map(&collect_sequential_blocks/1)
-
-          :clause ->
-            collect_sequential_blocks(child)
-
-          _ ->
-            []
-        end
-      end)
-
-    if calls != [], do: [calls | nested], else: nested
+    |> Enum.flat_map(fn {_key, calls} -> find_same_arg_calls(calls) end)
   end
 
   defp formatting_call?(%{meta: %{function: :to_string, module: Kernel}}), do: true
@@ -112,28 +97,31 @@ defmodule Reach.Smell.Checks.RedundantComputation do
   @excluded_kinds MapSet.new([:attribute, :field_access, :binary_size])
 
   defp redundancy_candidate?(node) do
-    node.type == :call and node.meta[:function] != nil and node.source_span != nil and
-      node.meta[:function] not in @excluded_fns and
-      node.meta[:kind] not in @excluded_kinds and
-      node.meta[:module] != Access and
-      Effects.pure?(node) and not formatting_call?(node)
+    node.type == :call and node.source_span != nil and node.children != [] and
+      not excluded_call?(node) and Effects.pure?(node)
   end
 
-  defp collect_block_calls(node, acc) do
-    acc = if redundancy_candidate?(node), do: [node | acc], else: acc
-
-    node.children
-    |> Enum.reject(&(&1.type in [:case, :fn, :clause]))
-    |> Enum.reduce(acc, &collect_block_calls/2)
+  defp excluded_call?(node) do
+    node.meta[:function] == nil or node.meta[:smell_quoted] or
+      node.meta[:smell_reachable] == false or node.meta[:function] in @excluded_fns or
+      node.meta[:kind] in @excluded_kinds or node.meta[:module] == Access or
+      formatting_call?(node)
   end
 
   defp find_same_arg_calls(calls) do
-    calls
-    |> Enum.chunk_every(2, 1, [])
-    |> Enum.flat_map(fn
-      [left, right] -> maybe_redundant_call(left, right)
-      _ -> []
-    end)
+    {findings, _} =
+      Enum.reduce(calls, {[], []}, fn right, {findings, previous} ->
+        left =
+          Enum.find(previous, fn left ->
+            ExecutionContext.compatible?(left, right) and same_args?(left, right) and
+              left.source_span[:start_line] != right.source_span[:start_line]
+          end)
+
+        additions = if left, do: maybe_redundant_call(left, right), else: []
+        {additions ++ findings, [right | previous]}
+      end)
+
+    Enum.reverse(findings)
   end
 
   defp maybe_redundant_call(left, right) do
@@ -157,8 +145,12 @@ defmodule Reach.Smell.Checks.RedundantComputation do
       |> Enum.all?(fn {left_child, right_child} -> same_node?(left_child, right_child) end)
   end
 
+  defp argument_identity(%{type: :var, meta: meta}), do: {:var, meta[:smell_binding]}
+  defp argument_identity(%{type: :literal, meta: meta}), do: {:literal, meta[:value]}
+  defp argument_identity(node), do: {:expression, node.id}
+
   defp same_node?(%{type: :var, meta: left}, %{type: :var, meta: right}),
-    do: left[:name] == right[:name]
+    do: left[:smell_binding] == right[:smell_binding]
 
   defp same_node?(%{type: :literal, meta: left}, %{type: :literal, meta: right}),
     do: left[:value] == right[:value]

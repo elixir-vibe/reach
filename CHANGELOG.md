@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Preserve every parameter and definition binding in guarded multi-argument anonymous functions.
+- Count fixed-shape maps only in construction expressions, not destructuring patterns, map updates, typespecs or quoted syntax. Recognize returned, standard Supervisor child specifications as an existing contract.
+- Resolve existing behaviour callbacks from source declarations and pure, code-path BEAM metadata before suggesting a new behaviour. Never load dependencies or execute their `@on_load` hooks during analysis. Retain candidates for shared custom APIs, unknown contracts and unrelated startup functions.
+- Keep lexical map bindings separate across input clauses, rebinding and callback shadowing. Continue reporting mixed atom/string access on one binding, including fallback expressions.
+- Separate mutually exclusive exception and control-flow arms when checking repeated pure computation. Use only source-proven no-return contracts and exact stable-binding truthiness constraints; retain duplicate calls on compatible execution paths, inside raising diagnostics, and across returning opaque helpers.
+- Treat Ash query-filter expression syntax as quoted DSL according to its macro contract, without excluding pinned runtime expressions or real functions with the same names.
+- Require growing accumulator feedback for quadratic concatenation findings, including returned map/struct fields and nested map buckets. Do not mistake parser inputs, match patterns, diagnostics or prepending for accumulating output.
+- Require actual item-count increments for frequency-counting suggestions, proven lists for `Enum.count/1` list advice, and direct conjunctive parameter guards for function-head suggestions. Preserve numeric equality semantics and distinguish recursive iteration from terminal clause dispatch.
+
 ## 2.2.0
 
 ### New

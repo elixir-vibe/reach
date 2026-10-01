@@ -10,7 +10,7 @@ defmodule Reach.Smell.Checks.StringBuilding do
     detect_map_join_interpolation(calls) ++
       detect_map_join_concat(calls) ++
       detect_concat_around_join(all_nodes) ++
-      detect_reduce_string_concat(calls)
+      detect_reduce_string_concat(calls, func)
   end
 
   defp detect_map_join_interpolation(calls) do
@@ -65,11 +65,9 @@ defmodule Reach.Smell.Checks.StringBuilding do
     )
   end
 
-  defp detect_reduce_string_concat(calls) do
+  defp detect_reduce_string_concat(calls, function) do
     calls
-    |> Enum.filter(
-      &(enum_call?(&1, :reduce) and has_empty_string_acc?(&1) and callback_uses_concat?(&1))
-    )
+    |> Enum.filter(&(enum_call?(&1, :reduce) and callback_grows_string?(&1, function)))
     |> Enum.map(
       &finding(
         :string_building,
@@ -105,15 +103,13 @@ defmodule Reach.Smell.Checks.StringBuilding do
   defp has_concat?(nodes),
     do: Enum.any?(nodes, &(&1.type == :binary_op and &1.meta[:operator] == :<>))
 
-  defp has_empty_string_acc?(%{children: children}),
-    do: Enum.any?(children, &match?(%{type: :literal, meta: %{value: ""}}, &1))
-
-  defp callback_uses_concat?(call) do
-    call.children
-    |> Enum.filter(&(&1.type == :fn))
-    |> Enum.any?(fn fn_node ->
-      subtree = IR.all_nodes(fn_node)
-      has_concat?(subtree) or has_interpolation?(subtree)
+  defp callback_grows_string?(call, function) do
+    call
+    |> IR.all_nodes()
+    |> Enum.any?(fn node ->
+      ((node.type == :binary_op and node.meta[:operator] == :<>) or
+         (node.type == :call and node.meta[:function] == :<<>>)) and
+        Helpers.growing_accumulator_concat?(node, function)
     end)
   end
 end

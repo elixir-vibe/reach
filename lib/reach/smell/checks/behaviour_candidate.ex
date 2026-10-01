@@ -5,7 +5,7 @@ defmodule Reach.Smell.Checks.BehaviourCandidate do
 
   alias Reach.CloneAnalysis
   alias Reach.Config
-  alias Reach.IR
+  alias Reach.Smell.ContractCallbacks
   alias Reach.Smell.Finding
   alias Reach.Smell.Helpers
 
@@ -24,19 +24,26 @@ defmodule Reach.Smell.Checks.BehaviourCandidate do
   end
 
   defp module_public_apis(project, config) do
-    for({_id, node} <- project.nodes, node.type == :module_def and node.source_span, do: node)
-    |> Enum.flat_map(&module_public_api(&1, config))
+    modules =
+      for({_id, node} <- project.nodes, node.type == :module_def and node.source_span, do: node)
+
+    contracts = ContractCallbacks.index(modules)
+    functions = ContractCallbacks.functions(modules)
+    Enum.flat_map(modules, &module_public_api(&1, config, contracts, functions))
   end
 
-  defp module_public_api(module, config) do
+  defp module_public_api(module, config, contracts, functions) do
+    contract = Map.fetch!(contracts, module.meta[:name])
+
     callbacks =
       module
-      |> IR.all_nodes()
+      |> ContractCallbacks.module_functions()
       |> Enum.filter(&public_function?/1)
+      |> Enum.reject(&ContractCallbacks.startup_facade?(&1, contract, functions))
       |> Enum.map(&function_signature/1)
       |> Enum.uniq()
       |> Enum.sort()
-      |> Enum.reject(&ignored_callback?/1)
+      |> Enum.reject(&(ignored_callback?(&1) or MapSet.member?(contract.callbacks, &1)))
 
     if length(callbacks) >= config.min_callbacks do
       [
@@ -59,9 +66,13 @@ defmodule Reach.Smell.Checks.BehaviourCandidate do
 
   defp function_signature(function), do: {function.meta[:name], function.meta[:arity]}
 
-  defp ignored_callback?({name, _arity}) do
-    name in [:__struct__, :child_spec, :module_info]
-  end
+  defp ignored_callback?({:child_spec, 1}), do: true
+
+  defp ignored_callback?({name, arity})
+       when name in [:__struct__, :module_info] and arity in [0, 1],
+       do: true
+
+  defp ignored_callback?(_signature), do: false
 
   defp behaviour_candidate({callbacks, modules}, config, clone_evidence) do
     distinct_modules = Enum.uniq_by(modules, & &1.module)

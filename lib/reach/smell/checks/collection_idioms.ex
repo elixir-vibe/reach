@@ -149,7 +149,7 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
 
   smell(
     from(~p[Enum.count(arg)])
-    |> where(not match?({:&, _, _}, ^arg) and not match?({:fn, _, _}, ^arg)),
+    |> where(list_expression?(^arg)),
     :suboptimal,
     "Enum.count/1 without predicate has protocol dispatch overhead; use length/1 for lists"
   )
@@ -185,4 +185,40 @@ defmodule Reach.Smell.Checks.CollectionIdioms do
     :suboptimal,
     "length/1 > 0 is O(n); use != [] or match?([_ | _], list)"
   )
+
+  # Enum.count/1 accepts every Enumerable; length/1 only accepts lists.
+  # Unknown parameters (including list | MapSet specs) are not list evidence.
+  defp list_expression?(value) when is_list(value), do: true
+
+  defp list_expression?({:|>, _, [input, {target, meta, arguments}]})
+       when is_list(arguments),
+       do: list_expression?({target, meta, [input | arguments]})
+
+  defp list_expression?({{:., _, [{:__aliases__, _, [:Enum]}, function]}, _, _}),
+    do:
+      function in [
+        :to_list,
+        :map,
+        :flat_map,
+        :filter,
+        :reject,
+        :reverse,
+        :sort,
+        :sort_by,
+        :uniq,
+        :uniq_by,
+        :take,
+        :drop,
+        :take_while,
+        :drop_while
+      ]
+
+  defp list_expression?({{:., _, [{:__aliases__, _, [:Map]}, function]}, _, _}),
+    do: function in [:keys, :values, :to_list]
+
+  defp list_expression?({{:., _, [{:__aliases__, _, [:String]}, function]}, _, _}),
+    do: function in [:split, :graphemes, :codepoints, :to_charlist]
+
+  defp list_expression?({{:., _, [{:__aliases__, _, [:Tuple]}, :to_list]}, _, _}), do: true
+  defp list_expression?(_), do: false
 end

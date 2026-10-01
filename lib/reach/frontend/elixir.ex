@@ -426,7 +426,7 @@ defmodule Reach.Frontend.Elixir do
         %Node{
           id: Counter.next(counter),
           type: :clause,
-          meta: %{kind: :fn_clause, index: index},
+          meta: %{kind: :fn_clause, index: index, arity: length(pattern_nodes)},
           children: pattern_nodes ++ guard_nodes ++ [body_node],
           source_span: span_from_meta(clause_meta, file)
         }
@@ -902,19 +902,23 @@ defmodule Reach.Frontend.Elixir do
 
   defp extract_patterns_and_guards(patterns, counter, file) do
     Enum.reduce(patterns, {[], []}, fn
-      {:when, _, [pattern | guards]}, {pats, gs} ->
-        pat = translate(pattern, counter, file)
+      {:when, _, guarded}, {pats, gs} ->
+        {parameters, [guard]} = Enum.split(guarded, -1)
 
-        new_guards =
-          Enum.map(guards, fn g ->
-            %Node{
-              id: Counter.next(counter),
-              type: :guard,
-              children: [translate(g, counter, file)]
-            }
+        new_patterns =
+          Enum.map(parameters, fn parameter ->
+            parameter
+            |> translate(counter, file)
+            |> mark_as_definitions()
           end)
 
-        {pats ++ [pat], gs ++ new_guards}
+        guard_node = %Node{
+          id: Counter.next(counter),
+          type: :guard,
+          children: [translate(guard, counter, file)]
+        }
+
+        {pats ++ new_patterns, gs ++ [guard_node]}
 
       pattern, {pats, gs} ->
         {pats ++ [translate(pattern, counter, file) |> mark_as_definitions()], gs}

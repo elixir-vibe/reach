@@ -17,51 +17,75 @@ defmodule Reach.Smell.Checks.IdiomMismatch do
     |> Enum.flat_map(&guard_equalities(&1, function))
   end
 
-  defp guard_equalities(clause, _function) do
-    clause
-    |> IR.all_nodes()
-    |> Enum.filter(&guard_with_literal_equality?/1)
+  defp guard_equalities(clause, function) do
+    parameters =
+      clause.children
+      |> Enum.take(function.meta[:arity])
+      |> Enum.filter(&(&1.type == :var))
+      |> Enum.map(& &1.meta[:name])
+
+    clause.children
+    |> Enum.filter(&(&1.type == :guard))
     |> Enum.flat_map(fn guard ->
-      guard
-      |> IR.all_nodes()
-      |> Enum.filter(fn n ->
-        n.type == :binary_op and n.meta[:operator] == :== and
-          has_literal_and_var?(n.children) and n.source_span
-      end)
-      |> Enum.map(fn eq_node ->
+      conjuncts = Enum.flat_map(guard.children, &guard_conjuncts/1)
+
+      for equality <- conjuncts,
+          equality.type == :binary_op,
+          equality.meta[:operator] in [:==, :===],
+          equality.source_span,
+          head_match_equivalent?(equality, parameters, conjuncts) do
         finding(
           :suboptimal,
-          "guard compares parameter to literal with ==; use pattern matching in the function head",
-          eq_node
+          "guard compares parameter to literal; use pattern matching in the function head",
+          equality
         )
+      end
+    end)
+  end
+
+  defp guard_conjuncts(%{type: :binary_op, meta: %{operator: :and}, children: children}),
+    do: Enum.flat_map(children, &guard_conjuncts/1)
+
+  defp guard_conjuncts(node), do: [node]
+
+  defp head_match_equivalent?(%{children: [left, right]} = equality, parameters, conjuncts) do
+    literal_parameter?(left, right, equality, parameters, conjuncts) or
+      literal_parameter?(right, left, equality, parameters, conjuncts)
+  end
+
+  defp head_match_equivalent?(_, _, _), do: false
+
+  defp literal_parameter?(
+         %{type: :literal, meta: %{value: value}},
+         %{type: :var, meta: %{name: name}},
+         equality,
+         parameters,
+         conjuncts
+       )
+       when is_atom(value) or is_binary(value) or is_integer(value) or is_float(value) do
+    name in parameters and
+      (equality.meta[:operator] == :=== or not is_number(value) or
+         integer_parameter?(name, value, conjuncts))
+  end
+
+  defp literal_parameter?(_, _, _, _, _), do: false
+
+  # == accepts 0.0 as well as 0; a literal head does not. An integer type
+  # constraint in the same conjunction is required before suggesting that rewrite.
+  defp integer_parameter?(name, value, conjuncts) do
+    is_integer(value) and
+      Enum.any?(conjuncts, fn
+        %{
+          type: :call,
+          meta: %{function: :is_integer, module: module},
+          children: [%{type: :var, meta: %{name: parameter}}]
+        } ->
+          module in [nil, Kernel] and parameter == name
+
+        _ ->
+          false
       end)
-    end)
   end
-
-  defp guard_with_literal_equality?(%{type: :guard} = guard) do
-    guard
-    |> IR.all_nodes()
-    |> Enum.any?(fn node ->
-      node.type == :binary_op and node.meta[:operator] == :== and
-        has_literal_and_var?(node.children)
-    end)
-  end
-
-  defp guard_with_literal_equality?(_), do: false
-
-  defp has_literal_and_var?([left, right]) do
-    (literal?(left) and var?(right)) or (var?(left) and literal?(right))
-  end
-
-  defp has_literal_and_var?(_), do: false
-
-  defp literal?(%{type: :literal, meta: %{value: v}})
-       when is_atom(v) or is_integer(v) or is_binary(v), do: true
-
-  defp literal?(_), do: false
-
-  defp var?(%{type: :var}), do: true
-  defp var?(_), do: false
 
   defp map_update_then_fetch(function) do
     Helpers.statement_pairs(function)

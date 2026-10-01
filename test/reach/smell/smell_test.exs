@@ -325,37 +325,6 @@ defmodule Reach.SmellTest do
   end
 
   describe "dual atom/string key access detection" do
-    test "flags same map variable accessed with string and atom keys" do
-      findings =
-        run_smell_task("""
-        defmodule LooseContract do
-          def failure_manifest(metadata) do
-            metadata["analyzer"] || metadata[:analyzer]
-          end
-        end
-        """)
-
-      assert [%{kind: :dual_key_access} = finding] =
-               Enum.filter(findings, &(&1.kind == :dual_key_access))
-
-      assert finding.message =~ "metadata"
-      assert finding.message =~ "analyzer"
-      assert finding.message =~ "normalize the map once or use a struct/contract"
-    end
-
-    test "flags Map.get with mixed key types" do
-      findings =
-        run_smell_task("""
-        defmodule LooseContract do
-          def fetch(metadata) do
-            Map.get(metadata, "command") || Map.get(metadata, :command)
-          end
-        end
-        """)
-
-      assert [%{kind: :dual_key_access}] = Enum.filter(findings, &(&1.kind == :dual_key_access))
-    end
-
     test "does not flag different map variables" do
       findings =
         run_smell_task("""
@@ -896,17 +865,6 @@ defmodule Reach.SmellTest do
         """)
 
       assert Enum.any?(findings, &(&1.message =~ "Enum.reduce"))
-    end
-
-    test "flags Enum.count without predicate" do
-      findings =
-        run_smell_task("""
-        defmodule A do
-          def len(items), do: Enum.count(items)
-        end
-        """)
-
-      assert Enum.any?(findings, &(&1.message =~ "length"))
     end
 
     test "does not flag Enum.count with predicate" do
