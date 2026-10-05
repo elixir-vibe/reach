@@ -25,6 +25,7 @@ lib/mix/tasks/phx.gen.release.ex:251  suboptimal
 lib/mix/tasks/phx.gen.schema.ex:211  unsafe_atom_creation
 lib/phoenix/code_reloader/server.ex:376  unsafe_atom_creation
 lib/phoenix/config.ex:51  bare_rescue
+lib/phoenix/controller.ex:1755  suboptimal
 lib/phoenix/controller.ex:1761  bare_rescue
 lib/phoenix/controller.ex:1831  string_building
 lib/phoenix/controller.ex:436  suboptimal
@@ -35,12 +36,14 @@ lib/phoenix/endpoint/cowboy2_adapter.ex:133  bare_rescue
 lib/phoenix/endpoint/cowboy2_adapter.ex:149  bare_rescue
 lib/phoenix/endpoint/supervisor.ex:359  bare_rescue
 lib/phoenix/router.ex:11  string_building
+lib/phoenix/router.ex:313  suboptimal
 lib/phoenix/router.ex:576  suboptimal
 lib/phoenix/router.ex:621  suboptimal
 lib/phoenix/router/console_formatter.ex:99  string_building
 lib/phoenix/router/scope.ex:246  string_building
 lib/phoenix/router/scope.ex:264  string_building
 lib/phoenix/test/channel_test.ex:159  behaviour_candidate
+lib/phoenix/test/channel_test.ex:258  suboptimal
 lib/phoenix/test/channel_test.ex:338  fixed_shape_map
 lib/phoenix/test/conn_test.ex:599  unsafe_atom_creation
 lib/phoenix/test/conn_test.ex:606  string_building

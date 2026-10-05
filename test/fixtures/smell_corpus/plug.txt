@@ -4,6 +4,7 @@ lib/plug/conn.ex:1827  suboptimal
 lib/plug/conn/adapter.ex:50  unsafe_atom_creation
 lib/plug/conn/status.ex:83  unsafe_atom_creation
 lib/plug/conn/utils.ex:70  suboptimal
+lib/plug/debugger.ex:405  suboptimal
 lib/plug/debugger.ex:459  string_building
 lib/plug/debugger.ex:588  bare_rescue
 lib/plug/parsers/json.ex:95  bare_rescue
@@ -16,4 +17,5 @@ lib/plug/router/utils.ex:248  suboptimal
 lib/plug/router/utils.ex:258  suboptimal
 lib/plug/router/utils.ex:79  unsafe_atom_creation
 lib/plug/session/cookie.ex:125  bare_rescue
+lib/plug/static.ex:187  suboptimal
 lib/plug/static.ex:227  string_building
