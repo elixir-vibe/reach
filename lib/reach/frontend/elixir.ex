@@ -206,8 +206,8 @@ defmodule Reach.Frontend.Elixir do
   # if/unless — desugar into case
   defp translate({kind, meta, [condition, branches]}, counter, file)
        when kind in [:if, :unless] and is_list(branches) do
-    do_body = Keyword.get(branches, :do, nil)
-    else_body = Keyword.get(branches, :else, nil)
+    do_body = Keyword.get(branches, :do)
+    else_body = Keyword.get(branches, :else)
 
     {true_body, false_body} =
       if kind == :if, do: {do_body, else_body}, else: {else_body, do_body}

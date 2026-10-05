@@ -1,8 +1,10 @@
 lib/ecto/association.ex:276  suboptimal
 lib/ecto/association.ex:288  fixed_shape_map
 lib/ecto/changeset.ex:1369  suboptimal
+lib/ecto/changeset.ex:1464  suboptimal
 lib/ecto/changeset.ex:3456  unsafe_atom_creation
 lib/ecto/changeset.ex:4220  string_building
+lib/ecto/changeset.ex:494  suboptimal
 lib/ecto/changeset.ex:518  string_building
 lib/ecto/changeset/relation.ex:486  suboptimal
 lib/ecto/embedded.ex:237  string_building
@@ -31,6 +33,7 @@ lib/ecto/repo/preloader.ex:350  suboptimal
 lib/ecto/repo/preloader.ex:592  suboptimal
 lib/ecto/repo/preloader.ex:789  string_building
 lib/ecto/repo/preloader.ex:79  bare_rescue
+lib/ecto/repo/queryable.ex:150  suboptimal
 lib/ecto/repo/schema.ex:1258  string_building
 lib/ecto/repo/schema.ex:909  string_building
 lib/ecto/repo/supervisor.ex:155  suboptimal

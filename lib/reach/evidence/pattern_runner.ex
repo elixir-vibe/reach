@@ -26,8 +26,7 @@ defmodule Reach.Evidence.PatternRunner do
   defp find_many(ast, patterns) do
     Patcher.find_many(ast, patterns)
   rescue
-    FunctionClauseError -> []
-    ArgumentError -> []
+    _error in [ArgumentError, FunctionClauseError, Protocol.UndefinedError] -> []
   end
 
   def match_meta(%{range: %{start: start}}) when is_list(start) do

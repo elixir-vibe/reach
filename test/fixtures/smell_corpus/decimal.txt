@@ -1,0 +1,2 @@
+lib/decimal.ex:277  suboptimal
+lib/decimal.ex:299  suboptimal

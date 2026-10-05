@@ -75,4 +75,5 @@ lib/credo/priority.ex:75  suboptimal
 lib/credo/sources.ex:155  suboptimal
 lib/credo/sources.ex:167  suboptimal
 lib/credo/sources.ex:174  suboptimal
+lib/credo/test/assertions.ex:179  eager_pattern
 lib/credo/test/assertions.ex:182  string_building
