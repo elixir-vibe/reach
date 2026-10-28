@@ -28,6 +28,7 @@ defmodule Reach.Plugins.Phoenix do
       Reach.Plugins.Phoenix.Smells.AssignAsyncCapturesSocket,
       Reach.Plugins.Phoenix.Smells.AssignNewRefreshedValue,
       Reach.Plugins.Phoenix.Smells.DisconnectedMountRepo,
+      Reach.Plugins.Phoenix.Smells.PubSubPayloadRefetch,
       Reach.Plugins.Phoenix.Smells.PubSubSubscribeWithoutConnected
     ]
   end

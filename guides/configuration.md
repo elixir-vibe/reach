@@ -628,6 +628,7 @@ Reach combines generic Elixir smells with plugin-provided Phoenix, Ecto, and Oba
 | `phoenix_assign_async_captures_socket` | `assign_async(socket, :x, fn -> socket.assigns.x end)` | copy needed assign values before the callback |
 | `phoenix_assign_new_refreshed_value` | `assign_new(socket, :current_user, ...)` inside `mount/3` | use `assign/3` for values refreshed every mount |
 | `phoenix_pubsub_subscribe_without_connected` | `Phoenix.PubSub.subscribe(...)` in `mount/3` | guard with `if connected?(socket)` |
+| `phoenix_pubsub_payload_refetch` | `handle_info({:instance, %{id: id}}, socket)` calls `get_instance(id)` while a broadcaster sends `{:instance, instance}` | use the payload, or broadcast only the id when the receiver must re-read |
 
 Some intentionally context-sensitive checks, such as dynamic `Phoenix.HTML.raw/1`, are kept available as direct check modules but are not enabled by the default Phoenix plugin because real applications often use them in sanitizer, markdown, or compiler helpers.
 

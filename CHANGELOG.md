@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- The Phoenix plugin reports `phoenix_pubsub_payload_refetch` when a `handle_info/2` clause takes only the `id` from a `{tag, record}` PubSub message and queries for the record again, while a broadcaster in the project sends the same tag with a full struct or map.
+
 ## 2.8.4 - 2026-09-13
 
 ### Fixed
