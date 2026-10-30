@@ -1217,6 +1217,8 @@ defmodule Reach.Effects do
 
   defp pure_module?(module), do: module in @pure_modules
 
+  defp pure_function?(IO, :iodata_to_binary, 1), do: true
+
   defp pure_function?(module, function, arity) do
     {module, function, arity} in @pure_erlang_functions
   end

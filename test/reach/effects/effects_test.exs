@@ -37,6 +37,24 @@ defmodule Reach.EffectsTest do
       assert Effects.classify(node_for("match?(%{}, value)")) == :pure
     end
 
+    test "iodata conversion is pure only at its exact arity" do
+      assert Effects.classify(node_for("IO.iodata_to_binary(data)")) == :pure
+      assert Effects.pure_call?(IO, :iodata_to_binary, 1)
+      refute Effects.pure_call?(IO, :iodata_to_binary, 0)
+      refute Effects.pure_call?(IO, :iodata_to_binary, 2)
+    end
+
+    test "genuine IO operations remain IO" do
+      for source <- [
+            "IO.puts(data)",
+            "IO.write(data)",
+            "IO.gets(prompt)",
+            "IO.read(:stdio, :line)"
+          ] do
+        assert Effects.classify(node_for(source)) == :io
+      end
+    end
+
     test "IO calls are :io" do
       assert Effects.classify(node_for("IO.puts(x)")) == :io
     end
