@@ -1,7 +1,7 @@
 defmodule Reach.Check.MapContractTemplate do
   @moduledoc "Builds source-backed fix templates for implicit map-contract candidates."
 
-  alias Reach.Evidence.Impact
+  alias Reach.Evidence.{Impact, MapContract}
   alias Reach.IR.Helpers, as: IRHelpers
   alias Reach.Project.Query
 
@@ -20,11 +20,30 @@ defmodule Reach.Check.MapContractTemplate do
     canonical_site = canonical_site(contracts, project)
 
     %{
-      canonical_site: canonical_site,
+      canonical_site: if(canonical_site, do: Map.delete(canonical_site, :mfa)),
+      documented_typed_map?:
+        kind == :introduce_typed_map_contract and
+          documented_producer?(canonical_site, contracts, keys, project),
       draft_contract: draft_contract(keys, kind),
       blast_radius: blast_radius(functions, project, candidate_config)
     }
   end
+
+  defp documented_producer?(
+         %{reason: :existing_producer, mfa: mfa, file: file},
+         contracts,
+         keys,
+         project
+       ) do
+    Enum.all?(contracts, fn contract ->
+      sites = construction_sites(contract, project)
+
+      Enum.sort(contract.keys) == Enum.sort(keys) and sites != [] and
+        Enum.all?(sites, &(&1.mfa == mfa))
+    end) and MapContract.documented_named_map?(file, mfa, keys)
+  end
+
+  defp documented_producer?(_site, _contracts, _keys, _project), do: false
 
   defp canonical_site(contracts, project) do
     contracts
@@ -121,7 +140,13 @@ defmodule Reach.Check.MapContractTemplate do
   end
 
   defp site(target, file, line, reason) do
-    %{target: IRHelpers.func_id_to_string(target), file: file, line: line, reason: reason}
+    %{
+      target: IRHelpers.func_id_to_string(target),
+      file: file,
+      line: line,
+      reason: reason,
+      mfa: target
+    }
   end
 
   defp site_reason_rank(:existing_producer), do: 0

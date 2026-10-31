@@ -267,6 +267,88 @@ defmodule Reach.Evidence.MapContract do
   defp project_plugins(project) when is_map(project), do: Map.get(project, :plugins, [])
   defp project_plugins(_project), do: []
 
+  @doc "Recognizes an exact, same-module named required-key map in a producer spec."
+  def documented_named_map?(file, {module, function, arity}, keys) do
+    with {:ok, _file, ast} <- source_file_ast(file) do
+      ast
+      |> Reach.AST.modules_in_file()
+      |> Enum.filter(fn {:defmodule, _, [name, _]} ->
+        Reach.AST.module_name(name) == {:ok, module}
+      end)
+      |> case do
+        [{:defmodule, _, [_, block]}] ->
+          with {:ok, body} <- Reach.AST.keyword_fetch(block, :do) do
+            statements =
+              case body do
+                {:__block__, _, values} -> values
+                value -> [value]
+              end
+
+            documented_map_statements?(statements, function, arity, keys)
+          else
+            _ -> false
+          end
+
+        _ ->
+          false
+      end
+    else
+      _ -> false
+    end
+  end
+
+  defp documented_map_statements?(statements, function, arity, keys) do
+    specs =
+      Enum.flat_map(statements, fn
+        {:@, _, [{:spec, _, [{:"::", _, [head, return]}]}]} ->
+          if Reach.AST.function_identity(head) == {:ok, function, arity}, do: [return], else: []
+
+        _ ->
+          []
+      end)
+
+    with [return] <- specs,
+         {:ok, name} <- named_map_return(return) do
+      types =
+        Enum.flat_map(statements, fn
+          {:@, _, [{kind, _, [{:"::", _, [{^name, _, args}, body]}]}]}
+          when kind in [:type, :typep] and args in [nil, []] ->
+            [body]
+
+          _ ->
+            []
+        end)
+
+      case types do
+        [{:%{}, _, fields}] ->
+          declared = Enum.map(fields, &required_literal_key/1)
+
+          Enum.all?(declared, &match?({:ok, _}, &1)) and
+            Enum.sort(Enum.map(declared, &elem(&1, 1))) == Enum.sort(keys)
+
+        _ ->
+          false
+      end
+    else
+      _ -> false
+    end
+  end
+
+  defp named_map_return({:|, _, [nil, other]}), do: named_map_reference(other)
+  defp named_map_return({:|, _, [other, nil]}), do: named_map_reference(other)
+  defp named_map_return(other), do: named_map_reference(other)
+
+  defp named_map_reference({name, _, args}) when is_atom(name) and args in [nil, []],
+    do: {:ok, name}
+
+  defp named_map_reference(_), do: :error
+
+  defp required_literal_key({{:required, _, [key]}, _value})
+       when is_atom(key) or is_binary(key), do: {:ok, key}
+
+  defp required_literal_key({key, _value}) when is_atom(key) or is_binary(key), do: {:ok, key}
+  defp required_literal_key(_), do: :error
+
   defp project_source_files(project), do: Reach.Source.project_files(project)
 
   defp source_file_ast(file) do
