@@ -278,6 +278,21 @@ defmodule Reach.Check.Candidates do
     |> MapContract.collect_project()
     |> group_map_contract_shapes()
     |> Enum.flat_map(&map_contract_candidate_group/1)
+    |> Enum.map(fn group ->
+      profile = map_contract_candidate_profile(group)
+
+      template =
+        MapContractTemplate.build(
+          group.contracts,
+          group.keys,
+          profile.kind,
+          project,
+          candidate_config
+        )
+
+      Map.merge(group, %{profile: profile, template: template})
+    end)
+    |> Enum.reject(& &1.template.documented_typed_map?)
     |> Enum.sort_by(fn group ->
       {-length(group.contracts), length(group.keys), inspect(group.keys)}
     end)
@@ -289,10 +304,8 @@ defmodule Reach.Check.Candidates do
       first = List.first(contracts)
       sources = contracts |> Enum.map(& &1.source) |> Enum.uniq()
 
-      profile = map_contract_candidate_profile(group)
-
-      template =
-        MapContractTemplate.build(contracts, keys, profile.kind, project, candidate_config)
+      profile = group.profile
+      template = group.template
 
       Candidate.new(
         id: candidate_id("R6", index),
