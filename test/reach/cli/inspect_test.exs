@@ -22,6 +22,17 @@ defmodule Reach.CLI.InspectTest do
     assert output =~ "Demo"
   end
 
+  test "reach.inspect --why reports when no call path exists" do
+    project = fixture_project()
+
+    output =
+      capture_io(fn ->
+        Inspect.run([why: "Demo.Main.run/1", project: project], ["Demo.Helper.clean/1"])
+      end)
+
+    assert output =~ "No call_path found."
+  end
+
   defp fixture_project do
     source = """
     defmodule Demo.Helper do

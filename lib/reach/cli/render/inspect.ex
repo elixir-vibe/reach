@@ -116,7 +116,7 @@ defmodule Reach.CLI.Render.Inspect do
     IO.puts(Format.header("Why #{result.target} -> #{result.why}"))
 
     message =
-      case result[:reason] do
+      case result.reason do
         nil -> "No #{result.relation} found."
         "source_not_found" -> "Source target could not be resolved."
         "target_not_found" -> "Why target could not be resolved."
