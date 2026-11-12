@@ -278,7 +278,11 @@ defmodule Reach.Evidence.ParameterShape do
     end
   end
 
-  defp find_target_function(project, _index, target), do: Query.find_function(project, target)
+  # Definitions without module metadata are only reachable by an unambiguous name/arity.
+  defp find_target_function(project, index, {_module, name, arity} = target) do
+    Query.find_function(project, target) ||
+      find_target_function(project, index, {nil, name, arity})
+  end
 
   defp tagged_variants?(occurrences, core) do
     core

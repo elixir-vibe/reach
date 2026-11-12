@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Call graph edges now start at the calling function's module instead of `nil`, and local calls resolve to the caller's module. `mix reach.inspect --impact` reports module-qualified direct callers and finds transitive callers again, and `--deps`/callee queries no longer merge same-named functions from different modules. Call graph vertices use the enclosing `defmodule` rather than the path-derived module name.
+
 ## 2.8.4 - 2026-09-13
 
 ### Fixed
