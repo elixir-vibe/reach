@@ -2,6 +2,7 @@ defmodule Reach.ProjectTest do
   use ExUnit.Case, async: false
 
   alias Reach.CLI.Project, as: CLIProject
+  alias Reach.Evidence.Impact
   alias Reach.Project
   alias Reach.Project.Query
 
@@ -106,8 +107,83 @@ defmodule Reach.ProjectTest do
         """)
 
       project = Project.from_sources([path_a, path_b])
-      cg_edges = Graph.edges(project.call_graph)
-      assert cg_edges != []
+      assert {Helper, :transform, 1} in Graph.out_neighbors(project.call_graph, {Caller, :run, 1})
+    end
+  end
+
+  describe "call graph queries" do
+    test "resolve transitive callers across modules" do
+      paths = [
+        write_file("lib/leaf.ex", """
+        defmodule Leaf do
+          def count(x), do: length(x)
+        end
+        """),
+        write_file("lib/mid.ex", """
+        defmodule Mid do
+          alias Leaf
+          def run(x), do: Leaf.count(x) + 1
+        end
+        """),
+        write_file("lib/top.ex", """
+        defmodule Top do
+          def go(x), do: Mid.run(x) * 2
+        end
+        """)
+      ]
+
+      project = Project.from_sources(paths)
+
+      assert Impact.callers(project, {Leaf, :count, 1}, 2) ==
+               [{Mid, :run, 1}, {Top, :go, 1}]
+    end
+
+    test "keep same-named functions in different modules apart" do
+      paths = [
+        write_file("lib/a.ex", """
+        defmodule A.Top do
+          def go(x), do: A.Work.run(x)
+        end
+
+        defmodule A.Work do
+          def run(x), do: x
+        end
+        """),
+        write_file("lib/b.ex", """
+        defmodule B.Top do
+          def go(x), do: B.Work.run(x)
+        end
+
+        defmodule B.Work do
+          def run(x), do: x
+        end
+        """)
+      ]
+
+      project = Project.from_sources(paths)
+      callees = project |> Query.callees({A.Top, :go, 1}, 1) |> Enum.map(& &1.id)
+
+      assert callees == [{A.Work, :run, 1}]
+    end
+
+    test "attribute callers to their defmodule when it differs from the file path" do
+      paths = [
+        write_file("lib/web/controllers/thing_controller.ex", """
+        defmodule Web.ThingController do
+          def show(x), do: Core.Thing.fetch(x)
+        end
+        """),
+        write_file("lib/core/thing.ex", """
+        defmodule Core.Thing do
+          def fetch(x), do: x
+        end
+        """)
+      ]
+
+      project = Project.from_sources(paths)
+
+      assert Impact.callers(project, {Core.Thing, :fetch, 1}, 1) ==
+               [{Web.ThingController, :show, 1}]
     end
   end
 

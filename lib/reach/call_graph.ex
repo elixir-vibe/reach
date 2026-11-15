@@ -18,11 +18,11 @@ defmodule Reach.CallGraph do
     all_nodes = Keyword.get_lazy(opts, :all_nodes, fn -> IR.all_nodes(ir_nodes) end)
 
     func_defs = collect_function_defs(all_nodes, module_name)
-    call_sites = collect_call_sites(all_nodes)
+    call_sites = collect_call_sites(all_nodes, module_name)
 
     graph =
-      Enum.reduce(func_defs, Graph.new(), fn {fun_id, _node}, g ->
-        Graph.add_vertex(g, fun_id)
+      Enum.reduce(func_defs, Graph.new(), fn {_fun_id, node}, g ->
+        Graph.add_vertex(g, function_id(node, module_name))
       end)
 
     Enum.reduce(call_sites, graph, fn {caller_id, callee_id, call_node_id}, g ->
@@ -77,18 +77,38 @@ defmodule Reach.CallGraph do
     end
   end
 
-  defp collect_call_sites(all_nodes) do
+  defp collect_call_sites(all_nodes, module_name) do
     parent_map = build_parent_map(all_nodes)
+
+    # Only definitions that carry their own module metadata can anchor a local call.
+    defined =
+      for node <- all_nodes,
+          node.type == :function_def and node.meta[:module] != nil,
+          into: MapSet.new(),
+          do: function_id(node, module_name)
 
     for call_node <- all_nodes,
         call_node.type == :call,
         caller_def = Map.get(parent_map, call_node.id),
         caller_def != nil do
-      caller_id = {nil, caller_def.meta[:name], caller_def.meta[:arity]}
-      callee_id = call_target(call_node)
+      {caller_module, _name, _arity} = caller_id = function_id(caller_def, module_name)
+      callee_id = call_node |> call_target() |> resolve_local(caller_module, defined)
       {caller_id, callee_id, call_node.id}
     end
   end
+
+  # The defmodule a definition was parsed in wins over the path-derived module name.
+  defp function_id(node, module_name),
+    do: {node.meta[:module] || module_name, node.meta[:name], node.meta[:arity]}
+
+  # Local calls carry no module; bind them to the caller's module when it defines them.
+  defp resolve_local({nil, fun, arity} = callee, caller_module, defined) do
+    if MapSet.member?(defined, {caller_module, fun, arity}),
+      do: {caller_module, fun, arity},
+      else: callee
+  end
+
+  defp resolve_local(callee, _caller_module, _defined), do: callee
 
   defp build_parent_map(all_nodes) do
     func_defs = Enum.filter(all_nodes, &(&1.type == :function_def))

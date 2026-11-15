@@ -63,6 +63,33 @@ defmodule Reach.CallGraphTest do
       assert {MyMod, :foo, 1} in vertices
       assert {MyMod, :bar, 1} in vertices
     end
+
+    test "attributes call edges to the calling module" do
+      nodes =
+        IR.from_string!("""
+        defmodule MyMod do
+          def foo(x), do: bar(x)
+          def bar(y), do: y
+        end
+        """)
+
+      graph = CallGraph.build(nodes, module: MyMod)
+
+      assert {MyMod, :bar, 1} in Graph.out_neighbors(graph, {MyMod, :foo, 1})
+    end
+
+    test "uses the defmodule name when it differs from the module option" do
+      nodes =
+        IR.from_string!("""
+        defmodule Real.Mod do
+          def foo(x), do: Other.bar(x)
+        end
+        """)
+
+      graph = CallGraph.build(nodes, module: PathDerived.Mod)
+
+      assert {Other, :bar, 1} in Graph.out_neighbors(graph, {Real.Mod, :foo, 1})
+    end
   end
 
   describe "find_enclosing_function/2" do
